@@ -1,5 +1,6 @@
 import { NodeStatus } from './NodeStatus';
 import { Edge } from './Edge';
+import { ValidationError } from './exceptions/ValidationError';
 
 
 export class Node {
@@ -27,6 +28,10 @@ export class Node {
         this._status = status;
         this._metadata = metadata;
         this._edges = edges;
+
+        this.validateId(id);
+        this.validateVersion(version);
+        this.validateUpdatedAt(updatedAt);
     }
 
     public get id(): string {
@@ -37,20 +42,44 @@ export class Node {
         return this._description;
     }
 
+    public set description(description: string) {
+        this._description = description;
+    }
+
     public get version(): string {
         return this._version;
+    }
+
+    public set version(version: string) {
+        this.validateVersion(version);
+
+        this._version = version;
     }
 
     public get updatedAt(): string {
         return this._updatedAt;
     }
 
+    public set updatedAt(updatedAt: string) {
+        this.validateUpdatedAt(updatedAt);
+
+        this._updatedAt = updatedAt;
+    }
+
     public get status(): NodeStatus {
         return this._status;
     }
 
+    public set status(status: NodeStatus) {
+        this._status = status;
+    }
+
     public get metadata(): Record<string, any> {
         return this._metadata;
+    }
+
+    public set metadata(metadata: Record<string, any>) {
+        this._metadata = metadata;
     }
 
     public get edges(): Edge[] {
@@ -71,5 +100,42 @@ export class Node {
             metadata: this._metadata,
             edges: this._edges.map(edge => edge.toObject())
         };
+    }
+
+    private validateId(id: string): void {
+        const pattern = /^[a-z0-9_-]+$/;
+
+        if (!pattern.test(id)) {
+            throw new ValidationError(
+                'id',
+                id,
+                `Invalid ID format: "${id}". Must match pattern ^[a-z0-9_-]+$`,
+                '^[a-z0-9_-]+$'
+            );
+        }
+    }
+
+    private validateVersion(version: string): void {
+        const pattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+
+        if (!pattern.test(version)) {
+            throw new ValidationError(
+                'version',
+                version,
+                `Invalid Semantic Version format: "${version}". Must follow SemVer (e.g., 1.0.0)`,
+                'SemVer'
+            );
+        }
+    }
+
+    private validateUpdatedAt(updatedAt: string): void {
+        if (isNaN(Date.parse(updatedAt))) {
+            throw new ValidationError(
+                'updatedAt',
+                updatedAt,
+                `Invalid ISO 8601 Date format: "${updatedAt}".`,
+                'ISO 8601'
+            );
+        }
     }
 }
