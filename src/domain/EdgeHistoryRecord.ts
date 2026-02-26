@@ -2,6 +2,7 @@ import { EdgeType } from './enums/EdgeType';
 import { EdgeStatus } from './enums/EdgeStatus';
 import { EdgeEvolutionReason } from './EdgeEvolutionReason';
 import { Node } from './Node';
+import { ValidationError } from './exceptions/ValidationError';
 
 
 export class EdgeHistoryRecord {
@@ -20,6 +21,9 @@ export class EdgeHistoryRecord {
         targetUpstream: Node,
         evolutionReason: EdgeEvolutionReason
     ) {
+        this.validateVersion(version);
+        this.validateUpdatedAt(updatedAt);
+
         this._version = version;
         this._updatedAt = updatedAt;
         this._type = type;
@@ -68,5 +72,28 @@ export class EdgeHistoryRecord {
             target_upstream_id: this._targetUpstream.id,
             evolution_reason: this._evolutionReason.toObject()
         };
+    }
+
+    private validateVersion(version: string): void {
+        const pattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+        if (!pattern.test(version)) {
+            throw new ValidationError(
+                'version',
+                version,
+                `Invalid Semantic Version format: "${version}". Must follow SemVer (e.g., 1.0.0)`,
+                'SemVer'
+            );
+        }
+    }
+
+    private validateUpdatedAt(updatedAt: string): void {
+        if (isNaN(Date.parse(updatedAt))) {
+            throw new ValidationError(
+                'updatedAt',
+                updatedAt,
+                `Invalid ISO 8601 Date format: "${updatedAt}".`,
+                'ISO 8601'
+            );
+        }
     }
 }

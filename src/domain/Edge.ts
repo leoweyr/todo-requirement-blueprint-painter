@@ -9,6 +9,7 @@ export class Edge {
 
     constructor(id: string, demandDescription: string, history: EdgeHistoryRecord[] = []) {
         this.validateId(id);
+
         this._id = id;
         this._demandDescription = demandDescription;
         this._history = history;
