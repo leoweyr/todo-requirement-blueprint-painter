@@ -1,4 +1,5 @@
 import { EdgeHistoryRecord } from './EdgeHistoryRecord';
+import { ValidationError } from './exceptions/ValidationError';
 
 
 export class Edge {
@@ -7,6 +8,7 @@ export class Edge {
     private readonly _history: EdgeHistoryRecord[];
 
     constructor(id: string, demandDescription: string, history: EdgeHistoryRecord[] = []) {
+        this.validateId(id);
         this._id = id;
         this._demandDescription = demandDescription;
         this._history = history;
@@ -40,5 +42,17 @@ export class Edge {
             demand_description: this._demandDescription,
             history: this._history.map(edgeHistoryRecord => edgeHistoryRecord.toObject())
         };
+    }
+
+    private validateId(id: string): void {
+        const pattern = /^[a-z0-9_-]+$/;
+        if (!pattern.test(id)) {
+            throw new ValidationError(
+                'id',
+                id,
+                `Invalid Edge ID format: "${id}". Must match pattern ^[a-z0-9_-]+$`,
+                '^[a-z0-9_-]+$'
+            );
+        }
     }
 }
