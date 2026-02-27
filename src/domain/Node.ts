@@ -18,8 +18,7 @@ export class Node {
         version: string,
         updatedAt: string,
         status: NodeStatus,
-        metadata: Record<string, any>,
-        edges: Edge[] = []
+        metadata: Record<string, any>
     ) {
         this.validateId(id);
         this.validateVersion(version);
@@ -31,7 +30,7 @@ export class Node {
         this._updatedAt = updatedAt;
         this._status = status;
         this._metadata = metadata;
-        this._edges = edges;
+        this._edges = [];
     }
 
     public get id(): string {
