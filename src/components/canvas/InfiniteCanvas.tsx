@@ -2,6 +2,7 @@ import { Component, type ReactNode, type CSSProperties, type MouseEvent } from '
 
 import { CanvasViewport } from './CanvasViewport';
 import { type ViewportObserver } from './ViewportObserver';
+import VerticalDivider from './VerticalDivider';
 
 
 export interface InfiniteCanvasProps {
@@ -9,6 +10,7 @@ export interface InfiniteCanvasProps {
     children?: ReactNode;
     className?: string;
     style?: CSSProperties;
+    layerGapCenters?: number[];  // X-coordinates for vertical dividers.
 }
 
 
@@ -78,7 +80,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
     }
 
     public render(): ReactNode {
-        const { viewport, children, style, className } = this.props;
+        const { viewport, children, style, className, layerGapCenters } = this.props;
         
         const containerStyle: CSSProperties = {
             width: '100vw',
@@ -102,6 +104,15 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
             willChange: 'transform'
         };
 
+        // Render dividers if data is available.
+        const dividers = layerGapCenters ? layerGapCenters.map((x, index) => (
+            <VerticalDivider
+                key={`divider-${index}`}
+                x={x}
+                fullHeight={true}
+            />
+        )) : null;
+
         return (
             <div
                 ref={(ref: HTMLDivElement | null): void => { this._containerRef = ref; }}
@@ -110,6 +121,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
                 onMouseDown={this.handleMouseDown}
             >
                 <div style={contentStyle}>
+                    {dividers}
                     {children}
                 </div>
             </div>

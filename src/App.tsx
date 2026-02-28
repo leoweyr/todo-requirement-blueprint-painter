@@ -65,11 +65,15 @@ class App extends Component<{}, AppState> {
 
     public render(): ReactNode {
         const { isFileLoaded } = this.state;
+        const layoutResult = this._layoutResult;
 
         return (
             <>
-                <InfiniteCanvas viewport={this._viewport}>
-                    {this._layoutResult && this.renderGraph()}
+                <InfiniteCanvas 
+                    viewport={this._viewport}
+                    layerGapCenters={layoutResult?.layerGapCenters}
+                >
+                    {layoutResult && this.renderGraph()}
                 </InfiniteCanvas>
 
                 {!isFileLoaded && (

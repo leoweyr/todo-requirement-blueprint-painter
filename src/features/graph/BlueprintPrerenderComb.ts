@@ -167,10 +167,10 @@ export class BlueprintPrerenderComb {
                     // Alternate placement: Left, Right, Left, Right from center.
                     // Or simply: Middle indices get highest connectivity.
                     // Simple sort: Most connected at top. Requirement: "Less connected to edges, More connected to interior".
-                    // So: [Low, Low, High, High, High, Low, Low]
+                    // So: [Low, Low, High, High, High, Low, Low].
                     // Sort by connectivity, then rearrange.
                     const sortedByConn: GraphNode[] = [...layerNodes].sort((a: GraphNode, b: GraphNode): number => {
-                        return getConnectivity(a.node) - getConnectivity(b.node); // Ascending: Low -> High
+                        return getConnectivity(a.node) - getConnectivity(b.node);  // Ascending: Low -> High.
                     });
                     
                     // Rearrange to put High in middle.
@@ -200,7 +200,7 @@ export class BlueprintPrerenderComb {
                 } else {
                     // Subsequent Layers: Sort by Barycenter of Upstream Nodes (in previous layers).
                     // We need the "Index" of upstream nodes to calculate average.
-                    // Ideally normalized index (0..1) or just order.
+                    // Use normalized index (0..1) or just order.
                     layerNodes.sort((a: GraphNode, b: GraphNode): number => {
                         const getAvgIndex: (node: Node) => number = (node: Node): number => {
                             let sum: number = 0;
@@ -216,10 +216,8 @@ export class BlueprintPrerenderComb {
                                 }
                             });
 
-                            // If no dependencies (unlikely for non-Infra), return -1 or keep original relative order?
-                            // Return a neutral value, e.g., current alphabetic relative position? 
-                            // Or infinity to push to bottom?
-                            // Use 0 or middle. 
+                            // If no dependencies (unlikely for non-Infra), return a large value to push to bottom.
+                            // Use 0 or middle.
                             return count > 0 ? sum / count : 9999;
                         };
 
@@ -271,6 +269,7 @@ export class BlueprintPrerenderComb {
         // Calculate X positions for each layer dynamically.
         // Accumulate X based on the gap required by the longest edge text between adjacent layers.
         const layerXPositions: Map<number, number> = new Map<number, number>();
+        const layerGapCenters: number[] = [];
         let currentX: number = this.PADDING;
 
         sortedLayerIndices.forEach((layerIndex: number, i: number): void => {
@@ -333,6 +332,10 @@ export class BlueprintPrerenderComb {
                 
                 currentX = requiredX;
 
+                // Calculate and store the center of the gap between prevLayer and currentLayer.
+                // Gap is from (prevLayerX + NODE_WIDTH) to (currentX).
+                const gapCenter = prevLayerX + this.NODE_WIDTH + (currentX - (prevLayerX + this.NODE_WIDTH)) / 2;
+                layerGapCenters.push(gapCenter);
             } else {
                 currentX = this.PADDING;
             }
@@ -424,7 +427,8 @@ export class BlueprintPrerenderComb {
                 minimumY: minimumY,
                 maximumX: maximumX + this.NODE_WIDTH,  // Include node width in bounds.
                 maximumY: maximumY + this.NODE_HEIGHT  // Include node height in bounds.
-            }
+            },
+            layerGapCenters
         };
     }
 }
