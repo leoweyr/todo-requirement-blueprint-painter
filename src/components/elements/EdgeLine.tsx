@@ -9,12 +9,23 @@ export interface EdgeLineProps {
     startY: number;
     endX: number;
     endY: number;
+    labelPositionDivisions?: number;  // Total number of divisions for label placement.
+    labelPositionIndex?: number;  // Index from the downstream node (start).
 }
 
 
 class EdgeLine extends Component<EdgeLineProps> {
     public render(): ReactNode {
-        const { edge, startX, startY, endX, endY } = this.props;
+        const { 
+            edge, 
+            startX, 
+            startY, 
+            endX, 
+            endY,
+            labelPositionDivisions = 2,
+            labelPositionIndex = 1
+        } = this.props;
+
         const hasText: boolean = !!edge.demandDescription;
 
         const width: number = Math.abs(endX - startX);
@@ -32,8 +43,14 @@ class EdgeLine extends Component<EdgeLineProps> {
         const totalWidth: number = width + padding * 2;
         const totalHeight: number = height + padding * 2;
 
-        const centerX: number = (startLocalX + endLocalX) / 2;
-        const centerY: number = (startLocalY + endLocalY) / 2;
+        // Calculate label position based on divisions and index.
+        // Position = Start + (End - Start) * (Index / Divisions).
+        // Ensure divisions is not zero to avoid division by zero.
+        const validDivisions: number = Math.max(1, labelPositionDivisions);
+        const ratio: number = labelPositionIndex / validDivisions;
+        
+        const labelX: number = startLocalX + (endLocalX - startLocalX) * ratio;
+        const labelY: number = startLocalY + (endLocalY - startLocalY) * ratio;
 
         return (
             <div 
@@ -63,7 +80,7 @@ class EdgeLine extends Component<EdgeLineProps> {
                 </svg>
 
                 {hasText && (
-                    <div style={this.getLabelStyle(centerX, centerY)}>
+                    <div style={this.getLabelStyle(labelX, labelY)}>
                         {edge.demandDescription}
                     </div>
                 )}

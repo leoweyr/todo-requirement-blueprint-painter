@@ -275,16 +275,14 @@ export class BlueprintPrerenderComb {
 
         sortedLayerIndices.forEach((layerIndex: number, i: number): void => {
             if (i > 0) {
-                // Calculate gap from previous layer (layerIndex - 1) to this layer (layerIndex).
-                // Note: sortedLayerIndices are sorted, so sortedLayerIndices[i-1] is the previous layer.
-                // Assuming continuous layers 0, 1, 2... if not, this logic still works for adjacent *existing* layers.
+                // Initialize currentX to at least the minimum spacing from previous layer.
                 const prevLayerIndex = sortedLayerIndices[i - 1];
-                let maxGap: number = this.MIN_LAYER_SPACING;
+                const prevLayerX = layerXPositions.get(prevLayerIndex) || 0;
+                let requiredX = prevLayerX + this.NODE_WIDTH + this.MIN_LAYER_SPACING;
 
                 // Find edges between this layer and the previous layer to determine required width.
                 // Edges go Downstream (this layer) -> Upstream (prev layer).
                 const currentLayerNodes: GraphNode[] = layers.get(layerIndex) || [];
-                let maxTextWidth: number = 0;
 
                 currentLayerNodes.forEach((graphNode: GraphNode): void => {
                     graphNode.node.edges.forEach((edge: Edge): void => {
@@ -293,29 +291,48 @@ export class BlueprintPrerenderComb {
                             const upstreamNode = latestRecord.targetUpstream;
                             const upstreamGraphNode = graphNodes.get(upstreamNode.id);
 
-                            if (upstreamGraphNode && upstreamGraphNode.layer === prevLayerIndex) {
-                                // This edge connects strictly adjacent layers. Check text width.
-                                // Use the edge description/label. Assuming 'demandDescription' is the text property as per EdgeLine.tsx.
+                            if (upstreamGraphNode && upstreamGraphNode.layer <= prevLayerIndex) {
+                                // Calculate required spacing based on text width and position.
                                 const text = edge.demandDescription || "";
                                 
                                 if (text) {
-                                    const estimatedWidth: number = this.estimateTextWidth(text);
-                                    maxTextWidth = Math.max(maxTextWidth, estimatedWidth);
+                                    const halfTextWidth = this.estimateTextWidth(text) / 2;
+                                    const upstreamLayer = upstreamGraphNode.layer;
+                                    const layerDiff = layerIndex - upstreamLayer;
+                                    const divisions = layerDiff + 1;
+                                    const ratio = 1 / divisions;
+                                    
+                                    const xU = layerXPositions.get(upstreamLayer) || 0;
+                                    const wNode = this.NODE_WIDTH;
+                                    const pad = this.TEXT_PADDING;
+                                    
+                                    // Req 1: Avoid overlap with Current Node (Layer N).
+                                    // Text Right Edge < Node Left Edge - Padding.
+                                    // LabelX + HalfText < X_N - Padding.
+                                    // X_N > LabelX + HalfText + Padding.
+                                    // LabelX = X_N * (1 - Ratio) + X_U * Ratio.
+                                    // X_N > X_N * (1 - Ratio) + X_U * Ratio + HalfText + Padding.
+                                    // X_N * Ratio > X_U * Ratio + HalfText + Padding.
+                                    // X_N > X_U + (HalfText + Padding) / Ratio.
+                                    const reqX_1 = xU + (halfTextWidth + pad) / ratio;
+                                    
+                                    // Req 2: Avoid overlap with Previous Node (Layer N-1).
+                                    // Text Left Edge > Prev Node Right Edge + Padding.
+                                    // LabelX - HalfText > X_{N-1} + NODE_WIDTH + Padding.
+                                    // X_N * (1 - Ratio) + X_U * Ratio - HalfText > X_{N-1} + wNode + Padding.
+                                    // X_N * (1 - Ratio) > X_{N-1} + wNode + Padding + HalfText - X_U * Ratio.
+                                    // X_N > (X_{N-1} + wNode + Padding + HalfText - X_U * Ratio) / (1 - Ratio).
+                                    const reqX_2 = (prevLayerX + wNode + halfTextWidth + pad - xU * ratio) / (1 - ratio);
+                                    
+                                    requiredX = Math.max(requiredX, reqX_1, reqX_2);
                                 }
                             }
                          }
                     });
                 });
+                
+                currentX = requiredX;
 
-                // Calculate the gap to ensure the text (centered on the edge) doesn't overlap nodes.
-                // Text is centered. Text Width = maxTextWidth.
-                // Total Gap = maxTextWidth + (2 * PADDING).
-                // The requirement is: Left gap (Upstream Node -> Text Left) == Right gap (Text Right -> Downstream Node).
-                // This means the Gap must accommodate the Text Width plus equal padding on both sides.
-                // So Gap >= maxTextWidth + 2 * TEXT_PADDING.
-                maxGap = Math.max(maxGap, maxTextWidth + (this.TEXT_PADDING * 2));
-
-                currentX += maxGap + this.NODE_WIDTH;
             } else {
                 currentX = this.PADDING;
             }
@@ -376,15 +393,25 @@ export class BlueprintPrerenderComb {
                 
                 const upstreamNode = edge.history[edge.history.length - 1].targetUpstream;
                 const endPosition = resultNodes.get(upstreamNode.id);
+                // Get upstream graph node to find layer.
+                const upstreamGraphNode = graphNodes.get(upstreamNode.id);
+                const downstreamGraphNode = graphNodes.get(downstreamNode.id);
 
-                if (!endPosition) return;
+                if (!endPosition || !upstreamGraphNode || !downstreamGraphNode) return;
+
+                const layerDiff = downstreamGraphNode.layer - upstreamGraphNode.layer;
+                // Cross layer count = layerDiff - 1.
+                // Divisions = (Cross layer count) + 2 = layerDiff - 1 + 2 = layerDiff + 1.
+                const divisions = Math.max(2, layerDiff + 1);
 
                 prerenderEdges.push({
                     edge: edge,
                     startX: startPosition.x,
                     startY: startPosition.y + centerY,
                     endX: endPosition.x + this.NODE_WIDTH,
-                    endY: endPosition.y + centerY
+                    endY: endPosition.y + centerY,
+                    labelPositionDivisions: divisions,
+                    labelPositionIndex: 1
                 });
             });
         });
