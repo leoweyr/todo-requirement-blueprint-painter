@@ -9,12 +9,29 @@ export interface EdgeLineProps {
     startY: number;
     endX: number;
     endY: number;
-    labelPositionDivisions?: number;  // Total number of divisions for label placement.
-    labelPositionIndex?: number;  // Index from the downstream node (start).
+    labelPositionDivisions?: number;
+    labelPositionIndex?: number;
 }
 
 
-class EdgeLine extends Component<EdgeLineProps> {
+interface EdgeLineState {
+    isHovered: boolean;
+}
+
+
+class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
+    public state: EdgeLineState = {
+        isHovered: false
+    };
+
+    private handleMouseEnter: () => void = (): void => {
+        this.setState({ isHovered: true });
+    };
+
+    private handleMouseLeave: () => void = (): void => {
+        this.setState({ isHovered: false });
+    };
+
     public render(): ReactNode {
         const { 
             edge, 
@@ -26,7 +43,18 @@ class EdgeLine extends Component<EdgeLineProps> {
             labelPositionIndex = 1
         } = this.props;
 
+        const { isHovered } = this.state;
+
         const hasText: boolean = !!edge.demandDescription;
+
+        let tooltipText: string = '';
+
+        if (edge.history && edge.history.length > 0) {
+            const latest = edge.history[edge.history.length - 1];
+            const date = new Date(latest.updatedAt);
+            const dateStr = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+            tooltipText = `${latest.version} (${dateStr})`;
+        }
 
         const width: number = Math.abs(endX - startX);
         const height: number = Math.abs(endY - startY);
@@ -80,20 +108,51 @@ class EdgeLine extends Component<EdgeLineProps> {
                 </svg>
 
                 {hasText && (
-                    <div style={this.getLabelStyle(labelX, labelY)}>
-                        {edge.demandDescription}
+                    <div 
+                        style={this.getLabelContainerStyle(labelX, labelY)}
+                        onMouseEnter={this.handleMouseEnter}
+                        onMouseLeave={this.handleMouseLeave}
+                    >
+                        <div style={this.getLabelTextStyle()}>
+                            {edge.demandDescription}
+                        </div>
+                        
+                        {isHovered && tooltipText && (
+                            <div style={this.getTooltipStyle()}>
+                                {tooltipText}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
         );
     }
 
-    private getLabelStyle(centerX: number, centerY: number): CSSProperties {
+    private getLabelContainerStyle(centerX: number, centerY: number): CSSProperties {
         return {
             position: 'absolute',
             left: centerX,
             top: centerY,
+
+            // Use translate(-50%, -50%) to center the container on the point.
+            // This centers the entire container (label + tooltip).
+            // This means the label will shift up slightly when tooltip appears.
+            // This is generally acceptable behavior for centered elements.
             transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'auto',
+
+            // Ensure the label is above the line.
+            zIndex: 5,
+            cursor: 'default'
+        };
+    }
+
+    private getLabelTextStyle(): CSSProperties {
+        return {
             backgroundColor: '#ffffff',
             padding: '2px',
             fontSize: '11px',
@@ -101,8 +160,20 @@ class EdgeLine extends Component<EdgeLineProps> {
             color: '#000000',
             whiteSpace: 'nowrap',
             textAlign: 'center',
-            minWidth: '6pt',
-            pointerEvents: 'auto'
+            minWidth: '6pt'
+        };
+    }
+
+    private getTooltipStyle(): CSSProperties {
+        return {
+            marginTop: '2px',
+            backgroundColor: 'transparent',
+            color: '#666666',
+            fontSize: '9pt',
+            fontFamily: 'Helvetica, Arial, sans-serif',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            textAlign: 'center'
         };
     }
 }
