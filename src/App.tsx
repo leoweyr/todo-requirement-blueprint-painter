@@ -2,109 +2,109 @@ import { Component, type ReactNode } from 'react';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
-import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
+import { type BlueprintPrerenderCombResult, type PrerenderEdge, type PrerenderNode } from './features/graph/BlueprintPrerenderCombResult';
+import { BlueprintSerializer } from './features/serializer/BlueprintSerializer';
 import { DomainRegistry } from './features/registry/DomainRegistry';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
+import BackdropBlur from './components/prompts/BackdropBlur';
+import FileOpenModal from './components/prompts/FileOpenModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
-import { NodeStatus } from './domain/NodeStatus';
-import { EdgeEvolutionReason } from './domain/EdgeEvolutionReason';
-import { Node } from './domain/Node';
-import { Edge } from './domain/Edge';
-import { EdgeHistoryRecord } from './domain/EdgeHistoryRecord';
 
 
-class App extends Component {
+interface AppState {
+    isFileLoaded: boolean;
+}
+
+
+class App extends Component<{}, AppState> {
     private readonly _viewport: CanvasViewport;
     private readonly _layoutService: BlueprintPrerenderComb;
     private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private readonly _registry: DomainRegistry;
 
-    constructor(props: {}) {
-        super(props);
+    private handleFileSelected: (fileContent: string) => Promise<void> = async (fileContent: string): Promise<void> => {
+        console.log('Loading file...');
+
+        try {
+            this._registry.clear();
+
+            await BlueprintSerializer.fromYaml(fileContent, this._registry);
+
+            this._layoutResult = this._layoutService.calculateLayout(this._registry);
+
+            // Calculate Content Bounds for Auto-Centering.
+            if (this._layoutResult.contentBounds) {
+                const { minimumX, minimumY, maximumX, maximumY } = this._layoutResult.contentBounds;
+
+                this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
+            }
+
+            this.setState({ isFileLoaded: true });
+        } catch (error) {
+            console.error('Failed to load blueprint:', error);
+
+            alert(`Failed to load blueprint: ${(error as Error).message}`);
+        }
+    };
+
+    constructor(properties: {}) {
+        super(properties);
+
+        this.state = {
+            isFileLoaded: false
+        };
 
         this._viewport = new CanvasViewport(0, 0, 1);
         this._layoutService = new BlueprintPrerenderComb();
         this._registry = DomainRegistry.instance;
-
-        this.initializeDemoData();
+        this._registry.clear();
 
         this._layoutResult = this._layoutService.calculateLayout(this._registry);
-        
-        // Calculate Content Bounds for Auto-Centering.
-        if (this._layoutResult.contentBounds) {
-            const { minimumX, minimumY, maximumX, maximumY } = this._layoutResult.contentBounds;
-            this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
-        }
     }
 
     public render(): ReactNode {
-        if (!this._layoutResult) {
-            return <div>Loading layout...</div>;
-        }
+        const { isFileLoaded } = this.state;
+
+        return (
+            <>
+                <InfiniteCanvas viewport={this._viewport}>
+                    {this._layoutResult && this.renderGraph()}
+                </InfiniteCanvas>
+
+                {!isFileLoaded && (
+                    <BackdropBlur>
+                        <FileOpenModal onFileSelected={this.handleFileSelected} />
+                    </BackdropBlur>
+                )}
+            </>
+        );
+    }
+
+    private renderGraph(): ReactNode {
+        if (!this._layoutResult) return null;
 
         const { prerenderNodes, prerenderEdges } = this._layoutResult;
 
         return (
-            <InfiniteCanvas viewport={this._viewport}>
+            <>
                 {/* Render Edges (behind Nodes). */}
-                {prerenderEdges.map(props => (
+                {prerenderEdges.map((properties: PrerenderEdge): ReactNode => (
                     <EdgeLine
-                        key={props.edge.id}
-                        {...props}
+                        key={properties.edge.id}
+                        {...properties}
                     />
                 ))}
 
                 {/* Render Nodes (on top of Edges). */}
-                {prerenderNodes.map(props => (
+                {prerenderNodes.map((properties: PrerenderNode): ReactNode => (
                     <NodeRectangle
-                        key={props.node.id}
-                        {...props}
+                        key={properties.node.id}
+                        {...properties}
                     />
                 ))}
-            </InfiniteCanvas>
+            </>
         );
-    }
-
-    private initializeDemoData(): void {
-        this._registry.clear();
-
-        const statusActive = new NodeStatus('ACTIVE', 'Active node.');
-        const statusPlanned = new NodeStatus('PLANNED', 'Planned node.');
-        const reasonMvp = new EdgeEvolutionReason('MVP', 'Initial MVP.');
-
-        this._registry.registerNodeStatus(statusActive);
-        this._registry.registerNodeStatus(statusPlanned);
-        this._registry.registerEdgeEvolutionReason(reasonMvp);
-
-        const now = new Date().toISOString();
-
-        const wisdom = new Node('wisdom', 'WISDOM (Infra)', '1.0.0', now, statusActive, {});
-        const courage = new Node('courage', 'COURAGE (Domain)', '1.0.0', now, statusActive, {});
-        const luck = new Node('luck', 'LUCK (Domain)', '1.0.0', now, statusActive, {});
-        const power = new Node('power', 'POWER (Touchpoint)', '1.0.0', now, statusActive, {});
-
-        this._registry.registerNode(wisdom);
-        this._registry.registerNode(courage);
-        this._registry.registerNode(luck);
-        this._registry.registerNode(power);
-
-        // Create Edges (Demand-Pull: Downstream defines edge to Upstream).
-        
-        // Courage depends on Wisdom.
-        const edgeCourageWisdom = new Edge('edge-courage-wisdom', 'Needs wisdom.');
-        edgeCourageWisdom.addHistoryRecord(new EdgeHistoryRecord('1.0.0', now, 'REQUIRES', 'ACTIVE', wisdom, reasonMvp));
-        courage.addEdge(edgeCourageWisdom);
-
-        // Luck depends on Courage.
-        const edgeLuckCourage = new Edge('edge-luck-courage', 'Needs courage.');
-        edgeLuckCourage.addHistoryRecord(new EdgeHistoryRecord('1.0.0', now, 'REQUIRES', 'ACTIVE', courage, reasonMvp));
-        luck.addEdge(edgeLuckCourage);
-
-        // Power depends on Luck.
-        const edgePowerLuck = new Edge('edge-power-luck', 'Needs luck.');
-        edgePowerLuck.addHistoryRecord(new EdgeHistoryRecord('1.0.0', now, 'REQUIRES', 'ACTIVE', luck, reasonMvp));
-        power.addEdge(edgePowerLuck);
     }
 }
 
