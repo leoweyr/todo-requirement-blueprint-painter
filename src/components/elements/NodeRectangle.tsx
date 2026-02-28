@@ -12,7 +12,7 @@ export interface NodeRectangleProps {
 
 class NodeRectangle extends Component<NodeRectangleProps> {
     public render(): ReactNode {
-        const { node, x, y } = this.props;
+        const { node, x, y }: NodeRectangleProps = this.props;
 
         return (
             <div 
@@ -34,14 +34,13 @@ class NodeRectangle extends Component<NodeRectangleProps> {
             backgroundColor: '#F5F5F5',
             border: '1pt solid #666666',
             borderRadius: '10px',
-            minWidth: '120pt',
-            minHeight: '60pt',
+            width: '200px',
+            minHeight: '80px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '10px',
             boxSizing: 'border-box',
-            width: 'fit-content',
             height: 'fit-content',
             position: 'absolute'
         };
