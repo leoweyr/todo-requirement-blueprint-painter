@@ -117,10 +117,125 @@ export class BlueprintPrerenderComb {
         });
 
         // Step 5: Assign order (Y-Axis) and Center Layers.
-        // Sort layers from Left (0) to Right (Max).
-        // Sort nodes within each layer alphabetically for deterministic layout stability.
+        // Heuristic 1: Barycenter / Median. Try to place nodes close to their connected neighbors in previous layers.
+        // Heuristic 2: Centrality. Nodes with more connections go to center.
+        // Implementation of a simplified Barycenter method.
+        // Iterating layers 0 -> Max.
+        // Layer 0 is fixed (or sorted by ID/connectivity).
+        // Layer i positions depend on Layer i-1.
+        // Dependencies go Downstream -> Upstream.
+        // Infra (Layer 0) is Upstream. Touchpoint (Layer Max) is Downstream.
+        // Downstream depends on Upstream.
+        // Edges: Downstream -> Upstream.
+        // Processing Left to Right (0 to Max) traverses AGAINST the edge direction.
+        // This means for Layer i (Downstream), dependencies are in Layer < i (Left).
+        // Upstream is to the Left.
+        // For a node in Layer i, its dependencies are in layers < i.
+        // Use the average Y-position of its dependencies (in Left layers) to position it.
+
         const sortedLayerIndices: number[] = Array.from(layers.keys()).sort((a: number, b: number): number => a - b);
-        
+
+        // Sub-step: connectivity map for Layer 0 sorting.
+        const getConnectivity: (node: Node) => number = (node: Node): number => {
+            // Number of nodes depending on this node (Indegree in graph theory, 'dependents' here).
+             const dependents: string[] = dependentsMap.get(node.id) || [];
+             return dependents.length;
+        };
+
+        // Track "virtual" Y positions for sorting logic. 
+        // Use "Index" as a proxy for Y until final coordinate step.
+        const nodeIndices: Map<string, number> = new Map<string, number>();
+
+        sortedLayerIndices.forEach((layerIndex: number): void => {
+            const layerNodes: GraphNode[] | undefined = layers.get(layerIndex);
+
+            if (layerNodes) {
+                if (layerIndex === 0) {
+                    // Layer 0: Sort by Connectivity (Most connected in middle).
+                    // Sort by connectivity descending.
+                    layerNodes.sort((a: GraphNode, b: GraphNode): number => {
+                        return getConnectivity(b.node) - getConnectivity(a.node);
+                    });
+                    
+                    // Distribute: [Heavy, Heavy, ..., Light, Light] -> [Light, Heavy, Heaviest, Heavy, Light].
+                    // Alternate placement: Left, Right, Left, Right from center.
+                    // Or simply: Middle indices get highest connectivity.
+                    // Simple sort: Most connected at top. Requirement: "Less connected to edges, More connected to interior".
+                    // So: [Low, Low, High, High, High, Low, Low]
+                    // Sort by connectivity, then rearrange.
+                    const sortedByConn: GraphNode[] = [...layerNodes].sort((a: GraphNode, b: GraphNode): number => {
+                        return getConnectivity(a.node) - getConnectivity(b.node); // Ascending: Low -> High
+                    });
+                    
+                    // Rearrange to put High in middle.
+                    // Algorithm: Take sorted (Low->High), place largest in middle, next largest left of it, next right...
+                    const newOrder: GraphNode[] = new Array(layerNodes.length);
+                    let left: number = 0;
+                    let right: number = layerNodes.length - 1;
+                    
+                    // Fill from edges with Low connectivity.
+                    // sortedByConn is [Low .... High].
+                    // Take Low (index 0), put at left (0).
+                    // Take next Low (index 1), put at right (max).
+                    // ... until meet in middle.
+                    for (let index: number = 0; index < sortedByConn.length; index++) {
+                        if (index % 2 === 0) {
+                            newOrder[left++] = sortedByConn[index];
+                        } else {
+                            newOrder[right--] = sortedByConn[index];
+                        }
+                    }
+
+                    // Apply new order.
+                    for (let index: number = 0; index < layerNodes.length; index++) {
+                        layerNodes[index] = newOrder[index];
+                    }
+
+                } else {
+                    // Subsequent Layers: Sort by Barycenter of Upstream Nodes (in previous layers).
+                    // We need the "Index" of upstream nodes to calculate average.
+                    // Ideally normalized index (0..1) or just order.
+                    layerNodes.sort((a: GraphNode, b: GraphNode): number => {
+                        const getAvgIndex: (node: Node) => number = (node: Node): number => {
+                            let sum: number = 0;
+                            let count: number = 0;
+
+                            node.edges.forEach((edge: Edge): void => {
+                                if (edge.history.length > 0) {
+                                    const upId: string = edge.history[edge.history.length - 1].targetUpstream.id;
+                                    if (nodeIndices.has(upId)) {
+                                        sum += nodeIndices.get(upId)!;
+                                        count++;
+                                    }
+                                }
+                            });
+
+                            // If no dependencies (unlikely for non-Infra), return -1 or keep original relative order?
+                            // Return a neutral value, e.g., current alphabetic relative position? 
+                            // Or infinity to push to bottom?
+                            // Use 0 or middle. 
+                            return count > 0 ? sum / count : 9999;
+                        };
+
+                        const avgA: number = getAvgIndex(a.node);
+                        const avgB: number = getAvgIndex(b.node);
+
+                        if (avgA !== avgB) {
+                            return avgA - avgB;
+                        }
+
+                        // Fallback to ID
+                        return a.id.localeCompare(b.id);
+                    });
+                }
+
+                // Update nodeIndices for next layer calculations.
+                layerNodes.forEach((graphNode: GraphNode, index: number): void => {
+                    nodeIndices.set(graphNode.id, index);
+                });
+            }
+        });
+
         // Calculate max nodes in any layer to determine the "widest" part of the forest.
         let maxNodesInLayer: number = 0;
         
@@ -135,17 +250,6 @@ export class BlueprintPrerenderComb {
         // The total height of the graph based on the widest layer.
         // We use this to center other layers vertically.
         const totalGraphHeight: number = maxNodesInLayer * this.ROW_HEIGHT;
-
-        sortedLayerIndices.forEach((layerIndex: number): void => {
-            const layerNodes: GraphNode[] | undefined = layers.get(layerIndex);
-
-            if (layerNodes) {
-                // Sort by ID for deterministic initial layout.
-                layerNodes.sort((a: GraphNode, b: GraphNode): number => a.id.localeCompare(b.id));
-                
-                // Note: Actual coordinate calculation happens in Step 6 using these sorted layers.
-            }
-        });
 
         // Step 6: Generate final coordinates.
         const resultNodes: Map<string, { x: number; y: number }> = new Map<string, { x: number; y: number }>();
