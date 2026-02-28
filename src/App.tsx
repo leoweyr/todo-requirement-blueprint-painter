@@ -1,16 +1,21 @@
 import { Component, type ReactNode } from 'react';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
+import { Node } from './domain/Node';
 import { InfiniteCanvas } from './components/canvas/InfiniteCanvas';
+import { NodeRectangle } from './components/elements/NodeRectangle';
+import { NodeStatus } from './domain/NodeStatus';
 
 
 class App extends Component {
     private readonly _viewport: CanvasViewport;
+    private readonly _demoNodes: Node[];
 
     constructor(props: {}) {
         super(props);
 
         this._viewport = new CanvasViewport(0, 0, 1);
+        this._demoNodes = this.createDemoNodes();
         
         // Define bounds for a cross shape layout.
         // Center (0,0) is empty.
@@ -29,81 +34,51 @@ class App extends Component {
     }
 
     public render(): ReactNode {
+        const [wisdom, courage, luck, power] = this._demoNodes;
+
         return (
             <InfiniteCanvas viewport={this._viewport}>
-                {/* Top: Wisdom (Red). */}
-                <div style={{ 
-                    position: 'absolute', 
-                    left: 0, 
-                    top: -150, 
-                    width: 100, 
-                    height: 100, 
-                    background: '#ffcccc', 
-                    border: '2px solid red',
-                    color: 'red',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    WISDOM
+                {/* Node: Wisdom (Red) */}
+                <div style={{ position: 'absolute', left: 0, top: -150 }}>
+                    <NodeRectangle 
+                        node={wisdom} 
+                    />
                 </div>
 
-                {/* Left: Courage (Blue) */}
-                <div style={{ 
-                    position: 'absolute', 
-                    left: -150, 
-                    top: 0, 
-                    width: 100, 
-                    height: 100, 
-                    background: '#ccccff', 
-                    border: '2px solid blue',
-                    color: 'blue',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    COURAGE
+                {/* Node: Courage (Blue) */}
+                <div style={{ position: 'absolute', left: -150, top: 0 }}>
+                    <NodeRectangle 
+                        node={courage} 
+                    />
                 </div>
 
-                {/* Bottom: Luck (Green). */}
-                <div style={{ 
-                    position: 'absolute', 
-                    left: 0, 
-                    top: 150, 
-                    width: 100, 
-                    height: 100, 
-                    background: '#ccffcc', 
-                    border: '2px solid green',
-                    color: 'green',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    LUCK
+                {/* Node: Luck (Green) */}
+                <div style={{ position: 'absolute', left: 0, top: 150 }}>
+                    <NodeRectangle 
+                        node={luck} 
+                    />
                 </div>
 
-                {/* Right: Power (Yellow/Gold). */}
-                <div style={{ 
-                    position: 'absolute', 
-                    left: 150, 
-                    top: 0, 
-                    width: 100, 
-                    height: 100, 
-                    background: '#ffffcc', 
-                    border: '2px solid gold',
-                    color: 'goldenrod',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    POWER
+                {/* Node: Power (Yellow/Gold) */}
+                <div style={{ position: 'absolute', left: 150, top: 0 }}>
+                    <NodeRectangle 
+                        node={power} 
+                    />
                 </div>
             </InfiniteCanvas>
         );
+    }
+
+    private createDemoNodes(): Node[] {
+        const status = new NodeStatus('active', 'Active Node');
+        const now = new Date().toISOString();
+
+        return [
+            new Node('wisdom', 'WISDOM', '1.0.0', now, status, {}),
+            new Node('courage', 'COURAGE', '1.0.0', now, status, {}),
+            new Node('luck', 'LUCK', '1.0.0', now, status, {}),
+            new Node('power', 'POWER', '1.0.0', now, status, {})
+        ];
     }
 }
 
