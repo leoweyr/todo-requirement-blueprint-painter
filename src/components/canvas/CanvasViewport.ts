@@ -172,12 +172,12 @@ export class CanvasViewport {
     public subscribe(observer: ViewportObserver): () => void {
         this._observers.add(observer);
 
-        return () => {
+        return (): void => {
             this._observers.delete(observer);
         };
     }
 
     private _notifyObservers(): void {
-        this._observers.forEach((observer) => observer.onViewportChanged(this));
+        this._observers.forEach((observer: ViewportObserver): void => observer.onViewportChanged(this));
     }
 }

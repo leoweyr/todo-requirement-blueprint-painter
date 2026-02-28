@@ -131,8 +131,8 @@ export class BlueprintSerializer {
             const node = registry.getNode(serializedNode.id);
             
             if (node && serializedNode.edges) {
-                serializedNode.edges.forEach((edgeData: SerializedEdge) => {
-                    const history: EdgeHistoryRecord[] = edgeData.history.map((historyRecord: SerializedEdgeHistory) => {
+                serializedNode.edges.forEach((edgeData: SerializedEdge): void => {
+                    const history: EdgeHistoryRecord[] = edgeData.history.map((historyRecord: SerializedEdgeHistory): EdgeHistoryRecord => {
                         const upstream: Node | undefined = registry.getNode(historyRecord.target_upstream_id);
 
                         if (!upstream) {
@@ -191,11 +191,11 @@ export class BlueprintSerializer {
         };
 
         // Pre-populate with all registry items.
-        registry.allNodeStatuses.forEach((status: NodeStatus) => getStatusDef(status));
-        registry.allEdgeEvolutionReasons.forEach((reason: EdgeEvolutionReason) => getReasonDef(reason));
+        registry.allNodeStatuses.forEach((status: NodeStatus): void => { getStatusDef(status); });
+        registry.allEdgeEvolutionReasons.forEach((reason: EdgeEvolutionReason): void => { getReasonDef(reason); });
 
         // Step 2: Convert Nodes to Objects, replacing status/reason with references to dictionary objects.
-        const serializedNodes: SerializedNode[] = nodeList.map((node: Node) => {
+        const serializedNodes: SerializedNode[] = nodeList.map((node: Node): SerializedNode => {
             const obj: SerializedNode = node.toObject();
 
             // CRITICAL: Reuse the SAME object instance to ensure YAML aliasing works.
@@ -209,10 +209,10 @@ export class BlueprintSerializer {
 
             // Replace Edge Evolution Reasons (required for YAML anchors).
             if (obj.edges) {
-                obj.edges.forEach((edge: SerializedEdge, index: number) => {
+                obj.edges.forEach((edge: SerializedEdge, index: number): void => {
                     const domainEdge: Edge = node.edges[index];
                     if (domainEdge) {
-                        edge.history.forEach((historyRecord: SerializedEdgeHistory, historyIndex: number) => {
+                        edge.history.forEach((historyRecord: SerializedEdgeHistory, historyIndex: number): void => {
                             const domainHistoryRecord: EdgeHistoryRecord = domainEdge.history[historyIndex];
                             if (domainHistoryRecord && domainHistoryRecord.evolutionReason) {
                                 historyRecord.evolution_reason = getReasonDef(domainHistoryRecord.evolutionReason);

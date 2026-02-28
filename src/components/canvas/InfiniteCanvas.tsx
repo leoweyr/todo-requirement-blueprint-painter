@@ -104,7 +104,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
 
         return (
             <div
-                ref={(ref) => { this._containerRef = ref; }}
+                ref={(ref: HTMLDivElement | null): void => { this._containerRef = ref; }}
                 className={className}
                 style={containerStyle}
                 onMouseDown={this.handleMouseDown}

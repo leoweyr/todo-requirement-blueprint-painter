@@ -17,7 +17,7 @@ export class BlueprintPrerenderComb {
         const graphNodes: Map<string, GraphNode> = new Map<string, GraphNode>();
 
         // Step 1: Initialize graph nodes.
-        nodes.forEach((node: Node) => {
+        nodes.forEach((node: Node): void => {
             graphNodes.set(node.id, {
                 id: node.id,
                 node: node,
@@ -33,8 +33,8 @@ export class BlueprintPrerenderComb {
         // Dependents Map: Upstream Node ID -> List of Downstream Node IDs.
         const dependentsMap: Map<string, string[]> = new Map<string, string[]>();
 
-        nodes.forEach((downstreamNode: Node) => {
-            downstreamNode.edges.forEach((edge: Edge) => {
+        nodes.forEach((downstreamNode: Node): void => {
+            downstreamNode.edges.forEach((edge: Edge): void => {
                 if (edge.history.length > 0) {
                     // Find the upstream dependency from the latest history record.
                     const latestRecord = edge.history[edge.history.length - 1];
@@ -72,7 +72,7 @@ export class BlueprintPrerenderComb {
             if (dependents.length > 0) {
                 let maxDependentHeight = 0;
 
-                dependents.forEach((depId: string) => {
+                dependents.forEach((depId: string): void => {
                     maxDependentHeight = Math.max(maxDependentHeight, calculateHeight(depId));
                 });
 
@@ -86,14 +86,14 @@ export class BlueprintPrerenderComb {
         };
 
         // Compute heights for all nodes.
-        nodes.forEach((node: Node) => {
+        nodes.forEach((node: Node): void => {
             calculateHeight(node.id);
         });
 
         // Find max graph height to invert layout.
         let maxGraphHeight = 0;
 
-        memoizedHeights.forEach((height: number) => {
+        memoizedHeights.forEach((height: number): void => {
             maxGraphHeight = Math.max(maxGraphHeight, height);
         });
 
@@ -102,7 +102,7 @@ export class BlueprintPrerenderComb {
         // Min Height (Touchpoint) -> Layer Max (Right).
         const layers: Map<number, GraphNode[]> = new Map<number, GraphNode[]>();
 
-        graphNodes.forEach((graphNode: GraphNode) => {
+        graphNodes.forEach((graphNode: GraphNode): void => {
             const height = memoizedHeights.get(graphNode.id) || 0;
 
             // The inversion logic: Higher height (further from leaf) means lower layer index (leftmost).
@@ -119,16 +119,16 @@ export class BlueprintPrerenderComb {
         // Step 5: Assign order (Y-Axis).
         // Sort layers from Left (0) to Right (Max).
         // Sort nodes within each layer alphabetically for deterministic layout stability.
-        const sortedLayerIndices = Array.from(layers.keys()).sort((a, b) => a - b);
+        const sortedLayerIndices = Array.from(layers.keys()).sort((a, b): number => a - b);
         
-        sortedLayerIndices.forEach((layerIndex: number) => {
+        sortedLayerIndices.forEach((layerIndex: number): void => {
             const layerNodes = layers.get(layerIndex);
 
             if (layerNodes) {
                 // Sort by ID for deterministic initial layout.
-                layerNodes.sort((a, b) => a.id.localeCompare(b.id));
+                layerNodes.sort((a, b): number => a.id.localeCompare(b.id));
                 
-                layerNodes.forEach((graphNode: GraphNode, index: number) => {
+                layerNodes.forEach((graphNode: GraphNode, index: number): void => {
                     graphNode.order = index;
                 });
             }
@@ -145,7 +145,7 @@ export class BlueprintPrerenderComb {
         let maximumX = Number.MIN_VALUE;
         let maximumY = Number.MIN_VALUE;
 
-        graphNodes.forEach((graphNode: GraphNode) => {
+        graphNodes.forEach((graphNode: GraphNode): void => {
             // Apply padding to center the graph.
             const x = graphNode.layer * this.COLUMN_WIDTH + this.PADDING;
             const y = graphNode.order * this.ROW_HEIGHT + this.PADDING;
@@ -165,7 +165,7 @@ export class BlueprintPrerenderComb {
 
         // Step 7: Generate prerender objects.
         // Step 7.1: Generate nodes.
-        graphNodes.forEach((graphNode: GraphNode) => {
+        graphNodes.forEach((graphNode: GraphNode): void => {
             const position = resultNodes.get(graphNode.id)!;
             prerenderNodes.push({
                 node: graphNode.node,
@@ -177,11 +177,11 @@ export class BlueprintPrerenderComb {
         // Step 7.2: Generate edges.
         const centerY = this.NODE_HEIGHT / 2;
         
-        nodes.forEach(downstreamNode => {
+        nodes.forEach((downstreamNode: Node): void => {
             const startPosition = resultNodes.get(downstreamNode.id);
             if (!startPosition) return;
 
-            downstreamNode.edges.forEach(edge => {
+            downstreamNode.edges.forEach((edge: Edge): void => {
                 if (edge.history.length === 0) return;
                 
                 const upstreamNode = edge.history[edge.history.length - 1].targetUpstream;
