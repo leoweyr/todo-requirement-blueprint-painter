@@ -5,16 +5,22 @@ import { Node } from '../../domain/Node';
 
 export interface NodeRectangleProps {
     node: Node;
+    x: number;
+    y: number;
 }
 
 
 export class NodeRectangle extends Component<NodeRectangleProps> {
     public render(): ReactNode {
-        const { node } = this.props;
+        const { node, x, y } = this.props;
 
         return (
             <div 
-                style={this.getContainerStyle()}
+                style={{
+                    ...this.getContainerStyle(),
+                    left: x,
+                    top: y
+                }}
             >
                 <span style={this.getTextStyle()}>
                     {node.description}
@@ -37,7 +43,7 @@ export class NodeRectangle extends Component<NodeRectangleProps> {
             boxSizing: 'border-box',
             width: 'fit-content',
             height: 'fit-content',
-            position: 'relative'
+            position: 'absolute'
         };
     }
 

@@ -50,21 +50,10 @@ class App extends Component {
         return (
             <InfiniteCanvas viewport={this._viewport}>
                 {/* Nodes. */}
-                <div style={{ position: 'absolute', left: p1.x, top: p1.y }}>
-                    <NodeRectangle node={wisdom} />
-                </div>
-
-                <div style={{ position: 'absolute', left: p2.x, top: p2.y }}>
-                    <NodeRectangle node={courage} />
-                </div>
-
-                <div style={{ position: 'absolute', left: p3.x, top: p3.y }}>
-                    <NodeRectangle node={luck} />
-                </div>
-
-                <div style={{ position: 'absolute', left: p4.x, top: p4.y }}>
-                    <NodeRectangle node={power} />
-                </div>
+                <NodeRectangle node={wisdom} x={p1.x} y={p1.y} />
+                <NodeRectangle node={courage} x={p2.x} y={p2.y} />
+                <NodeRectangle node={luck} x={p3.x} y={p3.y} />
+                <NodeRectangle node={power} x={p4.x} y={p4.y} />
 
                 {/* Edges. */}
                 <EdgeLine 
