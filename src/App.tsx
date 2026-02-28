@@ -6,8 +6,8 @@ import { type BlueprintPrerenderCombResult, type PrerenderEdge, type PrerenderNo
 import { BlueprintSerializer } from './features/serializer/BlueprintSerializer';
 import { DomainRegistry } from './features/registry/DomainRegistry';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
-import BackdropBlur from './components/prompts/BackdropBlur';
-import FileOpenModal from './components/prompts/FileOpenModal';
+import BackdropBlur from './components/menus/BackdropBlur';
+import FileOpenModal from './components/menus/FileOpenModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 
