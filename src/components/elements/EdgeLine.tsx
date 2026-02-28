@@ -89,7 +89,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                     width: totalWidth,
                     height: totalHeight,
                     pointerEvents: 'none',
-                    zIndex: 0
+                    zIndex: isHovered ? 999 : 0
                 }}
             >
                 <svg 
@@ -97,6 +97,20 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                     height={totalHeight} 
                     style={{ display: 'block' }}
                 >
+                    {/* Highlight Stroke (Visible only when hovered). */}
+                    {isHovered && (
+                        <line 
+                            x1={startLocalX} 
+                            y1={startLocalY} 
+                            x2={endLocalX} 
+                            y2={endLocalY} 
+                            stroke="rgba(0, 120, 215, 0.3)" 
+                            strokeWidth="8pt"
+                            strokeLinecap="round"
+                        />
+                    )}
+
+                    {/* Visible Line. */}
                     <line 
                         x1={startLocalX} 
                         y1={startLocalY} 
@@ -104,6 +118,19 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                         y2={endLocalY} 
                         stroke="#000000" 
                         strokeWidth="1pt"
+                    />
+
+                    {/* Invisible Hit Area (Always present to capture hover). */}
+                    <line 
+                        x1={startLocalX} 
+                        y1={startLocalY} 
+                        x2={endLocalX} 
+                        y2={endLocalY} 
+                        stroke="transparent" 
+                        strokeWidth="10pt"
+                        style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                        onMouseEnter={this.handleMouseEnter}
+                        onMouseLeave={this.handleMouseLeave}
                     />
                 </svg>
 
