@@ -39,6 +39,8 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         const dateStr = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
         const tooltipText: string = `${node.version} (${dateStr})`;
 
+        const metadataEntries: [string, any][] = node.metadata ? Object.entries(node.metadata) : [];
+
         return (
             <div 
                 style={{
@@ -54,9 +56,27 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 </span>
 
                 {isHovered && (
-                    <div style={this.getTooltipStyle()}>
-                        {tooltipText}
-                    </div>
+                    <>
+                        <div style={this.getTooltipStyle()}>
+                            {tooltipText}
+                        </div>
+                        
+                        {metadataEntries.length > 0 && (
+                            <div style={this.getMetadataContainerStyle()}>
+                                {metadataEntries.map(([key, value]: [string, any]): ReactNode => {
+                                    const displayValue: string = (typeof value === 'object' && value !== null)
+                                        ? JSON.stringify(value)
+                                        : String(value);
+
+                                    return (
+                                        <div key={key} style={this.getMetadataTextStyle()}>
+                                            {key}: {displayValue}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         );
@@ -107,6 +127,37 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
             textAlign: 'center'
+        };
+    }
+
+    private getMetadataContainerStyle(): CSSProperties {
+        return {
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginTop: '8px',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            border: '1px solid #cccccc',
+            borderRadius: '4px',
+            padding: '6px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            zIndex: 100,
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minWidth: '100px'
+        };
+    }
+
+    private getMetadataTextStyle(): CSSProperties {
+        return {
+            color: '#555555',
+            fontSize: '8pt',
+            fontFamily: 'Helvetica, Arial, sans-serif',
+            whiteSpace: 'nowrap',
+            marginBottom: '2px'
         };
     }
 }
