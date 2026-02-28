@@ -12,7 +12,7 @@ export interface EdgeLineProps {
 }
 
 
-export class EdgeLine extends Component<EdgeLineProps> {
+class EdgeLine extends Component<EdgeLineProps> {
     public render(): ReactNode {
         const { edge, startX, startY, endX, endY } = this.props;
         const hasText: boolean = !!edge.demandDescription;
@@ -24,16 +24,16 @@ export class EdgeLine extends Component<EdgeLineProps> {
 
         const padding: number = 20;
 
-        const x1: number = startX - left + padding;
-        const y1: number = startY - top + padding;
-        const x2: number = endX - left + padding;
-        const y2: number = endY - top + padding;
+        const startLocalX: number = startX - left + padding;
+        const startLocalY: number = startY - top + padding;
+        const endLocalX: number = endX - left + padding;
+        const endLocalY: number = endY - top + padding;
 
         const totalWidth: number = width + padding * 2;
         const totalHeight: number = height + padding * 2;
 
-        const centerX: number = (x1 + x2) / 2;
-        const centerY: number = (y1 + y2) / 2;
+        const centerX: number = (startLocalX + endLocalX) / 2;
+        const centerY: number = (startLocalY + endLocalY) / 2;
 
         return (
             <div 
@@ -53,10 +53,10 @@ export class EdgeLine extends Component<EdgeLineProps> {
                     style={{ display: 'block' }}
                 >
                     <line 
-                        x1={x1} 
-                        y1={y1} 
-                        x2={x2} 
-                        y2={y2} 
+                        x1={startLocalX} 
+                        y1={startLocalY} 
+                        x2={endLocalX} 
+                        y2={endLocalY} 
                         stroke="#000000" 
                         strokeWidth="1pt"
                     />

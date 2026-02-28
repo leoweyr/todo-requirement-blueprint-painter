@@ -1,104 +1,110 @@
 import { Component, type ReactNode } from 'react';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
+import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
+import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
+import { DomainRegistry } from './features/registry/DomainRegistry';
+import InfiniteCanvas from './components/canvas/InfiniteCanvas';
+import EdgeLine from './components/elements/EdgeLine';
+import NodeRectangle from './components/elements/NodeRectangle';
+import { NodeStatus } from './domain/NodeStatus';
+import { EdgeEvolutionReason } from './domain/EdgeEvolutionReason';
 import { Node } from './domain/Node';
 import { Edge } from './domain/Edge';
-import { InfiniteCanvas } from './components/canvas/InfiniteCanvas';
-import { NodeRectangle } from './components/elements/NodeRectangle';
-import { EdgeLine } from './components/elements/EdgeLine';
-import { NodeStatus } from './domain/NodeStatus';
+import { EdgeHistoryRecord } from './domain/EdgeHistoryRecord';
 
 
 class App extends Component {
     private readonly _viewport: CanvasViewport;
-    private readonly _demoNodes: Node[];
-    private readonly _demoEdges: Edge[];
+    private readonly _layoutService: BlueprintPrerenderComb;
+    private _layoutResult: BlueprintPrerenderCombResult | null = null;
+    private readonly _registry: DomainRegistry;
 
     constructor(props: {}) {
         super(props);
 
         this._viewport = new CanvasViewport(0, 0, 1);
-        this._demoNodes = this.createDemoNodes();
-        this._demoEdges = this.createDemoEdges();
+        this._layoutService = new BlueprintPrerenderComb();
+        this._registry = DomainRegistry.instance;
+
+        this.initializeDemoData();
+
+        this._layoutResult = this._layoutService.calculateLayout(this._registry);
         
-        // Define bounds for a linear layout.
-        // Nodes are spaced 300px apart horizontally.
-        // Node size approx 160x80 (120pt x 60pt).
-        // Wisdom: (0, 0)
-        // Courage: (300, 0)
-        // Luck: (600, 0)
-        // Power: (900, 0)
-        
-        this._viewport.setContentBounds(-50, -100, 1200, 200, 50);
+        // Calculate Content Bounds for Auto-Centering.
+        if (this._layoutResult.contentBounds) {
+            const { minimumX, minimumY, maximumX, maximumY } = this._layoutResult.contentBounds;
+            this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
+        }
     }
 
     public render(): ReactNode {
-        const [wisdom, courage, luck, power] = this._demoNodes;
-        const [edge1, edge2, edge3] = this._demoEdges;
+        if (!this._layoutResult) {
+            return <div>Loading layout...</div>;
+        }
 
-        // Node positions.
-        const p1: { x: number; y: number } = { x: 0, y: 0 };
-        const p2: { x: number; y: number } = { x: 300, y: 0 };
-        const p3: { x: number; y: number } = { x: 600, y: 0 };
-        const p4: { x: number; y: number } = { x: 900, y: 0 };
-
-        // Node dimensions (120pt x 60pt approx 160px x 80px).
-        const nodeWidth: number = 160;
-        const nodeHeight: number = 80;
-        const cy: number = nodeHeight / 2;
+        const { prerenderNodes, prerenderEdges } = this._layoutResult;
 
         return (
             <InfiniteCanvas viewport={this._viewport}>
-                {/* Nodes. */}
-                <NodeRectangle node={wisdom} x={p1.x} y={p1.y} />
-                <NodeRectangle node={courage} x={p2.x} y={p2.y} />
-                <NodeRectangle node={luck} x={p3.x} y={p3.y} />
-                <NodeRectangle node={power} x={p4.x} y={p4.y} />
+                {/* Render Edges (behind Nodes). */}
+                {prerenderEdges.map(props => (
+                    <EdgeLine
+                        key={props.edge.id}
+                        {...props}
+                    />
+                ))}
 
-                {/* Edges. */}
-                <EdgeLine 
-                    edge={edge1}
-                    startX={p1.x + nodeWidth}
-                    startY={p1.y + cy}
-                    endX={p2.x}
-                    endY={p2.y + cy}
-                />
-                <EdgeLine 
-                    edge={edge2}
-                    startX={p2.x + nodeWidth}
-                    startY={p2.y + cy}
-                    endX={p3.x}
-                    endY={p3.y + cy}
-                />
-                <EdgeLine 
-                    edge={edge3}
-                    startX={p3.x + nodeWidth}
-                    startY={p3.y + cy}
-                    endX={p4.x}
-                    endY={p4.y + cy}
-                />
+                {/* Render Nodes (on top of Edges). */}
+                {prerenderNodes.map(props => (
+                    <NodeRectangle
+                        key={props.node.id}
+                        {...props}
+                    />
+                ))}
             </InfiniteCanvas>
         );
     }
 
-    private createDemoNodes(): Node[] {
-        const status: NodeStatus = new NodeStatus('ACTIVE', 'Active node.');
-        const now: string = new Date().toISOString();
+    private initializeDemoData(): void {
+        this._registry.clear();
 
-        return [
-            new Node('wisdom', 'WISDOM', '1.0.0', now, status, {}),
-            new Node('courage', 'COURAGE', '1.0.0', now, status, {}),
-            new Node('luck', 'LUCK', '1.0.0', now, status, {}),
-            new Node('power', 'POWER', '1.0.0', now, status, {})
-        ];
-    }
+        const statusActive = new NodeStatus('ACTIVE', 'Active node.');
+        const statusPlanned = new NodeStatus('PLANNED', 'Planned node.');
+        const reasonMvp = new EdgeEvolutionReason('MVP', 'Initial MVP.');
 
-    private createDemoEdges(): Edge[] {
-        return [
-            new Edge('edge-1', ''),
-            new Edge('edge-2', ''),
-            new Edge('edge-3', '')
-        ];
+        this._registry.registerNodeStatus(statusActive);
+        this._registry.registerNodeStatus(statusPlanned);
+        this._registry.registerEdgeEvolutionReason(reasonMvp);
+
+        const now = new Date().toISOString();
+
+        const wisdom = new Node('wisdom', 'WISDOM (Infra)', '1.0.0', now, statusActive, {});
+        const courage = new Node('courage', 'COURAGE (Domain)', '1.0.0', now, statusActive, {});
+        const luck = new Node('luck', 'LUCK (Domain)', '1.0.0', now, statusActive, {});
+        const power = new Node('power', 'POWER (Touchpoint)', '1.0.0', now, statusActive, {});
+
+        this._registry.registerNode(wisdom);
+        this._registry.registerNode(courage);
+        this._registry.registerNode(luck);
+        this._registry.registerNode(power);
+
+        // Create Edges (Demand-Pull: Downstream defines edge to Upstream).
+        
+        // Courage depends on Wisdom.
+        const edgeCourageWisdom = new Edge('edge-courage-wisdom', 'Needs wisdom.');
+        edgeCourageWisdom.addHistoryRecord(new EdgeHistoryRecord('1.0.0', now, 'REQUIRES', 'ACTIVE', wisdom, reasonMvp));
+        courage.addEdge(edgeCourageWisdom);
+
+        // Luck depends on Courage.
+        const edgeLuckCourage = new Edge('edge-luck-courage', 'Needs courage.');
+        edgeLuckCourage.addHistoryRecord(new EdgeHistoryRecord('1.0.0', now, 'REQUIRES', 'ACTIVE', courage, reasonMvp));
+        luck.addEdge(edgeLuckCourage);
+
+        // Power depends on Luck.
+        const edgePowerLuck = new Edge('edge-power-luck', 'Needs luck.');
+        edgePowerLuck.addHistoryRecord(new EdgeHistoryRecord('1.0.0', now, 'REQUIRES', 'ACTIVE', luck, reasonMvp));
+        power.addEdge(edgePowerLuck);
     }
 }
 

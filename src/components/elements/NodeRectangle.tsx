@@ -10,7 +10,7 @@ export interface NodeRectangleProps {
 }
 
 
-export class NodeRectangle extends Component<NodeRectangleProps> {
+class NodeRectangle extends Component<NodeRectangleProps> {
     public render(): ReactNode {
         const { node, x, y } = this.props;
 

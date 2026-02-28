@@ -20,7 +20,7 @@ interface InfiniteCanvasState {
 }
 
 
-export class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState> implements ViewportObserver {
+class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState> implements ViewportObserver {
     private _unsubscribe?: () => void;
     private _containerRef: HTMLDivElement | null = null;
 
@@ -134,10 +134,10 @@ export class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanva
 
         event.preventDefault();
 
-        const dx = event.clientX - this.state.startX;
-        const dy = event.clientY - this.state.startY;
+        const deltaX = event.clientX - this.state.startX;
+        const deltaY = event.clientY - this.state.startY;
 
-        this.props.viewport.pan(dx, dy);
+        this.props.viewport.pan(deltaX, deltaY);
 
         this.setState({
             startX: event.clientX,
@@ -169,3 +169,6 @@ export class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanva
         }
     };
 }
+
+
+export default InfiniteCanvas;
