@@ -11,6 +11,7 @@ export interface InfiniteCanvasProps {
     className?: string;
     style?: CSSProperties;
     layerGapCenters?: number[];  // X-coordinates for vertical dividers.
+    onContextMenu?: (event: MouseEvent) => void;
 }
 
 
@@ -119,6 +120,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
                 className={className}
                 style={containerStyle}
                 onMouseDown={this.handleMouseDown}
+                onContextMenu={this.props.onContextMenu}
             >
                 <div style={contentStyle}>
                     {dividers}

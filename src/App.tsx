@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ReactNode, type MouseEvent } from 'react';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
@@ -8,12 +8,16 @@ import { DomainRegistry } from './features/registry/DomainRegistry';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import BackdropBlur from './components/menus/BackdropBlur';
 import FileOpenModal from './components/menus/FileOpenModal';
+import ContextMenu from './components/menus/ContextMenu';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 
 
 interface AppState {
     isFileLoaded: boolean;
+    isContextMenuOpen: boolean;
+    contextMenuX: number;
+    contextMenuY: number;
 }
 
 
@@ -48,11 +52,43 @@ class App extends Component<{}, AppState> {
         }
     };
 
+    private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
+        event.preventDefault();
+        
+        this.setState({
+            isContextMenuOpen: true,
+            contextMenuX: event.clientX,
+            contextMenuY: event.clientY
+        });
+    };
+
+    private handleCloseContextMenu: () => void = (): void => {
+        this.setState({ isContextMenuOpen: false });
+    };
+
+    private handleSaveBlueprint: () => void = (): void => {
+        const yamlContent = BlueprintSerializer.toYaml(this._registry);
+
+        // Create a Blob and trigger download.
+        const blob = new Blob([yamlContent], { type: 'text/yaml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'blueprint.yaml';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     constructor(properties: {}) {
         super(properties);
 
         this.state = {
-            isFileLoaded: false
+            isFileLoaded: false,
+            isContextMenuOpen: false,
+            contextMenuX: 0,
+            contextMenuY: 0
         };
 
         this._viewport = new CanvasViewport(0, 0, 1);
@@ -64,7 +100,7 @@ class App extends Component<{}, AppState> {
     }
 
     public render(): ReactNode {
-        const { isFileLoaded } = this.state;
+        const { isFileLoaded, isContextMenuOpen, contextMenuX, contextMenuY } = this.state;
         const layoutResult = this._layoutResult;
 
         return (
@@ -72,9 +108,21 @@ class App extends Component<{}, AppState> {
                 <InfiniteCanvas 
                     viewport={this._viewport}
                     layerGapCenters={layoutResult?.layerGapCenters}
+                    onContextMenu={this.handleContextMenu}
                 >
                     {layoutResult && this.renderGraph()}
                 </InfiniteCanvas>
+
+                {isContextMenuOpen && (
+                    <ContextMenu
+                        x={contextMenuX}
+                        y={contextMenuY}
+                        items={{
+                            'Save': this.handleSaveBlueprint
+                        }}
+                        onClose={this.handleCloseContextMenu}
+                    />
+                )}
 
                 {!isFileLoaded && (
                     <BackdropBlur>
