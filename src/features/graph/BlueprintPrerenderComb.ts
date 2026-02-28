@@ -7,10 +7,16 @@ import { type GraphNode } from './GraphNode';
 
 export class BlueprintPrerenderComb {
     private readonly ROW_HEIGHT: number = 150;  // Vertical spacing between node centers.
-    private readonly LAYER_SPACING: number = 150;  // Spacing between the bounding boxes of adjacent layers (variable requested).
+    private readonly MIN_LAYER_SPACING: number = 100;  // Minimum spacing between layers.
+    private readonly TEXT_PADDING: number = 50;  // Padding around text in the gap.
     private readonly NODE_WIDTH: number = 200;
     private readonly NODE_HEIGHT: number = 80;
     private readonly PADDING: number = 50;
+
+    private estimateTextWidth(text: string): number {
+        // Estimate width: length * 9px per char + 20px padding.
+        return text.length * 9 + 20;
+    }
 
     public calculateLayout(registry: DomainRegistry): BlueprintPrerenderCombResult {
         const nodes: Node[] = registry.allNodes;
@@ -262,8 +268,59 @@ export class BlueprintPrerenderComb {
         let maximumX: number = Number.MIN_VALUE;
         let maximumY: number = Number.MIN_VALUE;
 
-        // Calculate width of a column based on Node Width + Variable Layer Spacing.
-        const columnWidthWithSpacing: number = this.NODE_WIDTH + this.LAYER_SPACING;
+        // Calculate X positions for each layer dynamically.
+        // Accumulate X based on the gap required by the longest edge text between adjacent layers.
+        const layerXPositions: Map<number, number> = new Map<number, number>();
+        let currentX: number = this.PADDING;
+
+        sortedLayerIndices.forEach((layerIndex: number, i: number): void => {
+            if (i > 0) {
+                // Calculate gap from previous layer (layerIndex - 1) to this layer (layerIndex).
+                // Note: sortedLayerIndices are sorted, so sortedLayerIndices[i-1] is the previous layer.
+                // Assuming continuous layers 0, 1, 2... if not, this logic still works for adjacent *existing* layers.
+                const prevLayerIndex = sortedLayerIndices[i - 1];
+                let maxGap: number = this.MIN_LAYER_SPACING;
+
+                // Find edges between this layer and the previous layer to determine required width.
+                // Edges go Downstream (this layer) -> Upstream (prev layer).
+                const currentLayerNodes: GraphNode[] = layers.get(layerIndex) || [];
+                let maxTextWidth: number = 0;
+
+                currentLayerNodes.forEach((graphNode: GraphNode): void => {
+                    graphNode.node.edges.forEach((edge: Edge): void => {
+                         if (edge.history.length > 0) {
+                            const latestRecord = edge.history[edge.history.length - 1];
+                            const upstreamNode = latestRecord.targetUpstream;
+                            const upstreamGraphNode = graphNodes.get(upstreamNode.id);
+
+                            if (upstreamGraphNode && upstreamGraphNode.layer === prevLayerIndex) {
+                                // This edge connects strictly adjacent layers. Check text width.
+                                // Use the edge description/label. Assuming 'demandDescription' is the text property as per EdgeLine.tsx.
+                                const text = edge.demandDescription || "";
+                                
+                                if (text) {
+                                    const estimatedWidth: number = this.estimateTextWidth(text);
+                                    maxTextWidth = Math.max(maxTextWidth, estimatedWidth);
+                                }
+                            }
+                         }
+                    });
+                });
+
+                // Calculate the gap to ensure the text (centered on the edge) doesn't overlap nodes.
+                // Text is centered. Text Width = maxTextWidth.
+                // Total Gap = maxTextWidth + (2 * PADDING).
+                // The requirement is: Left gap (Upstream Node -> Text Left) == Right gap (Text Right -> Downstream Node).
+                // This means the Gap must accommodate the Text Width plus equal padding on both sides.
+                // So Gap >= maxTextWidth + 2 * TEXT_PADDING.
+                maxGap = Math.max(maxGap, maxTextWidth + (this.TEXT_PADDING * 2));
+
+                currentX += maxGap + this.NODE_WIDTH;
+            } else {
+                currentX = this.PADDING;
+            }
+            layerXPositions.set(layerIndex, currentX);
+        });
 
         if (graphNodes.size === 0) {
             minimumX = 0; 
@@ -276,18 +333,11 @@ export class BlueprintPrerenderComb {
                 
                 if (layerNodes) {
                     const currentLayerHeight: number = layerNodes.length * this.ROW_HEIGHT;
-
-                    // Center the layer vertically based on the maximum height of the forest.
-                    // This ensures the layer is vertically aligned with the center of the tallest layer.
-                    // Boundary Baseline: The top of the tallest layer constitutes the reference frame.
                     const startY: number = (totalGraphHeight - currentLayerHeight) / 2 + this.PADDING;
+                    const layerX = layerXPositions.get(layerIndex) || 0;
 
                     layerNodes.forEach((graphNode: GraphNode, index: number): void => {
-                        // X Position: Layer Index * (Node Width + Layer Spacing) + Padding.
-                        // This ensures consistent spacing between the right edge of one layer and the left edge of the next.
-                        const x: number = layerIndex * columnWidthWithSpacing + this.PADDING;
-                        
-                        // Y Position: Centered Start Y + Index * Row Height.
+                        const x: number = layerX;
                         const y: number = startY + (index * this.ROW_HEIGHT);
                         
                         resultNodes.set(graphNode.id, { x, y });
