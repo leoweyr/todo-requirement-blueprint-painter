@@ -194,7 +194,11 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
     private getTooltipStyle(): CSSProperties {
         return {
             marginTop: '2px',
-            backgroundColor: 'transparent',
+            backgroundColor: '#ffffff',
+            border: '1px solid #cccccc',
+            borderRadius: '4px',
+            padding: '2px 6px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
             color: '#666666',
             fontSize: '9pt',
             fontFamily: 'Helvetica, Arial, sans-serif',
