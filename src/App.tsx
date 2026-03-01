@@ -1,10 +1,10 @@
 import { Component, type ReactNode, type MouseEvent } from 'react';
 
-import { CanvasViewport } from './components/canvas/CanvasViewport';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult, type PrerenderEdge, type PrerenderNode } from './features/graph/BlueprintPrerenderCombResult';
 import { BlueprintSerializer } from './features/serializer/BlueprintSerializer';
 import { DomainRegistry } from './features/registry/DomainRegistry';
+import { CanvasViewport } from './components/canvas/CanvasViewport';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import BackdropBlur from './components/menus/BackdropBlur';
 import FileOpenModal from './components/menus/FileOpenModal';
@@ -72,6 +72,38 @@ class App extends Component<{}, AppState> {
         this.setState({ isContextMenuOpen: false });
     };
 
+    private handlePasteBlueprint: () => Promise<void> = async (): Promise<void> => {
+        try {
+            const clipboardText: string = await navigator.clipboard.readText();
+
+            if (!clipboardText) return;
+
+            // Deserialize and merge (overwrite duplicates).
+            await BlueprintSerializer.fromYaml(clipboardText, this._registry, undefined, undefined, true);
+            
+            // Re-calculate layout.
+            this._layoutResult = this._layoutService.calculateLayout(this._registry);
+            
+            // Calculate Content Bounds for Auto-Centering / Updating Scrollable Area.
+            if (this._layoutResult.contentBounds) {
+                const { minimumX, minimumY, maximumX, maximumY } = this._layoutResult.contentBounds;
+
+                // Update viewport bounds so the user can scroll to the new nodes.
+                this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
+            }
+
+            // Force update.
+            this.forceUpdate();
+            
+            // Close context menu.
+            this.handleCloseContextMenu();
+        } catch (error) {
+            console.error('Failed to paste blueprint:', error);
+
+            alert(`Failed to paste blueprint: ${(error as Error).message}`);
+        }
+    };
+
     private handleSaveBlueprint: () => void = (): void => {
         const yamlContent: string = BlueprintSerializer.toYaml(this._registry);
         const fileName: string = `${this._registry.blueprintName}.yaml`;
@@ -130,6 +162,7 @@ class App extends Component<{}, AppState> {
                         x={contextMenuX}
                         y={contextMenuY}
                         items={{
+                            'Paste': this.handlePasteBlueprint,
                             'Save': this.handleSaveBlueprint
                         }}
                         onClose={this.handleCloseContextMenu}

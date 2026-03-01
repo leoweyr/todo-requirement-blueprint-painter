@@ -15,7 +15,13 @@ import { Edge } from '../../domain/Edge.ts';
 
 
 export class BlueprintSerializer {
-    public static async fromYaml(yamlString: string, registry: DomainRegistry, trbVersion?: string, blueprintName?: string): Promise<void> {
+    public static async fromYaml(
+        yamlString: string, 
+        registry: DomainRegistry, 
+        trbVersion?: string, 
+        blueprintName?: string,
+        overwrite: boolean = false
+    ): Promise<void> {
         let version: string | undefined = trbVersion;
         let data: unknown;
 
@@ -40,59 +46,157 @@ export class BlueprintSerializer {
             }
         }
 
-        if (!version) {
-             throw new Error('TRB Schema version not provided and could not be inferred from YAML content (missing or invalid $schema).');
+        // If still no version, and we are overwriting (pasting partial content), use the registry's current version.
+        if (!version && overwrite && registry.trbVersion) {
+            version = registry.trbVersion;
         }
 
-        registry.trbVersion = version;
+        if (!version) {
+             throw new Error(
+                 'TRB Schema version not provided and could not be inferred from YAML content (missing or invalid $schema).'
+             );
+        }
+
+        // Validate version compatibility if overwriting (merging) into an existing registry with a set version.
+        // If the pasted content has a version different from the registry, check compatibility.
+        if (
+            overwrite && registry.trbVersion &&
+            version !== registry.trbVersion &&
+            !BlueprintSerializer.isVersionCompatible(version, registry.trbVersion)
+        ) {
+            throw new Error(
+                `Incompatible Todo Requirement Blueprint versions. Current: ${registry.trbVersion}, Incoming: ${version}. Merge operation cancelled.`
+            );
+        }
+
+        // Only update registry version if not merging/overwriting, or if registry was empty.
+        if (!overwrite || !registry.trbVersion) {
+            registry.trbVersion = version;
+        }
 
         // Fetch schema from remote.
         const schemaUrl: string = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${version}/trb.schema.json`;
-        let schema: any;
+        let schema: unknown;
 
-        try {
-            const response: Response = await fetch(schemaUrl);
+        const response: Response = await fetch(schemaUrl);
 
-            if (!response.ok) {
-                throw new Error(
-                    `Remote schema not found or inaccessible: ${schemaUrl} (${response.status} ${response.statusText})`
-                );
-            }
-
-            schema = await response.json();
-        } catch (error) {
-             throw new Error(`Failed to fetch remote schema: ${(error as Error).message}`);
+        if (!response.ok) {
+            throw new Error(
+                `Remote schema not found or inaccessible: ${schemaUrl} (${response.status} ${response.statusText})`
+            );
         }
+
+        schema = await response.json();
 
         const jsonValidator: Ajv = new Ajv();
 
         addFormats(jsonValidator);
         
-        const validate: ValidateFunction = jsonValidator.compile(schema);
+        const validate: ValidateFunction = jsonValidator.compile(schema as object);
 
-        // Validate the root object (SerializedBlueprint).
-        if (!validate(data)) {
-            const validationErrors: string = (validate.errors ?? [])
-                .map(
-                    (validationError: ErrorObject): string => `${validationError.instancePath} ${validationError.message}`
-                )
-                .join(', ');
+        // Determine content type and validate accordingly.
+        // A full blueprint MUST have 'nodes'.
+        const isFullBlueprint: boolean = typeof data === 'object' && data !== null && 'nodes' in data;
+        
+        // A partial blueprint (dictionaries only) has 'node_statuses' OR 'edge_evolution_reasons' but NO 'nodes'.
+        const isPartialDictionaries: boolean = typeof data === 'object' && data !== null && !('nodes' in data) && 
+                                               ('node_statuses' in data || 'edge_evolution_reasons' in data);
 
-            throw new Error(`Schema Validation Error: ${validationErrors}`);
+        const isNode: boolean = typeof data === 'object' && data !== null && 'id' in data && 'description' in data && 'status' in data;
+        const isNodeArray: boolean = Array.isArray(data) && data.length > 0 && typeof data[0] === 'object' && data[0] !== null && 'id' in data[0] && 'description' in data[0] && 'status' in data[0];
+
+        if (isFullBlueprint) {
+            // Validate the root object (SerializedBlueprint).
+            if (!validate(data)) {
+                const validationErrors: string = (validate.errors ?? [])
+                    .map(
+                        (validationError: ErrorObject): string => `${validationError.instancePath} ${validationError.message}`
+                    )
+                    .join(', ');
+
+                throw new Error(`Schema Validation Error: ${validationErrors}`);
+            }
+
+            const blueprintData: SerializedBlueprint = data as SerializedBlueprint;
+            await BlueprintSerializer.processBlueprint(blueprintData, registry, overwrite);
+
+        } else if (isPartialDictionaries) {
+            const fakeBlueprint: unknown = { ...data as object, nodes: [] };
+            
+            if (!validate(fakeBlueprint)) {
+                const validationErrors: string = (validate.errors ?? [])
+                    .map(
+                        (validationError: ErrorObject): string => `${validationError.instancePath} ${validationError.message}`
+                    )
+                    .join(', ');
+
+                throw new Error(`Dictionary Schema Validation Error: ${validationErrors}`);
+            }
+            
+            const partialData: SerializedBlueprint = data as SerializedBlueprint; 
+            await BlueprintSerializer.processBlueprint({ ...partialData, nodes: [] }, registry, overwrite);
+
+        } else if (isNode) {
+            // Validate against the Node definition in the schema.
+            const schemaObject = schema as { definitions?: { node: object }, $defs?: { node: object } };
+
+            const nodeValidator: ValidateFunction = jsonValidator.compile(
+                schemaObject.definitions?.node || schemaObject.$defs?.node || {}
+            );
+            
+            if (!nodeValidator(data)) {
+                 const validationErrors: string = (nodeValidator.errors ?? [])
+                    .map(
+                        (validationError: ErrorObject): string => `${validationError.instancePath} ${validationError.message}`
+                    )
+                    .join(', ');
+
+                throw new Error(`Node Schema Validation Error: ${validationErrors}`);
+            }
+
+            const nodeData: SerializedNode = data as SerializedNode;
+            await BlueprintSerializer.processNodes([nodeData], registry, overwrite);
+        } else if (isNodeArray) {
+             // Validate each node in the array against the Node definition.
+             const schemaObject = schema as { definitions?: { node: object }, $defs?: { node: object } };
+
+             const nodeValidator: ValidateFunction = jsonValidator.compile(
+                 schemaObject.definitions?.node || schemaObject.$defs?.node || {}
+             );
+
+             const nodesList: SerializedNode[] = data as SerializedNode[];
+
+             for (const nodeItem of nodesList) {
+                 if (!nodeValidator(nodeItem)) {
+                     const validationErrors: string = (nodeValidator.errors ?? [])
+                        .map(
+                            (validationError: ErrorObject): string => `${validationError.instancePath} ${validationError.message}`
+                        )
+                        .join(', ');
+    
+                    throw new Error(`Node Array Schema Validation Error: ${validationErrors}`);
+                 }
+             }
+
+             await BlueprintSerializer.processNodes(nodesList, registry, overwrite);
+
+        } else {
+            throw new Error('Unknown content type. Clipboard data must be a valid Blueprint, Node List, Single Node, or Enum Dictionary.');
         }
+    }
 
-        const blueprintData: SerializedBlueprint = data as SerializedBlueprint;
-
-        // Step 1: Parse and register global dictionaries (NodeStatus and EdgeEvolutionReason).
+    private static async processBlueprint(blueprintData: SerializedBlueprint, registry: DomainRegistry, overwrite: boolean): Promise<void> {
+        // Phase 1: Parse and register global dictionaries (NodeStatus and EdgeEvolutionReason).
+        // This ensures that shared definitions are available before we process individual nodes that reference them.
         if (blueprintData.node_statuses) {
             for (const value of Object.values(blueprintData.node_statuses)) {
                 const statusName: string = value.name;
                 const statusDescription: string = value.description;
 
-                if (!registry.getNodeStatus(statusName)) {
+                if (overwrite || !registry.getNodeStatus(statusName)) {
                     const status: NodeStatus = new NodeStatus(statusName, statusDescription);
 
-                    registry.registerNodeStatus(status);
+                    registry.registerNodeStatus(status, overwrite);
                 }
             }
         }
@@ -102,17 +206,24 @@ export class BlueprintSerializer {
                 const reasonName: string = value.name;
                 const reasonDescription: string = value.description;
 
-                if (!registry.getEdgeEvolutionReason(reasonName)) {
+                if (overwrite || !registry.getEdgeEvolutionReason(reasonName)) {
                     const reason: EdgeEvolutionReason = new EdgeEvolutionReason(reasonName, reasonDescription);
 
-                    registry.registerEdgeEvolutionReason(reason);
+                    registry.registerEdgeEvolutionReason(reason, overwrite);
                 }
             }
         }
 
-        const nodesData: SerializedNode[] = blueprintData.nodes;
+        if (blueprintData.nodes) {
+             // Proceed to process nodes and edges (Phases 2 & 3).
+             await BlueprintSerializer.processNodes(blueprintData.nodes, registry, overwrite);
+        }
+    }
 
-        // Step 2: Register all nodes (without edges).
+    private static async processNodes(nodesData: SerializedNode[], registry: DomainRegistry, overwrite: boolean): Promise<void> {
+        // Phase 2: Register all nodes (without edges).
+        // This first pass ensures all node IDs exist in the registry before attempt to link them with edges.
+        // This handles cases where a node refers to another node that appears later in the list.
         for (const serializedNode of nodesData) {
             const nodeData: SerializedNode = serializedNode;
             
@@ -120,13 +231,13 @@ export class BlueprintSerializer {
             // If the description in YAML differs from the registered one, the existing immutable instance is used.
             let nodeStatus: NodeStatus | undefined = registry.getNodeStatus(nodeData.status.name);
 
-            if (!nodeStatus) {
+            if (!nodeStatus || overwrite) {
                 nodeStatus = new NodeStatus(
                     nodeData.status.name,
                     nodeData.status.description
                 );
 
-                registry.registerNodeStatus(nodeStatus);
+                registry.registerNodeStatus(nodeStatus, overwrite);
             }
 
             const node: Node = new Node(
@@ -138,10 +249,11 @@ export class BlueprintSerializer {
                 nodeData.metadata || {}
             );
 
-            registry.registerNode(node);
+            registry.registerNode(node, overwrite);
         }
 
-        // Step 3: Parse and add edges.
+        // Phase 3: Parse and add edges.
+        // Now that all nodes are registered, safely resolve upstream references and build the graph connections.
         for (const serializedNode of nodesData) {
             const nodeData: SerializedNode = serializedNode;
             const node: Node | undefined = registry.getNode(nodeData.id);
@@ -183,10 +295,28 @@ export class BlueprintSerializer {
         }
     }
 
+    private static isVersionCompatible(incomingVersion: string, currentVersion: string): boolean {
+        // Simple Semantic Versioning check (Major.Minor.Patch).
+        // Returns true if Major versions match.
+        // Remove 'v' prefix if present.
+        const v1: string[] = incomingVersion.replace(/^v/, '').split('.');
+        const v2: string[] = currentVersion.replace(/^v/, '').split('.');
+        
+        if (v1.length < 1 || v2.length < 1) {
+            return true;  // Loose check if invalid format.
+        }
+
+        const major1: number = parseInt(v1[0], 10);
+        const major2: number = parseInt(v2[0], 10);
+
+        return major1 === major2;
+    }
+
     public static toYaml(registry: DomainRegistry): string {
         const nodeList: Node[] = registry.allNodes;
 
-        // Step 1: Prepare dictionaries.
+        // Phase 1: Prepare dictionaries.
+        // Collect all unique NodeStatus and EdgeEvolutionReason objects to create shared definitions.
         const plainDefinitionsStatus: Record<string, { name: string; description: string }> = {};
         const plainDefinitionsReason: Record<string, { name: string; description: string }> = {};
 
@@ -210,7 +340,8 @@ export class BlueprintSerializer {
         registry.allNodeStatuses.forEach((status: NodeStatus): void => { getStatusDef(status); });
         registry.allEdgeEvolutionReasons.forEach((reason: EdgeEvolutionReason): void => { getReasonDef(reason); });
 
-        // Step 2: Convert Nodes to Objects, replacing status/reason with references to dictionary objects.
+        // Phase 2: Convert Nodes to Objects, replacing status/reason with references to dictionary objects.
+        // This ensures that the YAML output uses anchors and aliases for repeated definitions.
         const serializedNodes: SerializedNode[] = nodeList.map((node: Node): SerializedNode => {
             const obj: SerializedNode = node.toObject();
 
@@ -247,8 +378,8 @@ export class BlueprintSerializer {
             nodes: serializedNodes
         };
 
-        // Step 3: Dump.
-        // Use noRefs: false (default) to allow aliases. 
+        // Phase 3: Generate YAML string.
+        // Use noRefs: false (default) to allow aliases which makes the blueprint more compact and maintainable.
         const yamlOutput = yaml.dump(serializedBlueprint, { noRefs: false });
         
         if (!registry.trbVersion) {

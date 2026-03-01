@@ -42,8 +42,8 @@ export class DomainRegistry {
         this._trbVersion = version;
     }
 
-    public registerNode(node: Node): void {
-        if (!this._nodes.has(node.id)) {
+    public registerNode(node: Node, overwrite: boolean = false): void {
+        if (overwrite || !this._nodes.has(node.id)) {
             this._nodes.set(node.id, node);
         }
     }
@@ -61,32 +61,28 @@ export class DomainRegistry {
     }
 
     public async fetchLatestTrbVersion(): Promise<void> {
-        try {
-            const response: Response = await fetch(
-                'https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/refs/heads/master/README.md'
+        const response: Response = await fetch(
+            'https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/refs/heads/master/README.md'
+        );
+        
+        if (!response.ok) {
+            throw new Error(
+                `Failed to fetch TRB Spec README for version check: ${response.status} ${response.statusText}`
             );
+        }
+
+        const text: string = await response.text();
+        const match: RegExpMatchArray | null = text.match(/https:\/\/img\.shields\.io\/badge\/version-([\d.]+)-blue\.svg/);
+
+        if (match && match[1]) {
+            const latestVersion: string = match[1];
             
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to fetch TRB Spec README for version check: ${response.status} ${response.statusText}`
-                );
+            // If the current version is still empty, update it too.
+            if (this._trbVersion === '') {
+                this._trbVersion = latestVersion;
             }
-
-            const text: string = await response.text();
-            const match: RegExpMatchArray | null = text.match(/https:\/\/img\.shields\.io\/badge\/version-([\d.]+)-blue\.svg/);
-
-            if (match && match[1]) {
-                const latestVersion: string = match[1];
-                
-                // If the current version is still empty, update it too.
-                if (this._trbVersion === '') {
-                    this._trbVersion = latestVersion;
-                }
-            } else {
-                throw new Error('Failed to parse TRB version from README badge.');
-            }
-        } catch (error) {
-            throw new Error(`Error fetching latest TRB version: ${error}`);
+        } else {
+            throw new Error('Failed to parse TRB version from README badge.');
         }
     }
 
@@ -94,8 +90,8 @@ export class DomainRegistry {
         return Array.from(this._nodes.values());
     }
 
-    public registerNodeStatus(status: NodeStatus): void {
-        if (!this._nodeStatuses.has(status.name)) {
+    public registerNodeStatus(status: NodeStatus, overwrite: boolean = false): void {
+        if (overwrite || !this._nodeStatuses.has(status.name)) {
             this._nodeStatuses.set(status.name, status);
         }
     }
@@ -108,8 +104,8 @@ export class DomainRegistry {
         return Array.from(this._nodeStatuses.values());
     }
 
-    public registerEdgeEvolutionReason(reason: EdgeEvolutionReason): void {
-        if (!this._edgeEvolutionReasons.has(reason.name)) {
+    public registerEdgeEvolutionReason(reason: EdgeEvolutionReason, overwrite: boolean = false): void {
+        if (overwrite || !this._edgeEvolutionReasons.has(reason.name)) {
             this._edgeEvolutionReasons.set(reason.name, reason);
         }
     }
