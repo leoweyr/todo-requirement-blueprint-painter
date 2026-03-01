@@ -14,6 +14,8 @@ export class DomainRegistry {
         return DomainRegistry._instance;
     }
 
+    private _blueprintName: string = 'Untitled Blueprint';
+    private _trbVersion: string = '';
     private readonly _nodes: Map<string, Node>;
     private readonly _nodeStatuses: Map<string, NodeStatus>;
     private readonly _edgeEvolutionReasons: Map<string, EdgeEvolutionReason>;
@@ -22,6 +24,22 @@ export class DomainRegistry {
         this._nodes = new Map<string, Node>();
         this._nodeStatuses = new Map<string, NodeStatus>();
         this._edgeEvolutionReasons = new Map<string, EdgeEvolutionReason>();
+    }
+
+    public get blueprintName(): string {
+        return this._blueprintName;
+    }
+
+    public set blueprintName(name: string) {
+        this._blueprintName = name;
+    }
+
+    public get trbVersion(): string {
+        return this._trbVersion;
+    }
+
+    public set trbVersion(version: string) {
+        this._trbVersion = version;
     }
 
     public registerNode(node: Node): void {
@@ -38,6 +56,38 @@ export class DomainRegistry {
         this._nodes.clear();
         this._nodeStatuses.clear();
         this._edgeEvolutionReasons.clear();
+        this._blueprintName = 'Untitled Blueprint';
+        this._trbVersion = '';
+    }
+
+    public async fetchLatestTrbVersion(): Promise<void> {
+        try {
+            const response: Response = await fetch(
+                'https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/refs/heads/master/README.md'
+            );
+            
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to fetch TRB Spec README for version check: ${response.status} ${response.statusText}`
+                );
+            }
+
+            const text: string = await response.text();
+            const match: RegExpMatchArray | null = text.match(/https:\/\/img\.shields\.io\/badge\/version-([\d.]+)-blue\.svg/);
+
+            if (match && match[1]) {
+                const latestVersion: string = match[1];
+                
+                // If the current version is still empty, update it too.
+                if (this._trbVersion === '') {
+                    this._trbVersion = latestVersion;
+                }
+            } else {
+                throw new Error('Failed to parse TRB version from README badge.');
+            }
+        } catch (error) {
+            throw new Error(`Error fetching latest TRB version: ${error}`);
+        }
     }
 
     public get allNodes(): Node[] {

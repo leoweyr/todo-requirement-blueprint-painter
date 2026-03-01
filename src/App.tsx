@@ -27,22 +27,28 @@ class App extends Component<{}, AppState> {
     private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private readonly _registry: DomainRegistry;
 
-    private handleFileSelected: (fileContent: string) => Promise<void> = async (fileContent: string): Promise<void> => {
+    private handleFileSelected: (
+        fileContent: string,
+        fileName: string
+    ) => Promise<void> = async (fileContent: string, fileName: string): Promise<void> => {
         console.log('Loading file...');
 
         try {
             this._registry.clear();
+            
+            // Remove extension from filename to get blueprint name.
+            const blueprintName: string = fileName.replace(/\.[^/.]+$/, "");
 
-            await BlueprintSerializer.fromYaml(fileContent, this._registry);
+            await BlueprintSerializer.fromYaml(fileContent, this._registry, undefined, blueprintName);
 
             this._layoutResult = this._layoutService.calculateLayout(this._registry);
 
-            // Calculate Content Bounds for Auto-Centering.
-            if (this._layoutResult.contentBounds) {
-                const { minimumX, minimumY, maximumX, maximumY } = this._layoutResult.contentBounds;
+        // Calculate Content Bounds for Auto-Centering.
+        if (this._layoutResult.contentBounds) {
+            const { minimumX, minimumY, maximumX, maximumY } = this._layoutResult.contentBounds;
 
-                this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
-            }
+            this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
+        }
 
             this.setState({ isFileLoaded: true });
         } catch (error) {
@@ -67,14 +73,16 @@ class App extends Component<{}, AppState> {
     };
 
     private handleSaveBlueprint: () => void = (): void => {
-        const yamlContent = BlueprintSerializer.toYaml(this._registry);
+        const yamlContent: string = BlueprintSerializer.toYaml(this._registry);
+        const fileName: string = `${this._registry.blueprintName}.yaml`;
 
         // Create a Blob and trigger download.
-        const blob = new Blob([yamlContent], { type: 'text/yaml;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
+        const blob: Blob = new Blob([yamlContent], { type: 'text/yaml;charset=utf-8' });
+        const url: string = URL.createObjectURL(blob);
+        const link: HTMLAnchorElement = document.createElement('a');
+
         link.href = url;
-        link.download = 'blueprint.yaml';
+        link.download = fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -99,9 +107,13 @@ class App extends Component<{}, AppState> {
         this._layoutResult = this._layoutService.calculateLayout(this._registry);
     }
 
+    public async componentDidMount(): Promise<void> {
+        await this._registry.fetchLatestTrbVersion();
+    }
+
     public render(): ReactNode {
-        const { isFileLoaded, isContextMenuOpen, contextMenuX, contextMenuY } = this.state;
-        const layoutResult = this._layoutResult;
+        const { isFileLoaded, isContextMenuOpen, contextMenuX, contextMenuY }: AppState = this.state;
+        const layoutResult: BlueprintPrerenderCombResult | null = this._layoutResult;
 
         return (
             <>

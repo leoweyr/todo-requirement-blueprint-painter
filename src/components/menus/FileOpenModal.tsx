@@ -2,7 +2,7 @@ import { Component, type ReactNode, type CSSProperties, type ChangeEvent } from 
 
 
 export interface FileOpenModalProps {
-    onFileSelected: (fileContent: string) => void;
+    onFileSelected: (fileContent: string, fileName: string) => void;
 }
 
 
@@ -40,13 +40,13 @@ class FileOpenModal extends Component<FileOpenModalProps> {
 
     private handleInputReference: (reference: HTMLInputElement | null) => void = (reference: HTMLInputElement | null): void => {
         this._fileInput = reference;
-    }
+    };
 
     private handleButtonClick: () => void = (): void => {
         if (this._fileInput) {
             this._fileInput.click();
         }
-    }
+    };
 
     private handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
         const file: File | undefined = event.target.files?.[0];
@@ -59,7 +59,7 @@ class FileOpenModal extends Component<FileOpenModalProps> {
             const content: string | ArrayBuffer | null | undefined = readerEvent.target?.result;
 
             if (typeof content === 'string') {
-                this.props.onFileSelected(content);
+                this.props.onFileSelected(content, file.name);
             }
         };
 
@@ -67,7 +67,7 @@ class FileOpenModal extends Component<FileOpenModalProps> {
         
         // Reset input value so the same file can be selected again if needed.
         event.target.value = '';
-    }
+    };
 
     private getContainerStyle(): CSSProperties {
         return {

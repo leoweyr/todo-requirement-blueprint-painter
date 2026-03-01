@@ -15,9 +15,13 @@ import { Edge } from '../../domain/Edge.ts';
 
 
 export class BlueprintSerializer {
-    public static async fromYaml(yamlString: string, registry: DomainRegistry, trbVersion?: string): Promise<void> {
+    public static async fromYaml(yamlString: string, registry: DomainRegistry, trbVersion?: string, blueprintName?: string): Promise<void> {
         let version: string | undefined = trbVersion;
         let data: unknown;
+
+        if (blueprintName) {
+            registry.blueprintName = blueprintName;
+        }
 
         try {
             data = yaml.load(yamlString, { schema: yaml.JSON_SCHEMA });
@@ -40,12 +44,14 @@ export class BlueprintSerializer {
              throw new Error('TRB Schema version not provided and could not be inferred from YAML content (missing or invalid $schema).');
         }
 
+        registry.trbVersion = version;
+
         // Fetch schema from remote.
-        const schemaUrl = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${version}/trb.schema.json`;
+        const schemaUrl: string = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${version}/trb.schema.json`;
         let schema: any;
 
         try {
-            const response = await fetch(schemaUrl);
+            const response: Response = await fetch(schemaUrl);
 
             if (!response.ok) {
                 throw new Error(
@@ -59,6 +65,7 @@ export class BlueprintSerializer {
         }
 
         const jsonValidator: Ajv = new Ajv();
+
         addFormats(jsonValidator);
         
         const validate: ValidateFunction = jsonValidator.compile(schema);
@@ -79,8 +86,11 @@ export class BlueprintSerializer {
         // Step 1: Parse and register global dictionaries (NodeStatus and EdgeEvolutionReason).
         if (blueprintData.node_statuses) {
             for (const value of Object.values(blueprintData.node_statuses)) {
-                if (!registry.getNodeStatus(value.name)) {
-                    const status = new NodeStatus(value.name, value.description);
+                const statusName: string = value.name;
+                const statusDescription: string = value.description;
+
+                if (!registry.getNodeStatus(statusName)) {
+                    const status: NodeStatus = new NodeStatus(statusName, statusDescription);
 
                     registry.registerNodeStatus(status);
                 }
@@ -89,38 +99,43 @@ export class BlueprintSerializer {
 
         if (blueprintData.edge_evolution_reasons) {
             for (const value of Object.values(blueprintData.edge_evolution_reasons)) {
-                if (!registry.getEdgeEvolutionReason(value.name)) {
-                    const reason = new EdgeEvolutionReason(value.name, value.description);
+                const reasonName: string = value.name;
+                const reasonDescription: string = value.description;
+
+                if (!registry.getEdgeEvolutionReason(reasonName)) {
+                    const reason: EdgeEvolutionReason = new EdgeEvolutionReason(reasonName, reasonDescription);
 
                     registry.registerEdgeEvolutionReason(reason);
                 }
             }
         }
 
-        const nodesData = blueprintData.nodes;
+        const nodesData: SerializedNode[] = blueprintData.nodes;
 
         // Step 2: Register all nodes (without edges).
         for (const serializedNode of nodesData) {
+            const nodeData: SerializedNode = serializedNode;
+            
             // Apply a first-come-first-served strategy for singleton definitions.
             // If the description in YAML differs from the registered one, the existing immutable instance is used.
-            let nodeStatus: NodeStatus | undefined = registry.getNodeStatus(serializedNode.status.name);
+            let nodeStatus: NodeStatus | undefined = registry.getNodeStatus(nodeData.status.name);
 
             if (!nodeStatus) {
                 nodeStatus = new NodeStatus(
-                    serializedNode.status.name,
-                    serializedNode.status.description
+                    nodeData.status.name,
+                    nodeData.status.description
                 );
 
                 registry.registerNodeStatus(nodeStatus);
             }
 
             const node: Node = new Node(
-                serializedNode.id,
-                serializedNode.description,
-                serializedNode.version,
-                serializedNode.updated_at,
+                nodeData.id,
+                nodeData.description,
+                nodeData.version,
+                nodeData.updated_at,
                 nodeStatus,
-                serializedNode.metadata || {}
+                nodeData.metadata || {}
             );
 
             registry.registerNode(node);
@@ -128,15 +143,16 @@ export class BlueprintSerializer {
 
         // Step 3: Parse and add edges.
         for (const serializedNode of nodesData) {
-            const node = registry.getNode(serializedNode.id);
+            const nodeData: SerializedNode = serializedNode;
+            const node: Node | undefined = registry.getNode(nodeData.id);
             
-            if (node && serializedNode.edges) {
-                serializedNode.edges.forEach((edgeData: SerializedEdge): void => {
+            if (node && nodeData.edges) {
+                nodeData.edges.forEach((edgeData: SerializedEdge): void => {
                     const history: EdgeHistoryRecord[] = edgeData.history.map((historyRecord: SerializedEdgeHistory): EdgeHistoryRecord => {
                         const upstream: Node | undefined = registry.getNode(historyRecord.target_upstream_id);
 
                         if (!upstream) {
-                             throw new Error(`Upstream node '${historyRecord.target_upstream_id}' not found in registry. Ensure it is loaded before parsing '${serializedNode.id}'.`);
+                             throw new Error(`Upstream node '${historyRecord.target_upstream_id}' not found in registry. Ensure it is loaded before parsing '${nodeData.id}'.`);
                         }
 
                         let evolutionReason: EdgeEvolutionReason | undefined = registry.getEdgeEvolutionReason(historyRecord.evolution_reason.name);
@@ -233,6 +249,15 @@ export class BlueprintSerializer {
 
         // Step 3: Dump.
         // Use noRefs: false (default) to allow aliases. 
-        return yaml.dump(serializedBlueprint, { noRefs: false });
+        const yamlOutput = yaml.dump(serializedBlueprint, { noRefs: false });
+        
+        if (!registry.trbVersion) {
+             throw new Error('TRB Schema version is not set in registry. Cannot serialize blueprint.');
+        }
+
+        const schemaUrl = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${registry.trbVersion}/trb.schema.json`;
+        const header = `# yaml-language-server: $schema=${schemaUrl}\n\n`;
+
+        return header + yamlOutput;
     }
 }
