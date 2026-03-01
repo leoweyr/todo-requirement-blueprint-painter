@@ -1,6 +1,8 @@
 import { Component, type CSSProperties, type ReactNode } from 'react';
 
 import { Edge } from '../../domain/Edge';
+import { EdgeType } from '../../domain/enums/EdgeType';
+import { EdgeStatus } from '../../domain/enums/EdgeStatus';
 
 
 export interface EdgeLineProps {
@@ -48,12 +50,40 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
         const hasText: boolean = !!edge.demandDescription;
 
         let tooltipText: string = '';
+        let strokeDasharray: string = 'none';
+        let strokeColor: string = '#000000';
+        let isVisible: boolean = true;
 
         if (edge.history && edge.history.length > 0) {
             const latest = edge.history[edge.history.length - 1];
             const date = new Date(latest.updatedAt);
             const dateStr = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
             tooltipText = `${latest.version} (${dateStr})`;
+
+            // Determine line style based on Type.
+            if (latest.type === EdgeType.OPTIMIZES) {
+                strokeDasharray = '5,5';
+            }
+
+            // Determine line color and visibility based on Status.
+            switch (latest.status) {
+                case EdgeStatus.ACTIVE:
+                    strokeColor = '#4CAF50';
+                    break;
+                case EdgeStatus.DEPRECATED:
+                    strokeColor = '#9E9E9E';
+                    break;
+                case EdgeStatus.CUT:
+                    isVisible = false;
+                    break;
+                default:
+                    strokeColor = '#000000';
+                    break;
+            }
+        }
+
+        if (!isVisible) {
+            return null;
         }
 
         const width: number = Math.abs(endX - startX);
@@ -116,8 +146,9 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                         y1={startLocalY} 
                         x2={endLocalX} 
                         y2={endLocalY} 
-                        stroke="#000000" 
+                        stroke={strokeColor} 
                         strokeWidth="1pt"
+                        strokeDasharray={strokeDasharray}
                     />
 
                     {/* Invisible Hit Area (Always present to capture hover). */}
