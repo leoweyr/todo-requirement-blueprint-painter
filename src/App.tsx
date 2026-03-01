@@ -121,6 +121,13 @@ class App extends Component<{}, AppState> {
         URL.revokeObjectURL(url);
     };
 
+    private handleKeyDown: (event: KeyboardEvent) => void = (event: KeyboardEvent): void => {
+        // Check for Ctrl+V or Cmd+V (Meta+V).
+        if ((event.ctrlKey || event.metaKey) && (event.key === 'v' || event.key === 'V')) {
+            this.handlePasteBlueprint();
+        }
+    };
+
     constructor(properties: {}) {
         super(properties);
 
@@ -141,6 +148,12 @@ class App extends Component<{}, AppState> {
 
     public async componentDidMount(): Promise<void> {
         await this._registry.fetchLatestTrbVersion();
+        
+        window.addEventListener('keydown', this.handleKeyDown);
+    }
+
+    public componentWillUnmount(): void {
+        window.removeEventListener('keydown', this.handleKeyDown);
     }
 
     public render(): ReactNode {
