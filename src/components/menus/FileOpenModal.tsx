@@ -1,9 +1,18 @@
 import { Component, type ReactNode, type CSSProperties, type ChangeEvent } from 'react';
 
+import { DomainRegistry } from '../../features/registry/DomainRegistry';
+import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderComb';
+import { CanvasViewport } from '../canvas/CanvasViewport';
+import { type BlueprintPrerenderCombResult } from '../../features/graph/BlueprintPrerenderCombResult';
+import { BlueprintSerializer } from '../../features/serializer/BlueprintSerializer';
+
 
 export interface FileOpenModalProps {
-    onFileSelected: (fileContent: string, fileName: string) => void;
-    onCreateNew: (name: string, trbVersion: string) => void;
+    onFileLoaded: () => void;
+    registry: DomainRegistry;
+    layoutService: BlueprintPrerenderComb;
+    viewport: CanvasViewport;
+    onLayoutUpdate: (result: BlueprintPrerenderCombResult) => void;
 }
 
 
@@ -20,10 +29,19 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
     private _fileInput: HTMLInputElement | null = null;
 
     private handleCreateClick: () => void = (): void => {
-        const { newBlueprintName, selectedVersion } = this.state;
+        const { newBlueprintName, selectedVersion }: FileOpenModalState = this.state;
+        const { registry, layoutService, onLayoutUpdate, onFileLoaded }: FileOpenModalProps = this.props;
 
         if (newBlueprintName && selectedVersion) {
-            this.props.onCreateNew(newBlueprintName, selectedVersion);
+            registry.clear();
+            registry.blueprintName = newBlueprintName;
+            registry.trbVersion = selectedVersion;
+            
+            // Reset layout.
+            const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
+            onLayoutUpdate(result);
+            
+            onFileLoaded();
         }
     };
 
@@ -35,12 +53,12 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
         this.setState({ isCreatingNew: false });
     };
 
-    private handleNameChange: (e: ChangeEvent<HTMLInputElement>) => void = (e: ChangeEvent<HTMLInputElement>): void => {
-        this.setState({ newBlueprintName: e.target.value });
+    private handleNameChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
+        this.setState({ newBlueprintName: event.target.value });
     };
 
-    private handleVersionChange: (e: ChangeEvent<HTMLSelectElement>) => void = (e: ChangeEvent<HTMLSelectElement>): void => {
-        this.setState({ selectedVersion: e.target.value });
+    private handleVersionChange: (event: ChangeEvent<HTMLSelectElement>) => void = (event: ChangeEvent<HTMLSelectElement>): void => {
+        this.setState({ selectedVersion: event.target.value });
     };
 
     private handleInputReference: (reference: HTMLInputElement | null) => void = (reference: HTMLInputElement | null): void => {
@@ -55,16 +73,38 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
 
     private handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
         const file: File | undefined = event.target.files?.[0];
+        const { registry, layoutService, viewport, onLayoutUpdate, onFileLoaded }: FileOpenModalProps = this.props;
 
         if (!file) return;
 
         const reader: FileReader = new FileReader();
 
-        reader.onload = (readerEvent: ProgressEvent<FileReader>): void => {
+        reader.onload = async (readerEvent: ProgressEvent<FileReader>): Promise<void> => {
             const content: string | ArrayBuffer | null | undefined = readerEvent.target?.result;
 
             if (typeof content === 'string') {
-                this.props.onFileSelected(content, file.name);
+                try {
+                    registry.clear();
+                    
+                    // Remove extension from filename to get blueprint name.
+                    const blueprintName: string = file.name.replace(/\.[^/.]+$/, "");
+
+                    await BlueprintSerializer.fromYaml(content, registry, undefined, blueprintName);
+
+                    const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
+                    onLayoutUpdate(result);
+
+                    // Calculate Content Bounds for Auto-Centering.
+                    if (result.contentBounds) {
+                        const { minimumX, minimumY, maximumX, maximumY }: { minimumX: number; minimumY: number; maximumX: number; maximumY: number } = result.contentBounds;
+                        viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
+                    }
+
+                    onFileLoaded();
+                } catch (error) {
+                    console.error('Failed to load blueprint:', error);
+                    alert(`Failed to load blueprint: ${(error as Error).message}`);
+                }
             }
         };
 
@@ -74,7 +114,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
         event.target.value = '';
     };
 
-    constructor(props: FileOpenModalProps) {
+    public constructor(props: FileOpenModalProps) {
         super(props);
 
         this.state = {
@@ -91,7 +131,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
     }
 
     public render(): ReactNode {
-        const { isCreatingNew } = this.state;
+        const { isCreatingNew }: FileOpenModalState = this.state;
 
         return (
             <div style={this.getContainerStyle()}>
@@ -203,7 +243,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
     }
 
     private renderCreateForm(): ReactNode {
-        const { newBlueprintName, selectedVersion, availableVersions, isLoadingVersions } = this.state;
+        const { newBlueprintName, selectedVersion, availableVersions, isLoadingVersions }: FileOpenModalState = this.state;
 
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'left' }}>
@@ -297,7 +337,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
     private getButtonStyle(): CSSProperties {
         return {
             padding: '10px 24px',
-            backgroundColor: '#007AFF',  // iOS blue-ish.
+            backgroundColor: '#007AFF',  // This color resembles the standard iOS blue.
             color: '#ffffff',
             border: 'none',
             borderRadius: '6px',

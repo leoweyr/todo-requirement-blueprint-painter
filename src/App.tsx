@@ -25,45 +25,11 @@ class App extends Component<{}, AppState> {
     private readonly _registry: DomainRegistry;
     private _contextMenuRef: ContextMenu | null = null;
 
-    private handleFileSelected: (
-        fileContent: string,
-        fileName: string
-    ) => Promise<void> = async (fileContent: string, fileName: string): Promise<void> => {
-        console.log('Loading file...');
-
-        try {
-            this._registry.clear();
-            
-            // Remove extension from filename to get blueprint name.
-            const blueprintName: string = fileName.replace(/\.[^/.]+$/, "");
-
-            await BlueprintSerializer.fromYaml(fileContent, this._registry, undefined, blueprintName);
-
-            this._layoutResult = this._layoutService.calculateLayout(this._registry);
-
-        // Calculate Content Bounds for Auto-Centering.
-        if (this._layoutResult.contentBounds) {
-            const { minimumX, minimumY, maximumX, maximumY } = this._layoutResult.contentBounds;
-
-            this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
-        }
-
-            this.setState({ isFileLoaded: true });
-        } catch (error) {
-            console.error('Failed to load blueprint:', error);
-
-            alert(`Failed to load blueprint: ${(error as Error).message}`);
-        }
+    private handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (result: BlueprintPrerenderCombResult): void => {
+        this._layoutResult = result;
     };
 
-    private handleCreateNew: (name: string, trbVersion: string) => void = (name: string, trbVersion: string): void => {
-        this._registry.clear();
-        this._registry.blueprintName = name;
-        this._registry.trbVersion = trbVersion;
-        
-        // Reset layout.
-        this._layoutResult = this._layoutService.calculateLayout(this._registry);
-        
+    private handleFileLoaded: () => void = (): void => {
         this.setState({ isFileLoaded: true });
     };
 
@@ -87,7 +53,17 @@ class App extends Component<{}, AppState> {
             
             // Calculate Content Bounds for Auto-Centering / Updating Scrollable Area.
             if (this._layoutResult.contentBounds) {
-                const { minimumX, minimumY, maximumX, maximumY } = this._layoutResult.contentBounds;
+                const {
+                    minimumX,
+                    minimumY,
+                    maximumX,
+                    maximumY
+                }: {
+                    minimumX: number;
+                    minimumY: number;
+                    maximumX: number;
+                    maximumY: number
+                } = this._layoutResult.contentBounds;
 
                 // Update viewport bounds so the user can scroll to the new nodes.
                 this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
@@ -128,7 +104,7 @@ class App extends Component<{}, AppState> {
         }
     };
 
-    constructor(properties: {}) {
+    public constructor(properties: {}) {
         super(properties);
 
         this.state = {
@@ -168,16 +144,20 @@ class App extends Component<{}, AppState> {
                 </InfiniteCanvas>
 
                 <ContextMenu
-                    ref={(el: ContextMenu | null): void => { this._contextMenuRef = el; }}
+                    ref={(contextMenu: ContextMenu | null): void => { this._contextMenuRef = contextMenu; }}
                     onPaste={this.handlePasteBlueprint}
                     onSave={this.handleSaveBlueprint}
                 />
 
                 {!isFileLoaded && (
                     <BackdropBlur>
+                        {/* Modal to open existing file or create a new one. */}
                         <FileOpenModal 
-                            onFileSelected={this.handleFileSelected} 
-                            onCreateNew={this.handleCreateNew}
+                            onFileLoaded={this.handleFileLoaded}
+                            registry={this._registry}
+                            layoutService={this._layoutService}
+                            viewport={this._viewport}
+                            onLayoutUpdate={this.handleLayoutUpdate}
                         />
                     </BackdropBlur>
                 )}
@@ -188,7 +168,7 @@ class App extends Component<{}, AppState> {
     private renderGraph(): ReactNode {
         if (!this._layoutResult) return null;
 
-        const { prerenderNodes, prerenderEdges } = this._layoutResult;
+        const { prerenderNodes, prerenderEdges }: BlueprintPrerenderCombResult = this._layoutResult;
 
         return (
             <>
