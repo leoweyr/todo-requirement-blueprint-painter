@@ -36,6 +36,8 @@ jobs:
 
             - name: Build Project Artifacts
               run: npx vercel build ${{ github.ref == 'refs/heads/master' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+              env:
+                  APP_GITHUB_TOKEN: ${{ secrets.APP_GITHUB_TOKEN }}
 
             - name: Deploy Project Artifacts to Vercel
               id: deploy-step

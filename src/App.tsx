@@ -58,6 +58,17 @@ class App extends Component<{}, AppState> {
         }
     };
 
+    private handleCreateNew: (name: string, trbVersion: string) => void = (name: string, trbVersion: string): void => {
+        this._registry.clear();
+        this._registry.blueprintName = name;
+        this._registry.trbVersion = trbVersion;
+        
+        // Reset layout.
+        this._layoutResult = this._layoutService.calculateLayout(this._registry);
+        
+        this.setState({ isFileLoaded: true });
+    };
+
     private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.preventDefault();
         
@@ -121,9 +132,11 @@ class App extends Component<{}, AppState> {
         URL.revokeObjectURL(url);
     };
 
-    private handleKeyDown: (event: KeyboardEvent) => void = (event: KeyboardEvent): void => {
+    private handleKeyDown: (event: Event) => void = (event: Event): void => {
+        const keyboardEvent: KeyboardEvent = event as KeyboardEvent;
+
         // Check for Ctrl+V or Cmd+V (Meta+V).
-        if ((event.ctrlKey || event.metaKey) && (event.key === 'v' || event.key === 'V')) {
+        if ((keyboardEvent.ctrlKey || keyboardEvent.metaKey) && (keyboardEvent.key === 'v' || keyboardEvent.key === 'V')) {
             this.handlePasteBlueprint();
         }
     };
@@ -184,7 +197,10 @@ class App extends Component<{}, AppState> {
 
                 {!isFileLoaded && (
                     <BackdropBlur>
-                        <FileOpenModal onFileSelected={this.handleFileSelected} />
+                        <FileOpenModal 
+                            onFileSelected={this.handleFileSelected} 
+                            onCreateNew={this.handleCreateNew}
+                        />
                     </BackdropBlur>
                 )}
             </>

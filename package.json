@@ -14,13 +14,19 @@
   "keywords": [
     "architecture-as-code",
     "visual-editor",
-    "bidirectional",
+    "bidirectional-sync",
     "diagramming-tool",
     "interactive-graph",
     "visual-programming",
     "trb-spec",
     "topology-graph",
-    "low-code"
+    "low-code",
+    "dag-layout",
+    "barycenter-algorithm",
+    "graph-theory",
+    "edge-crossing-minimization",
+    "collision-detection",
+    "infinite-canvas"
   ],
   "author": "leoweyr <contact@leoweyr.com>",
   "dependencies": {
