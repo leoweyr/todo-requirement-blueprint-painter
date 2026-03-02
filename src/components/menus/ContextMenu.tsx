@@ -4,55 +4,86 @@ import ContextMenuItem from './ContextMenuItem';
 
 
 export interface ContextMenuProps {
-    x: number;
-    y: number;
-    items: Record<string, () => void>;
-    onClose: () => void;
+    onPaste: () => void;
+    onSave: () => void;
 }
 
 
-class ContextMenu extends Component<ContextMenuProps> {
-    private overlayRef: HTMLDivElement | null = null;
+interface ContextMenuState {
+    isOpen: boolean;
+    x: number;
+    y: number;
+}
+
+
+class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
+    private _overlayRef: HTMLDivElement | null = null;
+
+    public handleOpen: (event: MouseEvent) => void = (event: MouseEvent): void => {
+        event.preventDefault();
+        
+        this.setState({
+            isOpen: true,
+            x: event.clientX,
+            y: event.clientY
+        });
+    };
+
+    private handleClose: () => void = (): void => {
+        this.setState({ isOpen: false });
+    };
 
     private handleOverlayClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        // Close if clicking the overlay (outside the menu).
-        if (this.overlayRef && event.target === this.overlayRef) {
-            this.props.onClose();
+        if (this._overlayRef && event.target === this._overlayRef) {
+            this.handleClose();
         }
     };
 
     private handleItemClick: (callback: () => void) => void = (callback: () => void): void => {
         callback();
-        this.props.onClose();
+        this.handleClose();
     };
 
-    private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        // Prevent default context menu on the custom menu itself.
+    private handleContextMenuOnMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.preventDefault();
     };
 
+    constructor(props: ContextMenuProps) {
+        super(props);
+
+        this.state = {
+            isOpen: false,
+            x: 0,
+            y: 0
+        };
+    }
+
     public render(): ReactNode {
-        const { x, y, items } = this.props;
+        const { isOpen, x, y } = this.state;
+        const { onPaste, onSave } = this.props;
 
-        const itemEntries = Object.entries(items);
-
-        if (itemEntries.length === 0) {
+        if (!isOpen) {
             return null;
         }
 
+        const items: Record<string, () => void> = {
+            'Paste': onPaste,
+            'Save': onSave
+        };
+
         return (
             <div 
-                ref={(el) => { this.overlayRef = el; }}
+                ref={(el) => { this._overlayRef = el; }}
                 style={this.getOverlayStyle()}
                 onClick={this.handleOverlayClick}
-                onContextMenu={this.handleContextMenu}
+                onContextMenu={this.handleContextMenuOnMenu}
             >
                 <div style={this.getMenuContainerStyle(x, y)}>
-                    {itemEntries.map(([label, callback]: [string, () => void]): ReactNode => (
+                    {Object.entries(items).map(([label, callback]: [string, () => void]): ReactNode => (
                         <ContextMenuItem
                             key={label}
                             label={label}
-                            onClick={() => this.handleItemClick(callback)}
+                            onClick={(): void => this.handleItemClick(callback)}
                         />
                     ))}
                 </div>

@@ -15,9 +15,6 @@ import NodeRectangle from './components/elements/NodeRectangle';
 
 interface AppState {
     isFileLoaded: boolean;
-    isContextMenuOpen: boolean;
-    contextMenuX: number;
-    contextMenuY: number;
 }
 
 
@@ -26,6 +23,7 @@ class App extends Component<{}, AppState> {
     private readonly _layoutService: BlueprintPrerenderComb;
     private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private readonly _registry: DomainRegistry;
+    private _contextMenuRef: ContextMenu | null = null;
 
     private handleFileSelected: (
         fileContent: string,
@@ -70,17 +68,9 @@ class App extends Component<{}, AppState> {
     };
 
     private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        event.preventDefault();
-        
-        this.setState({
-            isContextMenuOpen: true,
-            contextMenuX: event.clientX,
-            contextMenuY: event.clientY
-        });
-    };
-
-    private handleCloseContextMenu: () => void = (): void => {
-        this.setState({ isContextMenuOpen: false });
+        if (this._contextMenuRef) {
+            this._contextMenuRef.handleOpen(event);
+        }
     };
 
     private handlePasteBlueprint: () => Promise<void> = async (): Promise<void> => {
@@ -105,9 +95,6 @@ class App extends Component<{}, AppState> {
 
             // Force update.
             this.forceUpdate();
-            
-            // Close context menu.
-            this.handleCloseContextMenu();
         } catch (error) {
             console.error('Failed to paste blueprint:', error);
 
@@ -145,10 +132,7 @@ class App extends Component<{}, AppState> {
         super(properties);
 
         this.state = {
-            isFileLoaded: false,
-            isContextMenuOpen: false,
-            contextMenuX: 0,
-            contextMenuY: 0
+            isFileLoaded: false
         };
 
         this._viewport = new CanvasViewport(0, 0, 1);
@@ -170,7 +154,7 @@ class App extends Component<{}, AppState> {
     }
 
     public render(): ReactNode {
-        const { isFileLoaded, isContextMenuOpen, contextMenuX, contextMenuY }: AppState = this.state;
+        const { isFileLoaded }: AppState = this.state;
         const layoutResult: BlueprintPrerenderCombResult | null = this._layoutResult;
 
         return (
@@ -183,17 +167,11 @@ class App extends Component<{}, AppState> {
                     {layoutResult && this.renderGraph()}
                 </InfiniteCanvas>
 
-                {isContextMenuOpen && (
-                    <ContextMenu
-                        x={contextMenuX}
-                        y={contextMenuY}
-                        items={{
-                            'Paste': this.handlePasteBlueprint,
-                            'Save': this.handleSaveBlueprint
-                        }}
-                        onClose={this.handleCloseContextMenu}
-                    />
-                )}
+                <ContextMenu
+                    ref={(el: ContextMenu | null): void => { this._contextMenuRef = el; }}
+                    onPaste={this.handlePasteBlueprint}
+                    onSave={this.handleSaveBlueprint}
+                />
 
                 {!isFileLoaded && (
                     <BackdropBlur>
