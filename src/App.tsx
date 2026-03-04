@@ -5,8 +5,8 @@ import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb'
 import { type BlueprintPrerenderCombResult, type PrerenderEdge, type PrerenderNode } from './features/graph/BlueprintPrerenderCombResult';
 import { DomainRegistry } from './features/registry/DomainRegistry';
 import ContextMenu from './components/menus/ContextMenu';
-import { BlueprintSerializer } from './features/serializer/BlueprintSerializer';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
+import { BlueprintPaster } from './components/menus/BlueprintPaster';
 import { BlueprintSaver } from './components/menus/BlueprintSaver';
 import BackdropBlur from './components/menus/BackdropBlur';
 import FileOpenModal from './components/menus/FileOpenModal';
@@ -40,54 +40,6 @@ class App extends Component<{}, AppState> {
         }
     };
 
-    private handlePasteBlueprint: () => Promise<void> = async (): Promise<void> => {
-        try {
-            const clipboardText: string = await navigator.clipboard.readText();
-
-            if (!clipboardText) return;
-
-            // Deserialize and merge (overwrite duplicates).
-            await BlueprintSerializer.fromYaml(clipboardText, this._registry, undefined, undefined, true);
-            
-            // Re-calculate layout.
-            this._layoutResult = this._layoutService.calculateLayout(this._registry);
-            
-            // Calculate Content Bounds for Auto-Centering / Updating Scrollable Area.
-            if (this._layoutResult.contentBounds) {
-                const {
-                    minimumX,
-                    minimumY,
-                    maximumX,
-                    maximumY
-                }: {
-                    minimumX: number;
-                    minimumY: number;
-                    maximumX: number;
-                    maximumY: number
-                } = this._layoutResult.contentBounds;
-
-                // Update viewport bounds so the user can scroll to the new nodes.
-                this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
-            }
-
-            // Force update.
-            this.forceUpdate();
-        } catch (error) {
-            console.error('Failed to paste blueprint:', error);
-
-            alert(`Failed to paste blueprint: ${(error as Error).message}`);
-        }
-    };
-
-    private handleKeyDown: (event: Event) => void = (event: Event): void => {
-        const keyboardEvent: KeyboardEvent = event as KeyboardEvent;
-
-        // Check for Ctrl+V or Cmd+V (Meta+V).
-        if ((keyboardEvent.ctrlKey || keyboardEvent.metaKey) && (keyboardEvent.key === 'v' || keyboardEvent.key === 'V')) {
-            this.handlePasteBlueprint();
-        }
-    };
-
     public constructor(properties: {}) {
         super(properties);
 
@@ -106,11 +58,20 @@ class App extends Component<{}, AppState> {
     public async componentDidMount(): Promise<void> {
         await this._registry.fetchLatestTrbVersion();
         
-        window.addEventListener('keydown', this.handleKeyDown);
+        BlueprintPaster.bind(
+            window,
+            this._registry,
+            this._layoutService,
+            this._viewport,
+            (result: BlueprintPrerenderCombResult): void => {
+                this._layoutResult = result;
+                this.forceUpdate();
+            }
+        );
     }
 
     public componentWillUnmount(): void {
-        window.removeEventListener('keydown', this.handleKeyDown);
+        BlueprintPaster.unbind(window);
     }
 
     public render(): ReactNode {
@@ -129,7 +90,17 @@ class App extends Component<{}, AppState> {
 
                 <ContextMenu
                     ref={(contextMenu: ContextMenu | null): void => { this._contextMenuRef = contextMenu; }}
-                    onPaste={this.handlePasteBlueprint}
+                    onPaste={(): void => {
+                        BlueprintPaster.paste(
+                            this._registry,
+                            this._layoutService,
+                            this._viewport,
+                            (result: BlueprintPrerenderCombResult): void => {
+                                this._layoutResult = result;
+                                this.forceUpdate();
+                            }
+                        );
+                    }}
                     onSave={(): void => BlueprintSaver.save(this._registry)}
                 />
 
