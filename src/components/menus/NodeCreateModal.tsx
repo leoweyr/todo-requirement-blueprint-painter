@@ -1,13 +1,17 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 
-import { NodeStatus } from '../../domain/NodeStatus';
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
+import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderComb';
+import { type BlueprintPrerenderCombResult } from '../../features/graph/BlueprintPrerenderCombResult';
+import { NodeCreator } from './NodeCreator';
+import { NodeStatus } from '../../domain/NodeStatus';
 
 
 export interface NodeCreateModalProps {
     registry: DomainRegistry;
+    layoutService: BlueprintPrerenderComb;
     onClose: () => void;
-    onConfirm: (description: string, version: string, status: string, metadata: string) => void;
+    onLayoutUpdate: (result: BlueprintPrerenderCombResult) => void;
 }
 
 
@@ -20,7 +24,7 @@ interface NodeCreateModalState {
 }
 
 
-export class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalState> {
+class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalState> {
     private handleDescriptionChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
         this.setState({ description: event.target.value });
     };
@@ -49,11 +53,91 @@ export class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateM
 
     private handleConfirmClick: () => void = (): void => {
         const { description, version, selectedStatus, metadataJson, metadataError }: NodeCreateModalState = this.state;
-        const { onConfirm }: NodeCreateModalProps = this.props;
+        const { registry, layoutService, onClose, onLayoutUpdate }: NodeCreateModalProps = this.props;
 
         if (description && version && selectedStatus && !metadataError) {
-            onConfirm(description, version, selectedStatus, metadataJson);
+            NodeCreator.create(registry, description, version, selectedStatus, metadataJson);
+            
+            const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
+            onLayoutUpdate(result);
+            
+            onClose();
         }
+    };
+
+    private getContainerStyle: () => CSSProperties = (): CSSProperties => {
+        return {
+            backgroundColor: '#ffffff',
+            padding: '30px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            width: '400px',
+            textAlign: 'left',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '15px'
+        };
+    };
+
+    private getTitleStyle: () => CSSProperties = (): CSSProperties => {
+        return {
+            margin: '0 0 10px 0',
+            fontSize: '20px',
+            fontWeight: 600,
+            color: '#333333',
+            textAlign: 'center'
+        };
+    };
+
+    private getFieldGroupStyle: () => CSSProperties = (): CSSProperties => {
+        return {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '5px'
+        };
+    };
+
+    private getLabelStyle: () => CSSProperties = (): CSSProperties => {
+        return {
+            fontSize: '14px',
+            fontWeight: 600,
+            color: '#333333'
+        };
+    };
+
+    private getInputStyle: () => CSSProperties = (): CSSProperties => {
+        return {
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: '1px solid #CCCCCC',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+            width: '100%'
+        };
+    };
+
+    private getButtonGroupStyle: () => CSSProperties = (): CSSProperties => {
+        return {
+            marginTop: '10px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '10px'
+        };
+    };
+
+    private getButtonStyle: () => CSSProperties = (): CSSProperties => {
+        return {
+            padding: '10px 0',
+            backgroundColor: '#007AFF',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '16px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background-color 0.2s ease',
+            flex: 1
+        };
     };
 
     public constructor(props: NodeCreateModalProps) {
@@ -143,79 +227,7 @@ export class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateM
             </div>
         );
     }
-
-    private getContainerStyle(): CSSProperties {
-        return {
-            backgroundColor: '#ffffff',
-            padding: '30px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            width: '400px',
-            textAlign: 'left',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '15px'
-        };
-    }
-
-    private getTitleStyle(): CSSProperties {
-        return {
-            margin: '0 0 10px 0',
-            fontSize: '20px',
-            fontWeight: 600,
-            color: '#333333',
-            textAlign: 'center'
-        };
-    }
-
-    private getFieldGroupStyle(): CSSProperties {
-        return {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '5px'
-        };
-    }
-
-    private getLabelStyle(): CSSProperties {
-        return {
-            fontSize: '14px',
-            fontWeight: 600,
-            color: '#333333'
-        };
-    }
-
-    private getInputStyle(): CSSProperties {
-        return {
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: '1px solid #CCCCCC',
-            fontSize: '14px',
-            boxSizing: 'border-box',
-            width: '100%'
-        };
-    }
-
-    private getButtonGroupStyle(): CSSProperties {
-        return {
-            marginTop: '10px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: '10px'
-        };
-    }
-
-    private getButtonStyle(): CSSProperties {
-        return {
-            padding: '10px 0',
-            backgroundColor: '#007AFF',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '16px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'background-color 0.2s ease',
-            flex: 1
-        };
-    }
 }
+
+
+export default NodeCreateModal;

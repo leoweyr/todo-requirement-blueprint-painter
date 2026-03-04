@@ -5,12 +5,11 @@ import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb'
 import { type BlueprintPrerenderCombResult, type PrerenderEdge, type PrerenderNode } from './features/graph/BlueprintPrerenderCombResult';
 import { DomainRegistry } from './features/registry/DomainRegistry';
 import ContextMenu from './components/menus/ContextMenu';
-import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import { BlueprintPaster } from './components/menus/BlueprintPaster';
+import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import { BlueprintSaver } from './components/menus/BlueprintSaver';
-import { NodeCreator } from './components/menus/NodeCreator';
 import BackdropBlur from './components/menus/BackdropBlur';
-import { NodeCreateModal } from './components/menus/NodeCreateModal';
+import NodeCreateModal from './components/menus/NodeCreateModal';
 import FileOpenModal from './components/menus/FileOpenModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
@@ -41,29 +40,6 @@ class App extends Component<{}, AppState> {
         if (this._contextMenuRef) {
             this._contextMenuRef.handleOpen(event);
         }
-    };
-
-    private handleOpenNodeCreateModal: () => void = (): void => {
-        this.setState({ isNodeCreateModalOpen: true });
-    };
-
-    private handleCloseNodeCreateModal: () => void = (): void => {
-        this.setState({ isNodeCreateModalOpen: false });
-    };
-
-    private handleNodeCreateConfirm: (description: string, version: string, status: string, metadata: string) => void = (
-        description: string, 
-        version: string, 
-        status: string, 
-        metadata: string
-    ): void => {
-        NodeCreator.create(this._registry, description, version, status, metadata);
-        
-        const result: BlueprintPrerenderCombResult = this._layoutService.calculateLayout(this._registry);
-        this._layoutResult = result;
-        
-        this.setState({ isNodeCreateModalOpen: false });
-        this.forceUpdate();
     };
 
     public constructor(properties: {}) {
@@ -117,6 +93,7 @@ class App extends Component<{}, AppState> {
 
                 <ContextMenu
                     ref={(contextMenu: ContextMenu | null): void => { this._contextMenuRef = contextMenu; }}
+                    onCreateNode={(): void => this.setState({ isNodeCreateModalOpen: true })}
                     onPaste={(): void => {
                         BlueprintPaster.paste(
                             this._registry,
@@ -129,15 +106,18 @@ class App extends Component<{}, AppState> {
                         );
                     }}
                     onSave={(): void => BlueprintSaver.save(this._registry)}
-                    onCreateNode={this.handleOpenNodeCreateModal}
                 />
 
                 {this.state.isNodeCreateModalOpen && (
                     <BackdropBlur>
                         <NodeCreateModal
                             registry={this._registry}
-                            onClose={this.handleCloseNodeCreateModal}
-                            onConfirm={this.handleNodeCreateConfirm}
+                            layoutService={this._layoutService}
+                            onClose={(): void => this.setState({ isNodeCreateModalOpen: false })}
+                            onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => {
+                                this._layoutResult = result;
+                                this.forceUpdate();
+                            }}
                         />
                     </BackdropBlur>
                 )}
