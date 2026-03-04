@@ -1,5 +1,5 @@
-import { DomainRegistry } from '../../features/registry/DomainRegistry';
-import { BlueprintSerializer } from '../../features/serializer/BlueprintSerializer';
+import { DomainRegistry } from '../../../features/registry/DomainRegistry.ts';
+import { BlueprintSerializer } from '../../../features/serializer/BlueprintSerializer.ts';
 
 
 export class BlueprintSaver {

@@ -4,13 +4,13 @@ import { CanvasViewport } from './components/canvas/CanvasViewport';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult, type PrerenderEdge, type PrerenderNode } from './features/graph/BlueprintPrerenderCombResult';
 import { DomainRegistry } from './features/registry/DomainRegistry';
-import ContextMenu from './components/menus/ContextMenu';
-import { BlueprintPaster } from './components/menus/BlueprintPaster';
+import ContextMenu from './components/menus/context-menu/ContextMenu';
+import { BlueprintPaster } from './components/menus/blueprint-paste/BlueprintPaster';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
-import { BlueprintSaver } from './components/menus/BlueprintSaver';
+import { BlueprintSaver } from './components/menus/blueprint-save/BlueprintSaver';
 import BackdropBlur from './components/menus/BackdropBlur';
-import NodeCreateModal from './components/menus/NodeCreateModal';
-import FileOpenModal from './components/menus/FileOpenModal';
+import NodeCreateModal from './components/menus/node-create/NodeCreateModal';
+import FileOpenModal from './components/menus/file-open/FileOpenModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 

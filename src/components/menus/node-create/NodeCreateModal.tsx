@@ -1,10 +1,10 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 
-import { DomainRegistry } from '../../features/registry/DomainRegistry';
-import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderComb';
-import { type BlueprintPrerenderCombResult } from '../../features/graph/BlueprintPrerenderCombResult';
-import { NodeCreator } from './NodeCreator';
-import { NodeStatus } from '../../domain/NodeStatus';
+import { DomainRegistry } from '../../../features/registry/DomainRegistry.ts';
+import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb.ts';
+import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult.ts';
+import { NodeCreator } from './NodeCreator.ts';
+import { NodeStatus } from '../../../domain/NodeStatus.ts';
 
 
 export interface NodeCreateModalProps {

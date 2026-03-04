@@ -1,6 +1,6 @@
-import { DomainRegistry } from '../../features/registry/DomainRegistry';
-import { NodeStatus } from '../../domain/NodeStatus';
-import { Node } from '../../domain/Node';
+import { DomainRegistry } from '../../../features/registry/DomainRegistry.ts';
+import { NodeStatus } from '../../../domain/NodeStatus.ts';
+import { Node } from '../../../domain/Node.ts';
 
 
 export class NodeCreator {

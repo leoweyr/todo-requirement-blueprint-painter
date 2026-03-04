@@ -1,6 +1,6 @@
 import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
 
-import ContextMenuItem from './ContextMenuItem';
+import ContextMenuItem from './ContextMenuItem.tsx';
 
 
 export interface ContextMenuProps {
