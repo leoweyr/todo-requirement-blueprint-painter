@@ -1,14 +1,15 @@
 import { Component, type ReactNode, type MouseEvent } from 'react';
 
+import { CanvasViewport } from './components/canvas/CanvasViewport';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult, type PrerenderEdge, type PrerenderNode } from './features/graph/BlueprintPrerenderCombResult';
-import { BlueprintSerializer } from './features/serializer/BlueprintSerializer';
 import { DomainRegistry } from './features/registry/DomainRegistry';
-import { CanvasViewport } from './components/canvas/CanvasViewport';
+import ContextMenu from './components/menus/ContextMenu';
+import { BlueprintSerializer } from './features/serializer/BlueprintSerializer';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
+import { BlueprintSaver } from './components/menus/BlueprintSaver';
 import BackdropBlur from './components/menus/BackdropBlur';
 import FileOpenModal from './components/menus/FileOpenModal';
-import ContextMenu from './components/menus/ContextMenu';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 
@@ -78,23 +79,6 @@ class App extends Component<{}, AppState> {
         }
     };
 
-    private handleSaveBlueprint: () => void = (): void => {
-        const yamlContent: string = BlueprintSerializer.toYaml(this._registry);
-        const fileName: string = `${this._registry.blueprintName}.yaml`;
-
-        // Create a Blob and trigger download.
-        const blob: Blob = new Blob([yamlContent], { type: 'text/yaml;charset=utf-8' });
-        const url: string = URL.createObjectURL(blob);
-        const link: HTMLAnchorElement = document.createElement('a');
-
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    };
-
     private handleKeyDown: (event: Event) => void = (event: Event): void => {
         const keyboardEvent: KeyboardEvent = event as KeyboardEvent;
 
@@ -146,7 +130,7 @@ class App extends Component<{}, AppState> {
                 <ContextMenu
                     ref={(contextMenu: ContextMenu | null): void => { this._contextMenuRef = contextMenu; }}
                     onPaste={this.handlePasteBlueprint}
-                    onSave={this.handleSaveBlueprint}
+                    onSave={(): void => BlueprintSaver.save(this._registry)}
                 />
 
                 {!isFileLoaded && (
