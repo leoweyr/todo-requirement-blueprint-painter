@@ -4,6 +4,7 @@ import ContextMenuItem from './ContextMenuItem';
 
 
 export interface ContextMenuProps {
+    onCreateNode: () => void;
     onPaste: () => void;
     onSave: () => void;
 }
@@ -60,13 +61,14 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
 
     public render(): ReactNode {
         const { isOpen, x, y } = this.state;
-        const { onPaste, onSave } = this.props;
+        const { onCreateNode, onPaste, onSave } = this.props;
 
         if (!isOpen) {
             return null;
         }
 
         const items: Record<string, () => void> = {
+            'New Node': onCreateNode,
             'Paste': onPaste,
             'Save': onSave
         };

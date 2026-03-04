@@ -8,7 +8,9 @@ import ContextMenu from './components/menus/ContextMenu';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import { BlueprintPaster } from './components/menus/BlueprintPaster';
 import { BlueprintSaver } from './components/menus/BlueprintSaver';
+import { NodeCreator } from './components/menus/NodeCreator';
 import BackdropBlur from './components/menus/BackdropBlur';
+import { NodeCreateModal } from './components/menus/NodeCreateModal';
 import FileOpenModal from './components/menus/FileOpenModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
@@ -16,6 +18,7 @@ import NodeRectangle from './components/elements/NodeRectangle';
 
 interface AppState {
     isFileLoaded: boolean;
+    isNodeCreateModalOpen: boolean;
 }
 
 
@@ -40,11 +43,35 @@ class App extends Component<{}, AppState> {
         }
     };
 
+    private handleOpenNodeCreateModal: () => void = (): void => {
+        this.setState({ isNodeCreateModalOpen: true });
+    };
+
+    private handleCloseNodeCreateModal: () => void = (): void => {
+        this.setState({ isNodeCreateModalOpen: false });
+    };
+
+    private handleNodeCreateConfirm: (description: string, version: string, status: string, metadata: string) => void = (
+        description: string, 
+        version: string, 
+        status: string, 
+        metadata: string
+    ): void => {
+        NodeCreator.create(this._registry, description, version, status, metadata);
+        
+        const result: BlueprintPrerenderCombResult = this._layoutService.calculateLayout(this._registry);
+        this._layoutResult = result;
+        
+        this.setState({ isNodeCreateModalOpen: false });
+        this.forceUpdate();
+    };
+
     public constructor(properties: {}) {
         super(properties);
 
         this.state = {
-            isFileLoaded: false
+            isFileLoaded: false,
+            isNodeCreateModalOpen: false
         };
 
         this._viewport = new CanvasViewport(0, 0, 1);
@@ -102,7 +129,18 @@ class App extends Component<{}, AppState> {
                         );
                     }}
                     onSave={(): void => BlueprintSaver.save(this._registry)}
+                    onCreateNode={this.handleOpenNodeCreateModal}
                 />
+
+                {this.state.isNodeCreateModalOpen && (
+                    <BackdropBlur>
+                        <NodeCreateModal
+                            registry={this._registry}
+                            onClose={this.handleCloseNodeCreateModal}
+                            onConfirm={this.handleNodeCreateConfirm}
+                        />
+                    </BackdropBlur>
+                )}
 
                 {!isFileLoaded && (
                     <BackdropBlur>
