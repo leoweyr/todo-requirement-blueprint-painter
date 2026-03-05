@@ -192,9 +192,10 @@ export class BlueprintSerializer {
             for (const value of Object.values(blueprintData.node_statuses)) {
                 const statusName: string = value.name;
                 const statusDescription: string = value.description;
+                const statusMetadata: Record<string, unknown> | undefined = value.metadata;
 
                 if (overwrite || !registry.getNodeStatus(statusName)) {
-                    const status: NodeStatus = new NodeStatus(statusName, statusDescription);
+                    const status: NodeStatus = new NodeStatus(statusName, statusDescription, statusMetadata);
 
                     registry.registerNodeStatus(status, overwrite);
                 }
@@ -205,9 +206,10 @@ export class BlueprintSerializer {
             for (const value of Object.values(blueprintData.edge_evolution_reasons)) {
                 const reasonName: string = value.name;
                 const reasonDescription: string = value.description;
+                const reasonMetadata: Record<string, unknown> | undefined = value.metadata;
 
                 if (overwrite || !registry.getEdgeEvolutionReason(reasonName)) {
-                    const reason: EdgeEvolutionReason = new EdgeEvolutionReason(reasonName, reasonDescription);
+                    const reason: EdgeEvolutionReason = new EdgeEvolutionReason(reasonName, reasonDescription, reasonMetadata);
 
                     registry.registerEdgeEvolutionReason(reason, overwrite);
                 }
@@ -234,7 +236,8 @@ export class BlueprintSerializer {
             if (!nodeStatus || overwrite) {
                 nodeStatus = new NodeStatus(
                     nodeData.status.name,
-                    nodeData.status.description
+                    nodeData.status.description,
+                    nodeData.status.metadata
                 );
 
                 registry.registerNodeStatus(nodeStatus, overwrite);
@@ -272,7 +275,8 @@ export class BlueprintSerializer {
                         if (!evolutionReason) {
                             evolutionReason = new EdgeEvolutionReason(
                                 historyRecord.evolution_reason.name,
-                                historyRecord.evolution_reason.description
+                                historyRecord.evolution_reason.description,
+                                historyRecord.evolution_reason.metadata
                             );
                             registry.registerEdgeEvolutionReason(evolutionReason);
                         }
@@ -314,23 +318,44 @@ export class BlueprintSerializer {
 
     public static toYaml(registry: DomainRegistry): string {
         const nodeList: Node[] = registry.allNodes;
+        const currentVersion: string = registry.trbVersion;
+        
+        // Determine if metadata should be included based on version.
+        // Assuming semantic versioning vX.Y.Z
+        // Remove 'v' prefix if present and check if version >= 1.1.0
+        const versionNumber: string = currentVersion.replace(/^v/, '');
+        const versionParts: string[] = versionNumber.split('.');
+        const major: number = parseInt(versionParts[0], 10);
+        const minor: number = parseInt(versionParts[1], 10);
+        
+        const supportsEnumMetadata: boolean = (major > 1) || (major === 1 && minor >= 1);
 
         // Phase 1: Prepare dictionaries.
         // Collect all unique NodeStatus and EdgeEvolutionReason objects to create shared definitions.
-        const plainDefinitionsStatus: Record<string, { name: string; description: string }> = {};
-        const plainDefinitionsReason: Record<string, { name: string; description: string }> = {};
+        const plainDefinitionsStatus: Record<string, { name: string; description: string; metadata?: Record<string, unknown> }> = {};
+        const plainDefinitionsReason: Record<string, { name: string; description: string; metadata?: Record<string, unknown> }> = {};
 
-        const getStatusDef = (item: NodeStatus): { name: string; description: string } => {
+        const getStatusDef = (item: NodeStatus): { name: string; description: string; metadata?: Record<string, unknown> } => {
             if (!plainDefinitionsStatus[item.name]) {
-                plainDefinitionsStatus[item.name] = item.toObject();
+                const obj: { name: string; description: string; metadata?: Record<string, unknown> } = item.toObject();
+                // Strip metadata if version is under v1.1.0.
+                if (!supportsEnumMetadata) {
+                    delete obj.metadata;
+                }
+                plainDefinitionsStatus[item.name] = obj;
             }
 
             return plainDefinitionsStatus[item.name];
         };
 
-        const getReasonDef = (item: EdgeEvolutionReason): { name: string; description: string } => {
+        const getReasonDef = (item: EdgeEvolutionReason): { name: string; description: string; metadata?: Record<string, unknown> } => {
             if (!plainDefinitionsReason[item.name]) {
-                plainDefinitionsReason[item.name] = item.toObject();
+                const obj: { name: string; description: string; metadata?: Record<string, unknown> } = item.toObject();
+                // Strip metadata if version is under v1.1.0.
+                if (!supportsEnumMetadata) {
+                    delete obj.metadata;
+                }
+                plainDefinitionsReason[item.name] = obj;
             }
 
             return plainDefinitionsReason[item.name];

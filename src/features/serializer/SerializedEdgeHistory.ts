@@ -8,5 +8,5 @@ export interface SerializedEdgeHistory {
     type: EdgeType;
     status: EdgeStatus;
     target_upstream_id: string;
-    evolution_reason: { name: string; description: string };
+    evolution_reason: { name: string; description: string; metadata?: Record<string, unknown> };
 }
