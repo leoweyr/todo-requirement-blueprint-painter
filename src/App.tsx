@@ -18,6 +18,7 @@ import EdgeCreateModal from './components/menus/edge-create/EdgeCreateModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 import Legend from './components/canvas/Legend';
+import { EdgeDrawer } from './components/canvas/EdgeDrawer';
 import { Node } from './domain/Node';
 
 
@@ -30,14 +31,6 @@ interface AppState {
     isEdgeCreateModalOpen: boolean;
     edgeCreateSourceNode: Node | null;
     edgeCreateTargetNode: Node | null;
-    edgeDrawState: {
-        isDrawing: boolean;
-        startNodeId: string | null;
-        startX: number;
-        startY: number;
-        currentX: number;
-        currentY: number;
-    };
 }
 
 
@@ -47,6 +40,7 @@ class App extends Component<{}, AppState> {
     private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private readonly _registry: DomainRegistry;
     private _contextMenuRef: ContextMenu | null = null;
+    private _edgeDrawerRef: EdgeDrawer | null = null;
 
     private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         if (this._contextMenuRef) {
@@ -54,90 +48,34 @@ class App extends Component<{}, AppState> {
         }
     };
 
-    private handleStartEdge: (nodeId: string) => void = (nodeId: string): void => {
-        const nodeProps = this._layoutResult?.prerenderNodes.find(p => p.node.id === nodeId);
+    private handleEdgeConnect: (sourceId: string, targetId: string) => void = (sourceId: string, targetId: string): void => {
+        const sourceNode = this._registry.getNode(sourceId);
+        const targetNode = this._registry.getNode(targetId);
 
-        if (nodeProps) {
-            // Start from left-center of the node.
-            const startX = nodeProps.x; 
-            const startY = nodeProps.y + 40;  // Approximation of half-height (min-height 80 / 2).
-
+        if (sourceNode && targetNode) {
             this.setState({
-                edgeDrawState: {
-                    isDrawing: true,
-                    startNodeId: nodeId,
-                    startX: startX,
-                    startY: startY,
-                    currentX: startX,
-                    currentY: startY
-                }
+                isEdgeCreateModalOpen: true,
+                edgeCreateSourceNode: sourceNode,
+                edgeCreateTargetNode: targetNode
             });
+        }
+    };
 
-            window.addEventListener('mousemove', this.handleGlobalMouseMove);
+    private handleStartEdge: (nodeId: string) => void = (nodeId: string): void => {
+        if (this._edgeDrawerRef) {
+            this._edgeDrawerRef.handleStartEdge(nodeId);
         }
     };
 
     private handleCompleteEdge: (nodeId: string) => void = (nodeId: string): void => {
-        const { edgeDrawState } = this.state;
-
-        if (edgeDrawState.isDrawing && edgeDrawState.startNodeId) {
-            // Prevent self-loop if needed, or allow it. TRB spec might allow self-loops? Assuming allowed for now.
-            // If strictly acyclic (DAG), we should check. But let's allow modal to open.
-            const sourceNode = this._registry.getNode(edgeDrawState.startNodeId);
-            const targetNode = this._registry.getNode(nodeId);
-
-            if (sourceNode && targetNode) {
-                this.setState({
-                    isEdgeCreateModalOpen: true,
-                    edgeCreateSourceNode: sourceNode,
-                    edgeCreateTargetNode: targetNode,
-                    edgeDrawState: {
-                        isDrawing: false,
-                        startNodeId: null,
-                        startX: 0,
-                        startY: 0,
-                        currentX: 0,
-                        currentY: 0
-                    }
-                });
-            }
-
-            this.stopDrawing();
+        if (this._edgeDrawerRef) {
+            this._edgeDrawerRef.handleCompleteEdge(nodeId);
         }
     };
 
     private handleCanvasClick: () => void = (): void => {
-        if (this.state.edgeDrawState.isDrawing) {
-            this.stopDrawing();
-        }
-    };
-
-    private stopDrawing(): void {
-        this.setState(prevState => ({
-            edgeDrawState: {
-                ...prevState.edgeDrawState,
-                isDrawing: false,
-                startNodeId: null
-            }
-        }));
-
-        window.removeEventListener('mousemove', this.handleGlobalMouseMove);
-    }
-
-    private handleGlobalMouseMove: (event: globalThis.MouseEvent) => void = (event: globalThis.MouseEvent): void => {
-        if (this.state.edgeDrawState.isDrawing) {
-            // Convert screen coordinates to world coordinates
-            // worldX = (screenX - viewportX) / scale
-            const worldX = (event.clientX - this._viewport.x) / this._viewport.scale;
-            const worldY = (event.clientY - this._viewport.y) / this._viewport.scale;
-
-            this.setState(prevState => ({
-                edgeDrawState: {
-                    ...prevState.edgeDrawState,
-                    currentX: worldX,
-                    currentY: worldY
-                }
-            }));
+        if (this._edgeDrawerRef) {
+            this._edgeDrawerRef.handleCanvasClick();
         }
     };
 
@@ -150,15 +88,7 @@ class App extends Component<{}, AppState> {
             isNodeStatusCreateModalOpen: false,
             isEdgeCreateModalOpen: false,
             edgeCreateSourceNode: null,
-            edgeCreateTargetNode: null,
-            edgeDrawState: {
-                isDrawing: false,
-                startNodeId: null,
-                startX: 0,
-                startY: 0,
-                currentX: 0,
-                currentY: 0
-            }
+            edgeCreateTargetNode: null
         };
 
         this._viewport = new CanvasViewport(0, 0, 1);
@@ -201,7 +131,12 @@ class App extends Component<{}, AppState> {
                     onClick={this.handleCanvasClick}
                 >
                     {layoutResult && this.renderGraph()}
-                    {this.renderDrawingLine()}
+                    <EdgeDrawer 
+                        ref={(ref: EdgeDrawer | null): void => { this._edgeDrawerRef = ref; }}
+                        viewport={this._viewport}
+                        prerenderNodes={layoutResult?.prerenderNodes || []}
+                        onEdgeConnect={this.handleEdgeConnect}
+                    />
                 </InfiniteCanvas>
 
                 <ContextMenu
@@ -322,39 +257,6 @@ class App extends Component<{}, AppState> {
                     />
                 ))}
             </>
-        );
-    }
-
-    private renderDrawingLine(): ReactNode {
-        const { isDrawing, startX, startY, currentX, currentY } = this.state.edgeDrawState;
-
-        if (!isDrawing) return null;
-
-        return (
-            <svg 
-                style={{ 
-                    position: 'absolute', 
-                    top: 0, 
-                    left: 0, 
-                    width: '100%', 
-                    height: '100%', 
-                    pointerEvents: 'none', 
-                    zIndex: 1000,
-                    overflow: 'visible' 
-                }}
-            >
-                <line 
-                    x1={startX}
-                    y1={startY} 
-                    x2={currentX} 
-                    y2={currentY} 
-                    stroke="#4CAF50" 
-                    strokeWidth="2" 
-                    strokeDasharray="5,5" 
-                />
-                <circle cx={startX} cy={startY} r="4" fill="#4CAF50" />
-                <circle cx={currentX} cy={currentY} r="4" fill="#4CAF50" />
-            </svg>
         );
     }
 }
