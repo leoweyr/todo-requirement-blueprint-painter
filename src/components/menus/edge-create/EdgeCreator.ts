@@ -8,6 +8,20 @@ import { EdgeEvolutionReason } from '../../../domain/EdgeEvolutionReason';
 
 
 export class EdgeCreator {
+    public static connect(
+        registry: DomainRegistry,
+        sourceId: string, 
+        targetId: string,
+        onConnect: (sourceNode: Node, targetNode: Node) => void
+    ): void {
+        const sourceNode = registry.getNode(sourceId);
+        const targetNode = registry.getNode(targetId);
+
+        if (sourceNode && targetNode) {
+            onConnect(sourceNode, targetNode);
+        }
+    }
+
     public static create(
         registry: DomainRegistry,
         sourceNode: Node,

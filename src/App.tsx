@@ -18,6 +18,7 @@ import EdgeCreateModal from './components/menus/edge-create/EdgeCreateModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 import Legend from './components/canvas/Legend';
+import { EdgeCreator } from './components/menus/edge-create/EdgeCreator';
 import { EdgeDrawer } from './components/canvas/EdgeDrawer';
 import { Node } from './domain/Node';
 
@@ -45,37 +46,6 @@ class App extends Component<{}, AppState> {
     private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         if (this._contextMenuRef) {
             this._contextMenuRef.handleOpen(event);
-        }
-    };
-
-    private handleEdgeConnect: (sourceId: string, targetId: string) => void = (sourceId: string, targetId: string): void => {
-        const sourceNode = this._registry.getNode(sourceId);
-        const targetNode = this._registry.getNode(targetId);
-
-        if (sourceNode && targetNode) {
-            this.setState({
-                isEdgeCreateModalOpen: true,
-                edgeCreateSourceNode: sourceNode,
-                edgeCreateTargetNode: targetNode
-            });
-        }
-    };
-
-    private handleStartEdge: (nodeId: string) => void = (nodeId: string): void => {
-        if (this._edgeDrawerRef) {
-            this._edgeDrawerRef.handleStartEdge(nodeId);
-        }
-    };
-
-    private handleCompleteEdge: (nodeId: string) => void = (nodeId: string): void => {
-        if (this._edgeDrawerRef) {
-            this._edgeDrawerRef.handleCompleteEdge(nodeId);
-        }
-    };
-
-    private handleCanvasClick: () => void = (): void => {
-        if (this._edgeDrawerRef) {
-            this._edgeDrawerRef.handleCanvasClick();
         }
     };
 
@@ -128,14 +98,31 @@ class App extends Component<{}, AppState> {
                     viewport={this._viewport}
                     layerGapCenters={layoutResult?.layerGapCenters}
                     onContextMenu={this.handleContextMenu}
-                    onClick={this.handleCanvasClick}
+                    onClick={(): void => {
+                        if (this._edgeDrawerRef) {
+                            this._edgeDrawerRef.handleCanvasClick();
+                        }
+                    }}
                 >
                     {layoutResult && this.renderGraph()}
                     <EdgeDrawer 
                         ref={(ref: EdgeDrawer | null): void => { this._edgeDrawerRef = ref; }}
                         viewport={this._viewport}
                         prerenderNodes={layoutResult?.prerenderNodes || []}
-                        onEdgeConnect={this.handleEdgeConnect}
+                        onEdgeConnect={(sourceId: string, targetId: string): void => {
+                            EdgeCreator.connect(
+                                this._registry,
+                                sourceId,
+                                targetId,
+                                (sourceNode: Node, targetNode: Node): void => {
+                                    this.setState({
+                                        isEdgeCreateModalOpen: true,
+                                        edgeCreateSourceNode: sourceNode,
+                                        edgeCreateTargetNode: targetNode
+                                    });
+                                }
+                            );
+                        }}
                     />
                 </InfiniteCanvas>
 
@@ -252,8 +239,16 @@ class App extends Component<{}, AppState> {
                         node={properties.node}
                         x={properties.x}
                         y={properties.y}
-                        onStartEdge={this.handleStartEdge}
-                        onCompleteEdge={this.handleCompleteEdge}
+                        onStartEdge={(nodeId: string): void => {
+                            if (this._edgeDrawerRef) {
+                                this._edgeDrawerRef.handleStartEdge(nodeId);
+                            }
+                        }}
+                        onCompleteEdge={(nodeId: string): void => {
+                            if (this._edgeDrawerRef) {
+                                this._edgeDrawerRef.handleCompleteEdge(nodeId);
+                            }
+                        }}
                     />
                 ))}
             </>
