@@ -12,6 +12,8 @@ export interface InfiniteCanvasProps {
     style?: CSSProperties;
     layerGapCenters?: number[];  // X-coordinates for vertical dividers.
     onContextMenu?: (event: MouseEvent) => void;
+    // Callback for background click.
+    onClick?: (event: MouseEvent) => void;
 }
 
 
@@ -121,6 +123,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
                 style={containerStyle}
                 onMouseDown={this.handleMouseDown}
                 onContextMenu={this.props.onContextMenu}
+                onClick={this.props.onClick}
             >
                 <div style={contentStyle}>
                     {dividers}

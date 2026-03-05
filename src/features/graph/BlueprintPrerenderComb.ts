@@ -1,7 +1,9 @@
 import { DomainRegistry } from '../registry/DomainRegistry';
 import { Node } from '../../domain/Node';
 import { Edge } from '../../domain/Edge';
-import { type BlueprintPrerenderCombResult, type PrerenderNode, type PrerenderEdge } from './BlueprintPrerenderCombResult';
+import { type BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResult';
+import { type PrerenderNode } from './PrerenderNode';
+import { type PrerenderEdge } from './PrerenderEdge';
 import { type GraphNode } from './GraphNode';
 
 

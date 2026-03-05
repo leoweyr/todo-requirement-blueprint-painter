@@ -7,6 +7,8 @@ export interface NodeRectangleProps {
     node: Node;
     x: number;
     y: number;
+    onStartEdge?: (nodeId: string) => void;
+    onCompleteEdge?: (nodeId: string) => void;
 }
 
 
@@ -22,6 +24,22 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
 
     private handleMouseLeave: () => void = (): void => {
         this.setState({ isHovered: false });
+    };
+
+    private handleStartEdgeClick: (event: React.MouseEvent) => void = (event: React.MouseEvent): void => {
+        event.stopPropagation();
+
+        if (this.props.onStartEdge) {
+            this.props.onStartEdge(this.props.node.id);
+        }
+    };
+
+    private handleNodeClick: (event: React.MouseEvent) => void = (event: React.MouseEvent): void => {
+        void event;
+
+        if (this.props.onCompleteEdge) {
+            this.props.onCompleteEdge(this.props.node.id);
+        }
     };
 
     constructor(props: NodeRectangleProps) {
@@ -50,6 +68,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 }}
                 onMouseEnter={this.handleMouseEnter}
                 onMouseLeave={this.handleMouseLeave}
+                onClick={this.handleNodeClick}
             >
                 <span style={this.getTextStyle()}>
                     {node.description}
@@ -57,6 +76,18 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
 
                 {isHovered && (
                     <>
+                        {/* Edge Creation Button (Left Center). */}
+                        <div 
+                            style={this.getEdgeButtonStyle()}
+                            onClick={this.handleStartEdgeClick}
+                            title="Create Demand (Upstream Dependency)"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="11" fill="#4CAF50" stroke="#FFFFFF" strokeWidth="2"/>
+                                <path d="M12 7V17M7 12H17" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        </div>
+
                         <div style={this.getTooltipStyle()}>
                             {tooltipText}
                         </div>
@@ -80,6 +111,21 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 )}
             </div>
         );
+    }
+
+    private getEdgeButtonStyle(): CSSProperties {
+        return {
+            position: 'absolute',
+            left: '-10px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            cursor: 'pointer',
+            zIndex: 101,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.2))'
+        };
     }
 
     private getContainerStyle(): CSSProperties {

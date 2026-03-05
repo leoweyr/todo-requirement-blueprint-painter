@@ -1,9 +1,5 @@
-import { type NodeRectangleProps } from '../../components/elements/NodeRectangle';
-import { type EdgeLineProps } from '../../components/elements/EdgeLine';
-
-
-export type PrerenderNode = NodeRectangleProps;
-export type PrerenderEdge = EdgeLineProps;
+import { type PrerenderNode } from './PrerenderNode';
+import { type PrerenderEdge } from './PrerenderEdge';
 
 
 export interface BlueprintPrerenderCombResult {
