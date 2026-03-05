@@ -50,6 +50,28 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
         };
     }
 
+    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
+
+        if (definition && definition.properties && definition.properties[propertyName]) {
+            return definition.properties[propertyName].description || fallback;
+        }
+
+        return fallback;
+    }
+
+    public componentDidMount(): void {
+        // Force update if schema loads after mount.
+        if (!this.props.registry.schema) {
+            const checkSchema = setInterval(() => {
+                if (this.props.registry.schema) {
+                    this.forceUpdate();
+                    clearInterval(checkSchema);
+                }
+            }, 100);
+        }
+    }
+
     public render(): ReactNode {
         const { name, description, error }: NodeStatusCreateModalState = this.state;
         const { onClose }: NodeStatusCreateModalProps = this.props;
@@ -65,7 +87,7 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
                         value={name}
                         onChange={this.handleNameChange}
                         style={this.getInputStyle()}
-                        placeholder="MY_STATUS"
+                        placeholder={this.getPlaceholder('UserDefinedEnum', 'name', 'MY_STATUS')}
                     />
                 </div>
 
@@ -76,7 +98,7 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
                         value={description}
                         onChange={this.handleDescriptionChange}
                         style={this.getInputStyle()}
-                        placeholder="Description of the status"
+                        placeholder={this.getPlaceholder('UserDefinedEnum', 'description', 'Description of the status')}
                     />
                 </div>
 

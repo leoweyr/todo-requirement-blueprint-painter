@@ -75,7 +75,8 @@ export class BlueprintSerializer {
         }
 
         // Fetch schema from remote.
-        const schemaUrl: string = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${version}/trb.schema.json`;
+        const versionPath: string = version.startsWith('v') ? version : `v${version}`;
+        const schemaUrl: string = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${versionPath}/trb.schema.json`;
         let schema: unknown;
 
         const response: Response = await fetch(schemaUrl);
@@ -87,6 +88,7 @@ export class BlueprintSerializer {
         }
 
         schema = await response.json();
+        registry.schema = schema;
 
         const jsonValidator: Ajv = new Ajv();
 

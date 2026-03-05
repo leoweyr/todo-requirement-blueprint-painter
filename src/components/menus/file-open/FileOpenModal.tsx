@@ -28,7 +28,7 @@ interface FileOpenModalState {
 class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
     private _fileInput: HTMLInputElement | null = null;
 
-    private handleCreateClick: () => void = (): void => {
+    private handleCreateClick: () => void = async (): Promise<void> => {
         const { newBlueprintName, selectedVersion }: FileOpenModalState = this.state;
         const { registry, layoutService, onLayoutUpdate, onFileLoaded }: FileOpenModalProps = this.props;
 
@@ -36,6 +36,23 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
             registry.clear();
             registry.blueprintName = newBlueprintName;
             registry.trbVersion = selectedVersion;
+
+            // Fetch and register the schema for the selected version.
+            try {
+                const versionPath: string = selectedVersion.startsWith('v') ? selectedVersion : `v${selectedVersion}`;
+                const schemaUrl: string = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${versionPath}/trb.schema.json`;
+                
+                const response: Response = await fetch(schemaUrl);
+
+                if (response.ok) {
+                    const schema: any = await response.json();
+                    registry.schema = schema;
+                } else {
+                    console.error(`Failed to fetch schema: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error("Failed to fetch schema for new blueprint", error);
+            }
             
             // Reset layout.
             const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);

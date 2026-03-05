@@ -16,6 +16,7 @@ export class DomainRegistry {
 
     private _blueprintName: string = 'Untitled Blueprint';
     private _trbVersion: string = '';
+    private _schema: any = null;
     private readonly _nodes: Map<string, Node>;
     private readonly _nodeStatuses: Map<string, NodeStatus>;
     private readonly _edgeEvolutionReasons: Map<string, EdgeEvolutionReason>;
@@ -42,6 +43,23 @@ export class DomainRegistry {
         this._trbVersion = version;
     }
 
+    public get schema(): any {
+        return this._schema;
+    }
+
+    public set schema(schema: any) {
+        this._schema = schema;
+    }
+
+    public getSchemaDefinition(key: string): any {
+        if (!this._schema) {
+            return undefined;
+        }
+
+        const defs = this._schema.definitions || this._schema.$defs;
+        return defs ? defs[key] : undefined;
+    }
+
     public registerNode(node: Node, overwrite: boolean = false): void {
         if (overwrite || !this._nodes.has(node.id)) {
             this._nodes.set(node.id, node);
@@ -58,6 +76,7 @@ export class DomainRegistry {
         this._edgeEvolutionReasons.clear();
         this._blueprintName = 'Untitled Blueprint';
         this._trbVersion = '';
+        this._schema = null;
     }
 
     public async fetchLatestTrbVersion(): Promise<void> {
@@ -80,6 +99,21 @@ export class DomainRegistry {
             // If the current version is still empty, update it too.
             if (this._trbVersion === '') {
                 this._trbVersion = latestVersion;
+            }
+
+            // Fetch the schema for this version.
+            if (!this._schema) {
+                const versionPath: string = this._trbVersion.startsWith('v') ? this._trbVersion : `v${this._trbVersion}`;
+                const schemaUrl: string = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${versionPath}/trb.schema.json`;
+
+                try {
+                    const schemaResponse: Response = await fetch(schemaUrl);
+                    if (schemaResponse.ok) {
+                        this._schema = await schemaResponse.json();
+                    }
+                } catch (error) {
+                    console.error('Failed to auto-fetch schema during init:', error);
+                }
             }
         } else {
             throw new Error('Failed to parse TRB version from README badge.');

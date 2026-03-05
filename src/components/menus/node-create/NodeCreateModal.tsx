@@ -154,6 +154,28 @@ class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalSta
         };
     }
 
+    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
+
+        if (definition && definition.properties && definition.properties[propertyName]) {
+            return definition.properties[propertyName].description || fallback;
+        }
+
+        return fallback;
+    }
+
+    public componentDidMount(): void {
+        // Force update if schema loads after mount.
+        if (!this.props.registry.schema) {
+            const checkSchema = setInterval(() => {
+                if (this.props.registry.schema) {
+                    this.forceUpdate();
+                    clearInterval(checkSchema);
+                }
+            }, 100);
+        }
+    }
+
     public render(): ReactNode {
         const { description, version, selectedStatus, metadataJson, metadataError }: NodeCreateModalState = this.state;
         const { onClose, registry }: NodeCreateModalProps = this.props;
@@ -169,7 +191,7 @@ class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalSta
                         value={description}
                         onChange={this.handleDescriptionChange}
                         style={this.getInputStyle()}
-                        placeholder="Node Description"
+                        placeholder={this.getPlaceholder('Node', 'description', 'Node Description')}
                     />
                 </div>
 
@@ -180,7 +202,7 @@ class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalSta
                         value={version}
                         onChange={this.handleVersionChange}
                         style={this.getInputStyle()}
-                        placeholder="0.1.0"
+                        placeholder={this.getPlaceholder('Node', 'version', '0.1.0')}
                     />
                 </div>
 
