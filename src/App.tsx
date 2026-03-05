@@ -14,6 +14,7 @@ import NodeStatusCreateModal from './components/menus/node-status-create/NodeSta
 import FileOpenModal from './components/menus/file-open/FileOpenModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
+import Legend from './components/canvas/Legend';
 
 
 interface AppState {
@@ -29,14 +30,6 @@ class App extends Component<{}, AppState> {
     private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private readonly _registry: DomainRegistry;
     private _contextMenuRef: ContextMenu | null = null;
-
-    private handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (result: BlueprintPrerenderCombResult): void => {
-        this._layoutResult = result;
-    };
-
-    private handleFileLoaded: () => void = (): void => {
-        this.setState({ isFileLoaded: true });
-    };
 
     private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         if (this._contextMenuRef) {
@@ -136,17 +129,33 @@ class App extends Component<{}, AppState> {
                 )}
 
                 {!isFileLoaded && (
-                    <BackdropBlur>
-                        {/* Modal to open existing file or create a new one. */}
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        backdropFilter: 'blur(5px)',
+                        zIndex: 2000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
                         <FileOpenModal 
-                            onFileLoaded={this.handleFileLoaded}
+                            onFileLoaded={(): void => this.setState({ isFileLoaded: true })}
                             registry={this._registry}
                             layoutService={this._layoutService}
                             viewport={this._viewport}
-                            onLayoutUpdate={this.handleLayoutUpdate}
+                            onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => {
+                                this._layoutResult = result;
+                                this.forceUpdate();
+                            }}
                         />
-                    </BackdropBlur>
+                    </div>
                 )}
+                
+                {isFileLoaded && <Legend registry={this._registry} />}
             </>
         );
     }
