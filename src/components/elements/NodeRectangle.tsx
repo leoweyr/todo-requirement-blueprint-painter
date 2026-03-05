@@ -83,9 +83,15 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     }
 
     private getContainerStyle(): CSSProperties {
+        const { node }: NodeRectangleProps = this.props;
+        const metadata: Record<string, unknown> | undefined = node.status.metadata;
+        
+        const backgroundColor: string = (metadata?.backgroundColor as string) || '#F5F5F5';
+        const borderColor: string = (metadata?.borderColor as string) || '#666666';
+
         return {
-            backgroundColor: '#F5F5F5',
-            border: '1pt solid #666666',
+            backgroundColor: backgroundColor,
+            border: `1pt solid ${borderColor}`,
             borderRadius: '10px',
             width: '200px',
             minHeight: '80px',
