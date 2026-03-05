@@ -9,4 +9,5 @@ export interface PrerenderEdge {
     endY: number;
     labelPositionDivisions?: number;
     labelPositionIndex?: number;
+    curvature?: number;
 }

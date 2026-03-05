@@ -13,6 +13,7 @@ export interface EdgeLineProps {
     endY: number;
     labelPositionDivisions?: number;
     labelPositionIndex?: number;
+    curvature?: number;
 }
 
 
@@ -42,7 +43,8 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
             endX, 
             endY,
             labelPositionDivisions = 2,
-            labelPositionIndex = 1
+            labelPositionIndex = 1,
+            curvature = 0
         } = this.props;
 
         const { isHovered } = this.state;
@@ -86,36 +88,65 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
             return null;
         }
 
-        const width: number = Math.abs(endX - startX);
-        const height: number = Math.abs(endY - startY);
-        const left: number = Math.min(startX, endX);
-        const top: number = Math.min(startY, endY);
+        // Calculate Control Point for Quadratic Bezier Curve.
+        // Midpoint + Normal Vector * Curvature.
+        const middleX: number = (startX + endX) / 2;
+        const middleY: number = (startY + endY) / 2;
+        const differenceX: number = endX - startX;
+        const differenceY: number = endY - startY;
+        const length: number = Math.sqrt(differenceX * differenceX + differenceY * differenceY);
+
+        let controlPointX: number = middleX;
+        let controlPointY: number = middleY;
+
+        if (length > 0 && curvature !== 0) {
+            const normalX: number = -differenceY / length;
+            const normalY: number = differenceX / length;
+            controlPointX = middleX + normalX * curvature;
+            controlPointY = middleY + normalY * curvature;
+        }
 
         const padding: number = 20;
 
-        const startLocalX: number = startX - left + padding;
-        const startLocalY: number = startY - top + padding;
-        const endLocalX: number = endX - left + padding;
-        const endLocalY: number = endY - top + padding;
+        // Bounding Box.
+        const minimumX: number = Math.min(startX, endX, controlPointX);
+        const minimumY: number = Math.min(startY, endY, controlPointY);
+        const maximumX: number = Math.max(startX, endX, controlPointX);
+        const maximumY: number = Math.max(startY, endY, controlPointY);
+        const width: number = maximumX - minimumX;
+        const height: number = maximumY - minimumY;
 
         const totalWidth: number = width + padding * 2;
         const totalHeight: number = height + padding * 2;
 
-        // Calculate label position based on divisions and index.
-        // Position = Start + (End - Start) * (Index / Divisions).
-        // Ensure divisions is not zero to avoid division by zero.
+        const localStartX: number = startX - minimumX + padding;
+        const localStartY: number = startY - minimumY + padding;
+        const localEndX: number = endX - minimumX + padding;
+        const localEndY: number = endY - minimumY + padding;
+        const localControlPointX: number = controlPointX - minimumX + padding;
+        const localControlPointY: number = controlPointY - minimumY + padding;
+
+        const left: number = minimumX - padding;
+        const top: number = minimumY - padding;
+
+        // Calculate label position based on Bezier curve formula.
         const validDivisions: number = Math.max(1, labelPositionDivisions);
-        const ratio: number = labelPositionIndex / validDivisions;
+        const interpolationRatio: number = labelPositionIndex / validDivisions;
+        const inverseInterpolationRatio: number = 1 - interpolationRatio;
         
-        const labelX: number = startLocalX + (endLocalX - startLocalX) * ratio;
-        const labelY: number = startLocalY + (endLocalY - startLocalY) * ratio;
+        // Quadratic Bezier: (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2.
+        const labelX: number = (inverseInterpolationRatio * inverseInterpolationRatio * localStartX) + (2 * inverseInterpolationRatio * interpolationRatio * localControlPointX) + (interpolationRatio * interpolationRatio * localEndX);
+        const labelY: number = (inverseInterpolationRatio * inverseInterpolationRatio * localStartY) + (2 * inverseInterpolationRatio * interpolationRatio * localControlPointY) + (interpolationRatio * interpolationRatio * localEndY);
+
+        // Path Data.
+        const pathData: string = `M ${localStartX} ${localStartY} Q ${localControlPointX} ${localControlPointY} ${localEndX} ${localEndY}`;
 
         return (
             <div 
                 style={{
                     position: 'absolute',
-                    left: left - padding,
-                    top: top - padding,
+                    left: left,
+                    top: top,
                     width: totalWidth,
                     height: totalHeight,
                     pointerEvents: 'none',
@@ -125,15 +156,13 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                 <svg 
                     width={totalWidth} 
                     height={totalHeight} 
-                    style={{ display: 'block' }}
+                    style={{ display: 'block', overflow: 'visible' }}
                 >
                     {/* Highlight Stroke (Visible only when hovered). */}
                     {isHovered && (
-                        <line 
-                            x1={startLocalX} 
-                            y1={startLocalY} 
-                            x2={endLocalX} 
-                            y2={endLocalY} 
+                        <path 
+                            d={pathData} 
+                            fill="none"
                             stroke="rgba(0, 120, 215, 0.3)" 
                             strokeWidth="8pt"
                             strokeLinecap="round"
@@ -141,22 +170,18 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                     )}
 
                     {/* Visible Line. */}
-                    <line 
-                        x1={startLocalX} 
-                        y1={startLocalY} 
-                        x2={endLocalX} 
-                        y2={endLocalY} 
+                    <path 
+                        d={pathData} 
+                        fill="none"
                         stroke={strokeColor} 
                         strokeWidth="1pt"
                         strokeDasharray={strokeDasharray}
                     />
 
                     {/* Invisible Hit Area (Always present to capture hover). */}
-                    <line 
-                        x1={startLocalX} 
-                        y1={startLocalY} 
-                        x2={endLocalX} 
-                        y2={endLocalY} 
+                    <path 
+                        d={pathData} 
+                        fill="none"
                         stroke="transparent" 
                         strokeWidth="10pt"
                         style={{ pointerEvents: 'stroke', cursor: 'pointer' }}

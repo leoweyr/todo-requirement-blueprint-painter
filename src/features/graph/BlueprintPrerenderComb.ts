@@ -387,7 +387,8 @@ export class BlueprintPrerenderComb {
 
         // Step 7.2: Generate edges.
         const centerY: number = this.NODE_HEIGHT / 2;
-        
+        const edgeGroups: Map<string, PrerenderEdge[]> = new Map<string, PrerenderEdge[]>();
+
         nodes.forEach((downstreamNode: Node): void => {
             const startPosition = resultNodes.get(downstreamNode.id);
             
@@ -409,16 +410,47 @@ export class BlueprintPrerenderComb {
                 // Divisions = (Cross layer count) + 2 = layerDiff - 1 + 2 = layerDiff + 1.
                 const divisions = Math.max(2, layerDiff + 1);
 
-                prerenderEdges.push({
+                const prerenderEdge: PrerenderEdge = {
                     edge: edge,
                     startX: startPosition.x,
                     startY: startPosition.y + centerY,
                     endX: endPosition.x + this.NODE_WIDTH,
                     endY: endPosition.y + centerY,
                     labelPositionDivisions: divisions,
-                    labelPositionIndex: 1
-                });
+                    labelPositionIndex: 1,
+                    curvature: 0
+                };
+
+                // Group edges by sorted node IDs to detect overlaps.
+                const key = [downstreamNode.id, upstreamNode.id].sort().join('-');
+
+                if (!edgeGroups.has(key)) {
+                    edgeGroups.set(key, []);
+                }
+
+                edgeGroups.get(key)!.push(prerenderEdge);
             });
+        });
+
+        // Step 7.3: Apply curvature to overlapping edges.
+        const CURVATURE_GAP = 50; // Pixels to separate overlapping edges.
+
+        edgeGroups.forEach((group: PrerenderEdge[]): void => {
+            const count: number = group.length;
+
+            if (count === 1) {
+                prerenderEdges.push(group[0]);
+            } else {
+                // Distribute curvature symmetrically.
+                // If count is even: -Gap/2, +Gap/2, -Gap*1.5, +Gap*1.5...
+                // If count is odd: 0, -Gap, +Gap, -2*Gap, +2*Gap...
+                // Simpler formula: offset = (index - (count - 1) / 2) * GAP
+                group.forEach((edge: PrerenderEdge, index: number): void => {
+                    const offset: number = (index - (count - 1) / 2) * CURVATURE_GAP;
+                    edge.curvature = offset;
+                    prerenderEdges.push(edge);
+                });
+            }
         });
 
         return { 
