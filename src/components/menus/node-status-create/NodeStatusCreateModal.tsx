@@ -14,10 +14,29 @@ interface NodeStatusCreateModalState {
     name: string;
     description: string;
     error: string | null;
+    selectedColorPreset: ColorPreset | null;
+}
+
+
+interface ColorPreset {
+    name: string;
+    fill: string;
+    stroke: string;
 }
 
 
 class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeStatusCreateModalState> {
+    private static readonly COLOR_PRESETS: ColorPreset[] = [
+        { name: 'White', fill: '#FFFFFF', stroke: '#000000' },
+        { name: 'Blue', fill: '#dae8fc', stroke: '#6c8ebf' },
+        { name: 'Green', fill: '#d5e8d4', stroke: '#82b366' },
+        { name: 'Orange', fill: '#ffe6cc', stroke: '#d79b00' },
+        { name: 'Yellow', fill: '#fff2cc', stroke: '#d6b656' },
+        { name: 'Red', fill: '#f8cecc', stroke: '#b85450' },
+        { name: 'Purple', fill: '#e1d5e7', stroke: '#9673a6' },
+        { name: 'Grey', fill: '#f5f5f5', stroke: '#666666' }
+    ];
+
     private handleNameChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
         this.setState({ name: event.target.value.toUpperCase() });
     };
@@ -26,13 +45,26 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
         this.setState({ description: event.target.value });
     };
 
+    private handleColorSelect: (preset: ColorPreset) => void = (preset: ColorPreset): void => {
+        this.setState({ selectedColorPreset: preset });
+    };
+
     private handleConfirmClick: () => void = (): void => {
-        const { name, description }: NodeStatusCreateModalState = this.state;
+        const { name, description, selectedColorPreset }: NodeStatusCreateModalState = this.state;
         const { registry, onClose }: NodeStatusCreateModalProps = this.props;
 
         if (name && description) {
             try {
-                NodeStatusCreator.create(registry, name, description);
+                let metadata: Record<string, unknown> | undefined;
+
+                if (this.isColorSelectionEnabled() && selectedColorPreset) {
+                    metadata = {
+                        backgroundColor: selectedColorPreset.fill,
+                        borderColor: selectedColorPreset.stroke
+                    };
+                }
+
+                NodeStatusCreator.create(registry, name, description, metadata);
                 onClose();
             } catch (error) {
                 this.setState({ error: (error as Error).message });
@@ -46,18 +78,9 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
         this.state = {
             name: '',
             description: '',
-            error: null
+            error: null,
+            selectedColorPreset: this.isColorSelectionEnabled() ? NodeStatusCreateModal.COLOR_PRESETS[0] : null
         };
-    }
-
-    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
-        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
-
-        if (definition && definition.properties && definition.properties[propertyName]) {
-            return definition.properties[propertyName].description || fallback;
-        }
-
-        return fallback;
     }
 
     public componentDidMount(): void {
@@ -102,6 +125,22 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
                     />
                 </div>
 
+                {this.isColorSelectionEnabled() && (
+                    <div style={this.getFieldGroupStyle()}>
+                        <label style={this.getLabelStyle()}>Color Scheme</label>
+                        <div style={this.getColorGridStyle()}>
+                            {NodeStatusCreateModal.COLOR_PRESETS.map((preset: ColorPreset): ReactNode => (
+                                <div
+                                    key={preset.name}
+                                    style={this.getColorSwatchStyle(preset)}
+                                    onClick={(): void => this.handleColorSelect(preset)}
+                                    title={preset.name}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {error && <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>}
 
                 <div style={this.getButtonGroupStyle()}>
@@ -121,6 +160,33 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
                 </div>
             </div>
         );
+    }
+
+    private isColorSelectionEnabled(): boolean {
+        const currentVersion: string = this.props.registry.trbVersion.replace(/^v/, '');
+
+        if (!currentVersion) return false;
+
+        const v1: number[] = currentVersion.split('.').map(Number);
+        const v2: number[] = [1, 1, 0];
+
+        for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+            const num1: number = v1[i] || 0;
+            const num2: number = v2[i] || 0;
+            if (num1 > num2) return true;
+            if (num1 < num2) return false;
+        }
+        return true;
+    }
+
+    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
+
+        if (definition && definition.properties && definition.properties[propertyName]) {
+            return definition.properties[propertyName].description || fallback;
+        }
+
+        return fallback;
     }
 
     private getContainerStyle(): CSSProperties {
@@ -180,6 +246,31 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
             display: 'flex',
             justifyContent: 'space-between',
             gap: '10px'
+        };
+    }
+
+    private getColorGridStyle(): CSSProperties {
+        return {
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+            marginTop: '5px'
+        };
+    }
+
+    private getColorSwatchStyle(preset: ColorPreset): CSSProperties {
+        const isSelected: boolean = this.state.selectedColorPreset?.name === preset.name;
+        
+        return {
+            width: '30px',
+            height: '30px',
+            backgroundColor: preset.fill,
+            border: `2px solid ${isSelected ? '#007AFF' : preset.stroke}`,
+            borderRadius: '4px',
+            cursor: 'pointer',
+            boxSizing: 'border-box',
+            boxShadow: isSelected ? '0 0 0 2px rgba(0, 122, 255, 0.3)' : 'none',
+            transition: 'all 0.2s ease'
         };
     }
 
