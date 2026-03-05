@@ -10,6 +10,7 @@ import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import { BlueprintSaver } from './components/menus/blueprint-save/BlueprintSaver';
 import BackdropBlur from './components/menus/BackdropBlur';
 import NodeCreateModal from './components/menus/node-create/NodeCreateModal';
+import NodeStatusCreateModal from './components/menus/node-status-create/NodeStatusCreateModal';
 import FileOpenModal from './components/menus/file-open/FileOpenModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
@@ -18,6 +19,7 @@ import NodeRectangle from './components/elements/NodeRectangle';
 interface AppState {
     isFileLoaded: boolean;
     isNodeCreateModalOpen: boolean;
+    isNodeStatusCreateModalOpen: boolean;
 }
 
 
@@ -47,7 +49,8 @@ class App extends Component<{}, AppState> {
 
         this.state = {
             isFileLoaded: false,
-            isNodeCreateModalOpen: false
+            isNodeCreateModalOpen: false,
+            isNodeStatusCreateModalOpen: false
         };
 
         this._viewport = new CanvasViewport(0, 0, 1);
@@ -94,6 +97,7 @@ class App extends Component<{}, AppState> {
                 <ContextMenu
                     ref={(contextMenu: ContextMenu | null): void => { this._contextMenuRef = contextMenu; }}
                     onCreateNode={(): void => this.setState({ isNodeCreateModalOpen: true })}
+                    onCreateNodeStatus={(): void => this.setState({ isNodeStatusCreateModalOpen: true })}
                     onPaste={(): void => {
                         BlueprintPaster.paste(
                             this._registry,
@@ -118,6 +122,15 @@ class App extends Component<{}, AppState> {
                                 this._layoutResult = result;
                                 this.forceUpdate();
                             }}
+                        />
+                    </BackdropBlur>
+                )}
+
+                {this.state.isNodeStatusCreateModalOpen && (
+                    <BackdropBlur>
+                        <NodeStatusCreateModal
+                            registry={this._registry}
+                            onClose={(): void => this.setState({ isNodeStatusCreateModalOpen: false })}
                         />
                     </BackdropBlur>
                 )}
