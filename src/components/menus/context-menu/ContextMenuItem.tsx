@@ -4,6 +4,7 @@ import { Component, type CSSProperties, type ReactNode } from 'react';
 export interface ContextMenuItemProps {
     label: string;
     onClick: () => void;
+    style?: CSSProperties;
 }
 
 
@@ -26,12 +27,12 @@ class ContextMenuItem extends Component<ContextMenuItemProps, ContextMenuItemSta
     };
 
     public render(): ReactNode {
-        const { label, onClick } = this.props;
+        const { label, onClick, style } = this.props;
         const { isHovered } = this.state;
 
         return (
             <div
-                style={this.getItemStyle(isHovered)}
+                style={{ ...this.getItemStyle(isHovered), ...style }}
                 onClick={onClick}
                 onMouseEnter={this.handleMouseEnter}
                 onMouseLeave={this.handleMouseLeave}

@@ -89,6 +89,14 @@ export class Node {
         this._edges.push(edge);
     }
 
+    public removeEdge(edge: Edge): void {
+        const index = this._edges.indexOf(edge);
+
+        if (index > -1) {
+            this._edges.splice(index, 1);
+        }
+    }
+
     public toObject(): any {
         return {
             id: this._id,

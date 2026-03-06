@@ -1,4 +1,4 @@
-import { Component, type CSSProperties, type ReactNode } from 'react';
+import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
 
 import { Node } from '../../domain/Node';
 
@@ -9,6 +9,7 @@ export interface NodeRectangleProps {
     y: number;
     onStartEdge?: (nodeId: string) => void;
     onCompleteEdge?: (nodeId: string) => void;
+    onContextMenu?: (event: MouseEvent, nodeId: string) => void;
 }
 
 
@@ -26,7 +27,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         this.setState({ isHovered: false });
     };
 
-    private handleStartEdgeClick: (event: React.MouseEvent) => void = (event: React.MouseEvent): void => {
+    private handleStartEdgeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.stopPropagation();
 
         if (this.props.onStartEdge) {
@@ -34,11 +35,19 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         }
     };
 
-    private handleNodeClick: (event: React.MouseEvent) => void = (event: React.MouseEvent): void => {
+    private handleNodeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.stopPropagation();
 
         if (this.props.onCompleteEdge) {
             this.props.onCompleteEdge(this.props.node.id);
+        }
+    };
+
+    private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
+        if (this.props.onContextMenu) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.props.onContextMenu(event, this.props.node.id);
         }
     };
 
@@ -53,10 +62,6 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         const { node, x, y }: NodeRectangleProps = this.props;
         const { isHovered }: NodeRectangleState = this.state;
 
-        const date: Date = new Date(node.updatedAt);
-        const dateStr: string = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
-        const tooltipText: string = `${node.version} (${dateStr})`;
-
         const metadataEntries: [string, any][] = node.metadata ? Object.entries(node.metadata) : [];
 
         return (
@@ -69,6 +74,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 onMouseEnter={this.handleMouseEnter}
                 onMouseLeave={this.handleMouseLeave}
                 onClick={this.handleNodeClick}
+                onContextMenu={this.handleContextMenu}
             >
                 <span style={this.getTextStyle()}>
                     {node.description}
@@ -86,10 +92,6 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                                 <circle cx="12" cy="12" r="11" fill="#4CAF50" stroke="#FFFFFF" strokeWidth="2"/>
                                 <path d="M12 7V17M7 12H17" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
-                        </div>
-
-                        <div style={this.getTooltipStyle()}>
-                            {tooltipText}
                         </div>
                         
                         {metadataEntries.length > 0 && (
@@ -163,22 +165,6 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             fontFamily: 'Helvetica, Arial, sans-serif',
             fontSize: '12pt',
             color: '#333333'
-        };
-    }
-
-    private getTooltipStyle(): CSSProperties {
-        return {
-            // Create a small gap below the text.
-            marginTop: '4px',
-            backgroundColor: 'transparent',
-
-            // Use a subtitle style color.
-            color: '#666666',
-            fontSize: '9pt',
-            fontFamily: 'Helvetica, Arial, sans-serif',
-            whiteSpace: 'nowrap',
-            pointerEvents: 'none',
-            textAlign: 'center'
         };
     }
 

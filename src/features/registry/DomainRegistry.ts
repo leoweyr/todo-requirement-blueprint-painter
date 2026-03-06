@@ -1,4 +1,5 @@
-import { Node } from '../../domain/Node.ts';
+import { Edge } from '../../domain/Edge';
+import { Node } from '../../domain/Node';
 import { NodeStatus } from '../../domain/NodeStatus.ts';
 import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason.ts';
 
@@ -68,6 +69,37 @@ export class DomainRegistry {
 
     public getNode(id: string): Node | undefined {
         return this._nodes.get(id);
+    }
+
+    public deleteNode(nodeId: string): void {
+        if (!this._nodes.has(nodeId)) {
+            return;
+        }
+
+        // Step 1. Remove the node itself.
+        this._nodes.delete(nodeId);
+
+        // Step 2. Remove any edges from OTHER nodes that point to this node (Upstream Dependency).
+        // Iterate over all remaining nodes.
+        this._nodes.forEach((node: Node) => {
+            // Find edges to remove.
+            const edgesToRemove: Edge[] = [];
+
+            node.edges.forEach((edge: Edge) => {
+                // Check latest history record for targetUpstream.
+                if (edge.history.length > 0) {
+                    const latestRecord = edge.history[edge.history.length - 1];
+                    if (latestRecord.targetUpstream.id === nodeId) {
+                        edgesToRemove.push(edge);
+                    }
+                }
+            });
+
+            // Remove identified edges.
+            edgesToRemove.forEach((edge: Edge) => {
+                node.removeEdge(edge);
+            });
+        });
     }
 
     public clear(): void {

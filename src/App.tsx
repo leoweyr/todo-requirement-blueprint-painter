@@ -16,6 +16,7 @@ import NodeStatusCreateModal from './components/menus/node-status-create/NodeSta
 import FileOpenModal from './components/menus/file-open/FileOpenModal';
 import EdgeCreateModal from './components/menus/edge-create/EdgeCreateModal';
 import EdgeEvolutionReasonModal from './components/menus/edge-evolution/EdgeEvolutionReasonModal';
+import NodeContextMenu from './components/menus/node-context-menu/NodeContextMenu';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 import Legend from './components/canvas/Legend';
@@ -40,6 +41,14 @@ interface AppState {
     isEdgeEvolutionModalOpen: boolean;
     reanchoringEdge: Edge | null;
     evolutionTargetNode: Node | null;
+
+    // Node Context Menu State.
+    nodeContextMenu: {
+        isOpen: boolean;
+        x: number;
+        y: number;
+        nodeId: string | null;
+    };
 }
 
 
@@ -116,6 +125,34 @@ class App extends Component<{}, AppState> {
         }
     };
 
+    private handleNodeContextMenu: (event: MouseEvent, nodeId: string) => void = (event: MouseEvent, nodeId: string): void => {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        this.setState({
+            nodeContextMenu: {
+                isOpen: true,
+                x: event.clientX,
+                y: event.clientY,
+                nodeId: nodeId
+            }
+        });
+    };
+
+    private handleDeleteNode: (nodeId: string) => void = (nodeId: string): void => {
+        this._registry.deleteNode(nodeId);
+        this.refreshLayout();
+        
+        this.setState({
+            nodeContextMenu: {
+                isOpen: false,
+                x: 0,
+                y: 0,
+                nodeId: null
+            }
+        });
+    };
+
     public constructor(properties: {}) {
         super(properties);
 
@@ -128,7 +165,13 @@ class App extends Component<{}, AppState> {
             edgeCreateTargetNode: null,
             isEdgeEvolutionModalOpen: false,
             reanchoringEdge: null,
-            evolutionTargetNode: null
+            evolutionTargetNode: null,
+            nodeContextMenu: {
+                isOpen: false,
+                x: 0,
+                y: 0,
+                nodeId: null
+            }
         };
 
         this._viewport = new CanvasViewport(0, 0, 1);
@@ -278,6 +321,18 @@ class App extends Component<{}, AppState> {
                     </BackdropBlur>
                 )}
 
+                {this.state.nodeContextMenu.isOpen && this.state.nodeContextMenu.nodeId && (
+                    <NodeContextMenu
+                        nodeId={this.state.nodeContextMenu.nodeId}
+                        x={this.state.nodeContextMenu.x}
+                        y={this.state.nodeContextMenu.y}
+                        onDelete={this.handleDeleteNode}
+                        onClose={(): void => this.setState({ 
+                            nodeContextMenu: { ...this.state.nodeContextMenu, isOpen: false } 
+                        })}
+                    />
+                )}
+
                 {!isFileLoaded && (
                     <div style={{
                         position: 'fixed',
@@ -354,6 +409,7 @@ class App extends Component<{}, AppState> {
                                 this._edgeDrawerRef.handleCompleteEdge(nodeId);
                             }
                         }}
+                        onContextMenu={this.handleNodeContextMenu}
                     />
                 ))}
             </>
