@@ -21,11 +21,9 @@ import NodeRectangle from './components/elements/NodeRectangle';
 import Legend from './components/canvas/Legend';
 import { EdgeCreator } from './components/menus/edge-create/EdgeCreator';
 import { EdgeDrawer } from './components/canvas/EdgeDrawer';
+import { EdgeEvolver } from './components/menus/edge-evolution/EdgeEvolver';
 import { Node } from './domain/Node';
 import { Edge } from './domain/Edge';
-import { EdgeHistoryRecord } from './domain/EdgeHistoryRecord';
-import { EdgeStatus } from './domain/enums/EdgeStatus';
-import { EdgeType } from './domain/enums/EdgeType';
 
 
 interface AppState {
@@ -67,75 +65,47 @@ class App extends Component<{}, AppState> {
     };
 
     private handleEdgeCut: (edge: Edge) => void = (edge: Edge): void => {
-        this.setState({
-            isEdgeEvolutionModalOpen: true,
-            reanchoringEdge: edge,
-            evolutionTargetNode: null
+        EdgeEvolver.initiateCut(edge, (reanchoringEdge: Edge, evolutionTargetNode: Node | null, isModalOpen: boolean): void => {
+            this.setState({
+                isEdgeEvolutionModalOpen: isModalOpen,
+                reanchoringEdge: reanchoringEdge,
+                evolutionTargetNode: evolutionTargetNode
+            });
         });
     };
 
     private handleEdgeReanchor: (edge: Edge) => void = (edge: Edge): void => {
-        const downstreamNode: Node | undefined = this._registry.allNodes.find((node: Node) => node.edges.includes(edge));
-        
-        if (downstreamNode && this._edgeDrawerRef) {
-
-            const latestHistory: EdgeHistoryRecord = edge.history[edge.history.length - 1];
-            let strokeColor: string = '#000000';
-            let strokeDasharray: string = 'none';
-
-            if (latestHistory) {
-                // Determine style based on current status.
-                // Note: Even if the edge is about to be 'Cut', the user is 'Moving' it.
-                // The edge should be shown as it currently looks (Active or Deprecated).
-                // If the edge was already CUT (invisible), it would likely not be interactive.
-                // Default to black if unknown.
-                
-                if (latestHistory.status === EdgeStatus.ACTIVE) {
-                    strokeColor = '#4CAF50';
-                } else if (latestHistory.status === EdgeStatus.DEPRECATED) {
-                    strokeColor = '#9E9E9E';
-                } else {
-                    // Fallback for other statuses to ensure visibility during drag.
-                    strokeColor = '#000000';
-                }
-                
-                if (latestHistory.type === EdgeType.OPTIMIZES) {
-                    strokeDasharray = '5,5';
-                }
+        EdgeEvolver.initiateReanchor(
+            edge, 
+            this._registry, 
+            this._edgeDrawerRef, 
+            (reanchoringEdge: Edge): void => {
+                this.setState({ reanchoringEdge });
             }
-
-            this.setState(
-                {
-                    reanchoringEdge: edge
-                },
-                (): void => {
-                    this._edgeDrawerRef?.handleStartEdge(downstreamNode.id, { strokeColor, strokeDasharray });
-                }
-            );
-        }
+        );
     };
 
     private handleEvolutionConfirm: (reasonName: string) => void = (reasonName: string): void => {
         const { reanchoringEdge, evolutionTargetNode }: AppState = this.state;
         
-        if (reanchoringEdge) {
-            if (evolutionTargetNode) {
-                // Re-anchoring (Evolve).
-                EdgeCreator.evolve(this._registry, reanchoringEdge, evolutionTargetNode, reasonName);
-            } else {
-                // Cutting (Delete).
-                EdgeCreator.cut(this._registry, reanchoringEdge, reasonName);
-            }
-        }
+        if (!reanchoringEdge) return;
 
-        this.setState(
-            {
-                isEdgeEvolutionModalOpen: false,
-                reanchoringEdge: null,
-                evolutionTargetNode: null
-            },
+        EdgeEvolver.confirmEvolution(
+            this._registry,
+            reanchoringEdge,
+            evolutionTargetNode,
+            reasonName,
             (): void => {
-                this.refreshLayout();
+                this.setState(
+                    {
+                        isEdgeEvolutionModalOpen: false,
+                        reanchoringEdge: null,
+                        evolutionTargetNode: null
+                    },
+                    (): void => {
+                        this.refreshLayout();
+                    }
+                );
             }
         );
     };
