@@ -53,6 +53,19 @@ class App extends Component<{}, AppState> {
     private _contextMenuRef: ContextMenu | null = null;
     private _edgeDrawerRef: EdgeDrawer | null = null;
 
+    private handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (
+        result: BlueprintPrerenderCombResult
+    ): void => {
+        this._layoutResult = result;
+
+        if (result.contentBounds) {
+            const { minimumX, minimumY, maximumX, maximumY } = result.contentBounds;
+            this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY);
+        }
+
+        this.forceUpdate();
+    };
+
     private handleEdgeCut: (edge: Edge) => void = (edge: Edge): void => {
         this.setState({
             isEdgeEvolutionModalOpen: true,
@@ -164,10 +177,7 @@ class App extends Component<{}, AppState> {
             this._registry,
             this._layoutService,
             this._viewport,
-            (result: BlueprintPrerenderCombResult): void => {
-                this._layoutResult = result;
-                this.forceUpdate();
-            }
+            this.handleLayoutUpdate
         );
     }
 
@@ -255,10 +265,7 @@ class App extends Component<{}, AppState> {
                             registry={this._registry}
                             layoutService={this._layoutService}
                             onClose={(): void => this.setState({ isNodeCreateModalOpen: false })}
-                            onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => {
-                                this._layoutResult = result;
-                                this.forceUpdate();
-                            }}
+                            onLayoutUpdate={this.handleLayoutUpdate}
                         />
                     </BackdropBlur>
                 )}
@@ -282,10 +289,7 @@ class App extends Component<{}, AppState> {
                             onClose={(): void => this.setState(
                                 { isEdgeCreateModalOpen: false, edgeCreateSourceNode: null, edgeCreateTargetNode: null }
                             )}
-                            onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => {
-                                this._layoutResult = result;
-                                this.forceUpdate();
-                            }}
+                            onLayoutUpdate={this.handleLayoutUpdate}
                         />
                     </BackdropBlur>
                 )}
@@ -323,10 +327,7 @@ class App extends Component<{}, AppState> {
                             registry={this._registry}
                             layoutService={this._layoutService}
                             viewport={this._viewport}
-                            onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => {
-                                this._layoutResult = result;
-                                this.forceUpdate();
-                            }}
+                            onLayoutUpdate={this.handleLayoutUpdate}
                         />
                     </div>
                 )}
@@ -338,8 +339,7 @@ class App extends Component<{}, AppState> {
 
     private refreshLayout(): void {
         const layoutResult: BlueprintPrerenderCombResult = this._layoutService.calculateLayout(this._registry);
-        this._layoutResult = layoutResult;
-        this.forceUpdate();
+        this.handleLayoutUpdate(layoutResult);
     }
 
     private renderGraph(): ReactNode {
