@@ -68,87 +68,14 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
                 selectedStatus
             );
             
+            // The EdgeCreator.create method modifies the sourceNode's edges in place.
+            // The registry contains the node references, so it reflects these changes immediately.
             const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
             onLayoutUpdate(result);
             
             onClose();
         }
     };
-
-    private getContainerStyle(): CSSProperties {
-        return {
-            backgroundColor: '#ffffff',
-            padding: '30px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            width: '400px',
-            textAlign: 'left',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '15px'
-        };
-    }
-
-    private getTitleStyle(): CSSProperties {
-        return {
-            margin: '0 0 10px 0',
-            fontSize: '20px',
-            fontWeight: 600,
-            color: '#333333',
-            textAlign: 'center'
-        };
-    }
-
-    private getFieldGroupStyle(): CSSProperties {
-        return {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '5px'
-        };
-    }
-
-    private getLabelStyle(): CSSProperties {
-        return {
-            fontSize: '14px',
-            fontWeight: 600,
-            color: '#333333'
-        };
-    }
-
-    private getInputStyle(): CSSProperties {
-        return {
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: '1px solid #CCCCCC',
-            fontSize: '14px',
-            boxSizing: 'border-box',
-            width: '100%'
-        };
-    }
-
-    private getButtonGroupStyle(): CSSProperties {
-        return {
-            marginTop: '10px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: '10px'
-        };
-    }
-
-    private getButtonStyle(): CSSProperties {
-        return {
-            padding: '10px 0',
-            backgroundColor: '#007AFF',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '16px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'background-color 0.2s ease',
-            flex: 1
-        };
-    }
 
     public constructor(props: EdgeCreateModalProps) {
         super(props);
@@ -226,6 +153,81 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
                 </div>
             </div>
         );
+    }
+
+    private getContainerStyle(): CSSProperties {
+        return {
+            backgroundColor: '#ffffff',
+            padding: '30px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            width: '400px',
+            textAlign: 'left',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '15px'
+        };
+    }
+
+    private getTitleStyle(): CSSProperties {
+        return {
+            margin: '0 0 10px 0',
+            fontSize: '20px',
+            fontWeight: 600,
+            color: '#333333',
+            textAlign: 'center'
+        };
+    }
+
+    private getFieldGroupStyle(): CSSProperties {
+        return {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '5px'
+        };
+    }
+
+    private getLabelStyle(): CSSProperties {
+        return {
+            fontSize: '14px',
+            fontWeight: 600,
+            color: '#333333'
+        };
+    }
+
+    private getInputStyle(): CSSProperties {
+        return {
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: '1px solid #CCCCCC',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+            width: '100%'
+        };
+    }
+
+    private getButtonGroupStyle(): CSSProperties {
+        return {
+            marginTop: '10px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '10px'
+        };
+    }
+
+    private getButtonStyle(): CSSProperties {
+        return {
+            padding: '10px 0',
+            backgroundColor: '#007AFF',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '16px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background-color 0.2s ease',
+            flex: 1
+        };
     }
 }
 

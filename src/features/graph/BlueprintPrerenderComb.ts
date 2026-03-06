@@ -1,3 +1,4 @@
+import { EdgeStatus } from '../../domain/enums/EdgeStatus';
 import { DomainRegistry } from '../registry/DomainRegistry';
 import { Node } from '../../domain/Node';
 import { Edge } from '../../domain/Edge';
@@ -14,11 +15,6 @@ export class BlueprintPrerenderComb {
     private readonly NODE_WIDTH: number = 200;
     private readonly NODE_HEIGHT: number = 80;
     private readonly PADDING: number = 50;
-
-    private estimateTextWidth(text: string): number {
-        // Estimate width: length * 9px per char + 20px padding.
-        return text.length * 9 + 20;
-    }
 
     public calculateLayout(registry: DomainRegistry): BlueprintPrerenderCombResult {
         const nodes: Node[] = registry.allNodes;
@@ -46,6 +42,13 @@ export class BlueprintPrerenderComb {
                 if (edge.history.length > 0) {
                     // Find the upstream dependency from the latest history record.
                     const latestRecord = edge.history[edge.history.length - 1];
+
+                    // IMPORTANT: Skip if the edge is CUT (Status == CUT).
+                    // A cut edge does not create a dependency, so it should not influence layer calculation.
+                    if (latestRecord.status === EdgeStatus.CUT) {
+                        return;
+                    }
+
                     const upstreamNodeId: string = latestRecord.targetUpstream.id;
 
                     if (!dependentsMap.has(upstreamNodeId)) {
@@ -80,8 +83,8 @@ export class BlueprintPrerenderComb {
             if (dependents.length > 0) {
                 let maxDependentHeight: number = 0;
 
-                dependents.forEach((depId: string): void => {
-                    maxDependentHeight = Math.max(maxDependentHeight, calculateHeight(depId));
+                dependents.forEach((dependentId: string): void => {
+                    maxDependentHeight = Math.max(maxDependentHeight, calculateHeight(dependentId));
                 });
 
                 height = maxDependentHeight + 1;
@@ -171,7 +174,7 @@ export class BlueprintPrerenderComb {
                     // Simple sort: Most connected at top. Requirement: "Less connected to edges, More connected to interior".
                     // So: [Low, Low, High, High, High, Low, Low].
                     // Sort by connectivity, then rearrange.
-                    const sortedByConn: GraphNode[] = [...layerNodes].sort((a: GraphNode, b: GraphNode): number => {
+                    const sortedByConnectivity: GraphNode[] = [...layerNodes].sort((a: GraphNode, b: GraphNode): number => {
                         return getConnectivity(a.node) - getConnectivity(b.node);  // Ascending: Low -> High.
                     });
                     
@@ -182,15 +185,15 @@ export class BlueprintPrerenderComb {
                     let right: number = layerNodes.length - 1;
                     
                     // Fill from edges with Low connectivity.
-                    // sortedByConn is [Low .... High].
+                    // sortedByConnectivity is [Low .... High].
                     // Take Low (index 0), put at left (0).
                     // Take next Low (index 1), put at right (max).
                     // ... until meet in middle.
-                    for (let index: number = 0; index < sortedByConn.length; index++) {
+                    for (let index: number = 0; index < sortedByConnectivity.length; index++) {
                         if (index % 2 === 0) {
-                            newOrder[left++] = sortedByConn[index];
+                            newOrder[left++] = sortedByConnectivity[index];
                         } else {
-                            newOrder[right--] = sortedByConn[index];
+                            newOrder[right--] = sortedByConnectivity[index];
                         }
                     }
 
@@ -210,9 +213,10 @@ export class BlueprintPrerenderComb {
 
                             node.edges.forEach((edge: Edge): void => {
                                 if (edge.history.length > 0) {
-                                    const upId: string = edge.history[edge.history.length - 1].targetUpstream.id;
-                                    if (nodeIndices.has(upId)) {
-                                        sum += nodeIndices.get(upId)!;
+                                    const upstreamId: string = edge.history[edge.history.length - 1].targetUpstream.id;
+
+                                    if (nodeIndices.has(upstreamId)) {
+                                        sum += nodeIndices.get(upstreamId)!;
                                         count++;
                                     }
                                 }
@@ -303,29 +307,29 @@ export class BlueprintPrerenderComb {
                                     const divisions = layerDiff + 1;
                                     const ratio = 1 / divisions;
                                     
-                                    const xU = layerXPositions.get(upstreamLayer) || 0;
-                                    const wNode = this.NODE_WIDTH;
-                                    const pad = this.TEXT_PADDING;
+                                    const upstreamX = layerXPositions.get(upstreamLayer) || 0;
+                                    const nodeWidth = this.NODE_WIDTH;
+                                    const padding = this.TEXT_PADDING;
                                     
-                                    // Req 1: Avoid overlap with Current Node (Layer N).
-                                    // Text Right Edge < Node Left Edge - Padding.
+                                    // Requirement 1: Avoid overlap with the current node (Layer N).
+                                    // The text right edge must be less than the node left edge minus padding.
                                     // LabelX + HalfText < X_N - Padding.
                                     // X_N > LabelX + HalfText + Padding.
                                     // LabelX = X_N * (1 - Ratio) + X_U * Ratio.
                                     // X_N > X_N * (1 - Ratio) + X_U * Ratio + HalfText + Padding.
                                     // X_N * Ratio > X_U * Ratio + HalfText + Padding.
                                     // X_N > X_U + (HalfText + Padding) / Ratio.
-                                    const reqX_1 = xU + (halfTextWidth + pad) / ratio;
+                                    const requiredX1 = upstreamX + (halfTextWidth + padding) / ratio;
                                     
-                                    // Req 2: Avoid overlap with Previous Node (Layer N-1).
-                                    // Text Left Edge > Prev Node Right Edge + Padding.
+                                    // Requirement 2: Avoid overlap with the previous node (Layer N-1).
+                                    // The text left edge must be greater than the previous node right edge plus padding.
                                     // LabelX - HalfText > X_{N-1} + NODE_WIDTH + Padding.
                                     // X_N * (1 - Ratio) + X_U * Ratio - HalfText > X_{N-1} + wNode + Padding.
                                     // X_N * (1 - Ratio) > X_{N-1} + wNode + Padding + HalfText - X_U * Ratio.
                                     // X_N > (X_{N-1} + wNode + Padding + HalfText - X_U * Ratio) / (1 - Ratio).
-                                    const reqX_2 = (prevLayerX + wNode + halfTextWidth + pad - xU * ratio) / (1 - ratio);
+                                    const requiredX2 = (prevLayerX + nodeWidth + halfTextWidth + padding - upstreamX * ratio) / (1 - ratio);
                                     
-                                    requiredX = Math.max(requiredX, reqX_1, reqX_2);
+                                    requiredX = Math.max(requiredX, requiredX1, requiredX2);
                                 }
                             }
                          }
@@ -464,5 +468,10 @@ export class BlueprintPrerenderComb {
             },
             layerGapCenters
         };
+    }
+
+    private estimateTextWidth(text: string): number {
+        // Estimate width: length * 9px per char + 20px padding.
+        return text.length * 9 + 20;
     }
 }
