@@ -14,8 +14,8 @@ export class EdgeCreator {
         targetId: string,
         onConnect: (sourceNode: Node, targetNode: Node) => void
     ): void {
-        const sourceNode = registry.getNode(sourceId);
-        const targetNode = registry.getNode(targetId);
+        const sourceNode: Node | undefined = registry.getNode(sourceId);
+        const targetNode: Node | undefined = registry.getNode(targetId);
 
         if (sourceNode && targetNode) {
             onConnect(sourceNode, targetNode);
@@ -54,5 +54,66 @@ export class EdgeCreator {
         const edge: Edge = new Edge(id, demandDescription, [historyRecord]);
 
         sourceNode.addEdge(edge);
+    }
+
+    public static cut(
+        registry: DomainRegistry,
+        edge: Edge,
+        reasonName: string
+    ): void {
+        const evolutionReason: EdgeEvolutionReason | undefined = registry.getEdgeEvolutionReason(reasonName);
+
+        if (!evolutionReason) {
+            console.error(`Evolution reason '${reasonName}' not found.`);
+            return;
+        }
+
+        edge.markLatestAsCut(evolutionReason);
+    }
+
+    public static evolve(
+        registry: DomainRegistry,
+        edge: Edge,
+        newTargetUpstream: Node,
+        reasonName: string
+    ): void {
+        // Find Evolution Reason.
+        const evolutionReason: EdgeEvolutionReason | undefined = registry.getEdgeEvolutionReason(reasonName);
+
+        if (!evolutionReason) {
+            console.error(`Evolution reason '${reasonName}' not found.`);
+            return;
+        }
+
+        const history: EdgeHistoryRecord[] = edge.history;
+
+        if (history.length === 0) return;
+
+        // Capture properties from the last active record.
+        const originalRecord: EdgeHistoryRecord = history[history.length - 1];
+
+        // Create new record for the new target (Evolve).
+        // This implicitly ends the previous relationship in the timeline.
+        // The old edge is NOT explicitly 'Cut' first, avoiding the creation of two separate versions for one atomic operation.
+        
+        // Calculate next version (SemVer Major + 1).
+        const versionParts: string[] = originalRecord.version.split('.');
+        let major: number = parseInt(versionParts[0], 10);
+
+        if (isNaN(major)) major = 0;
+        
+        const newVersion: string = `${major + 1}.0.0`;
+        const updatedAt: string = new Date().toISOString();
+
+        const newRecord: EdgeHistoryRecord = new EdgeHistoryRecord(
+            newVersion,
+            updatedAt,
+            originalRecord.type,
+            originalRecord.status,  // Keep original status (Active/Deprecated).
+            newTargetUpstream,
+            evolutionReason
+        );
+
+        edge.addHistoryRecord(newRecord);
     }
 }

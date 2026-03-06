@@ -201,7 +201,7 @@ export class BlueprintPrerenderComb {
 
                 } else {
                     // Subsequent Layers: Sort by Barycenter of Upstream Nodes (in previous layers).
-                    // We need the "Index" of upstream nodes to calculate average.
+                    // The "Index" of upstream nodes is required to calculate the average.
                     // Use normalized index (0..1) or just order.
                     layerNodes.sort((a: GraphNode, b: GraphNode): number => {
                         const getAvgIndex: (node: Node) => number = (node: Node): number => {
@@ -254,7 +254,7 @@ export class BlueprintPrerenderComb {
         });
 
         // The total height of the graph based on the widest layer.
-        // We use this to center other layers vertically.
+        // This is used to center other layers vertically.
         const totalGraphHeight: number = maxNodesInLayer * this.ROW_HEIGHT;
 
         // Step 6: Generate final coordinates.

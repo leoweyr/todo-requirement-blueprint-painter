@@ -35,7 +35,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     };
 
     private handleNodeClick: (event: React.MouseEvent) => void = (event: React.MouseEvent): void => {
-        void event;
+        event.stopPropagation();
 
         if (this.props.onCompleteEdge) {
             this.props.onCompleteEdge(this.props.node.id);
@@ -53,8 +53,8 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         const { node, x, y }: NodeRectangleProps = this.props;
         const { isHovered }: NodeRectangleState = this.state;
 
-        const date = new Date(node.updatedAt);
-        const dateStr = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+        const date: Date = new Date(node.updatedAt);
+        const dateStr: string = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
         const tooltipText: string = `${node.version} (${dateStr})`;
 
         const metadataEntries: [string, any][] = node.metadata ? Object.entries(node.metadata) : [];

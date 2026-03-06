@@ -15,12 +15,17 @@ import NodeCreateModal from './components/menus/node-create/NodeCreateModal';
 import NodeStatusCreateModal from './components/menus/node-status-create/NodeStatusCreateModal';
 import FileOpenModal from './components/menus/file-open/FileOpenModal';
 import EdgeCreateModal from './components/menus/edge-create/EdgeCreateModal';
+import EdgeEvolutionReasonModal from './components/menus/edge-evolution/EdgeEvolutionReasonModal';
 import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 import Legend from './components/canvas/Legend';
 import { EdgeCreator } from './components/menus/edge-create/EdgeCreator';
 import { EdgeDrawer } from './components/canvas/EdgeDrawer';
 import { Node } from './domain/Node';
+import { Edge } from './domain/Edge';
+import { EdgeHistoryRecord } from './domain/EdgeHistoryRecord';
+import { EdgeStatus } from './domain/enums/EdgeStatus';
+import { EdgeType } from './domain/enums/EdgeType';
 
 
 interface AppState {
@@ -32,6 +37,11 @@ interface AppState {
     isEdgeCreateModalOpen: boolean;
     edgeCreateSourceNode: Node | null;
     edgeCreateTargetNode: Node | null;
+
+    // Edge Evolution State.
+    isEdgeEvolutionModalOpen: boolean;
+    reanchoringEdge: Edge | null;
+    evolutionTargetNode: Node | null;
 }
 
 
@@ -42,6 +52,80 @@ class App extends Component<{}, AppState> {
     private readonly _registry: DomainRegistry;
     private _contextMenuRef: ContextMenu | null = null;
     private _edgeDrawerRef: EdgeDrawer | null = null;
+
+    private handleEdgeCut: (edge: Edge) => void = (edge: Edge): void => {
+        this.setState({
+            isEdgeEvolutionModalOpen: true,
+            reanchoringEdge: edge,
+            evolutionTargetNode: null
+        });
+    };
+
+    private handleEdgeReanchor: (edge: Edge) => void = (edge: Edge): void => {
+        const downstreamNode: Node | undefined = this._registry.allNodes.find((node: Node) => node.edges.includes(edge));
+        
+        if (downstreamNode && this._edgeDrawerRef) {
+
+            const latestHistory: EdgeHistoryRecord = edge.history[edge.history.length - 1];
+            let strokeColor: string = '#000000';
+            let strokeDasharray: string = 'none';
+
+            if (latestHistory) {
+                // Determine style based on current status.
+                // Note: Even if the edge is about to be 'Cut', the user is 'Moving' it.
+                // The edge should be shown as it currently looks (Active or Deprecated).
+                // If the edge was already CUT (invisible), it would likely not be interactive.
+                // Default to black if unknown.
+                
+                if (latestHistory.status === EdgeStatus.ACTIVE) {
+                    strokeColor = '#4CAF50';
+                } else if (latestHistory.status === EdgeStatus.DEPRECATED) {
+                    strokeColor = '#9E9E9E';
+                } else {
+                    // Fallback for other statuses to ensure visibility during drag.
+                    strokeColor = '#000000';
+                }
+                
+                if (latestHistory.type === EdgeType.OPTIMIZES) {
+                    strokeDasharray = '5,5';
+                }
+            }
+
+            this.setState(
+                {
+                    reanchoringEdge: edge
+                },
+                (): void => {
+                    this._edgeDrawerRef?.handleStartEdge(downstreamNode.id, { strokeColor, strokeDasharray });
+                }
+            );
+        }
+    };
+
+    private handleEvolutionConfirm: (reasonName: string) => void = (reasonName: string): void => {
+        const { reanchoringEdge, evolutionTargetNode }: AppState = this.state;
+        
+        if (reanchoringEdge) {
+            if (evolutionTargetNode) {
+                // Re-anchoring (Evolve).
+                EdgeCreator.evolve(this._registry, reanchoringEdge, evolutionTargetNode, reasonName);
+            } else {
+                // Cutting (Delete).
+                EdgeCreator.cut(this._registry, reanchoringEdge, reasonName);
+            }
+        }
+
+        this.setState(
+            {
+                isEdgeEvolutionModalOpen: false,
+                reanchoringEdge: null,
+                evolutionTargetNode: null
+            },
+            (): void => {
+                this.refreshLayout();
+            }
+        );
+    };
 
     private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         if (this._contextMenuRef) {
@@ -58,7 +142,10 @@ class App extends Component<{}, AppState> {
             isNodeStatusCreateModalOpen: false,
             isEdgeCreateModalOpen: false,
             edgeCreateSourceNode: null,
-            edgeCreateTargetNode: null
+            edgeCreateTargetNode: null,
+            isEdgeEvolutionModalOpen: false,
+            reanchoringEdge: null,
+            evolutionTargetNode: null
         };
 
         this._viewport = new CanvasViewport(0, 0, 1);
@@ -100,6 +187,11 @@ class App extends Component<{}, AppState> {
                     onContextMenu={this.handleContextMenu}
                     onClick={(): void => {
                         if (this._edgeDrawerRef) {
+                            // If reanchoring, cancel it on canvas click (restore original edge).
+                            if (this.state.reanchoringEdge) {
+                                this.setState({ reanchoringEdge: null });
+                            }
+
                             this._edgeDrawerRef.handleCanvasClick();
                         }
                     }}
@@ -110,18 +202,31 @@ class App extends Component<{}, AppState> {
                         viewport={this._viewport}
                         prerenderNodes={layoutResult?.prerenderNodes || []}
                         onEdgeConnect={(sourceId: string, targetId: string): void => {
-                            EdgeCreator.connect(
-                                this._registry,
-                                sourceId,
-                                targetId,
-                                (sourceNode: Node, targetNode: Node): void => {
+                            const { reanchoringEdge }: AppState = this.state;
+
+                            if (reanchoringEdge) {
+                                const targetNode = this._registry.getNode(targetId);
+
+                                if (targetNode) {
                                     this.setState({
-                                        isEdgeCreateModalOpen: true,
-                                        edgeCreateSourceNode: sourceNode,
-                                        edgeCreateTargetNode: targetNode
+                                        isEdgeEvolutionModalOpen: true,
+                                        evolutionTargetNode: targetNode
                                     });
                                 }
-                            );
+                            } else {
+                                EdgeCreator.connect(
+                                    this._registry,
+                                    sourceId,
+                                    targetId,
+                                    (sourceNode: Node, targetNode: Node): void => {
+                                        this.setState({
+                                            isEdgeCreateModalOpen: true,
+                                            edgeCreateSourceNode: sourceNode,
+                                            edgeCreateTargetNode: targetNode
+                                        });
+                                    }
+                                );
+                            }
                         }}
                     />
                 </InfiniteCanvas>
@@ -185,6 +290,20 @@ class App extends Component<{}, AppState> {
                     </BackdropBlur>
                 )}
 
+                {this.state.isEdgeEvolutionModalOpen && (
+                    <BackdropBlur>
+                        <EdgeEvolutionReasonModal
+                            registry={this._registry}
+                            onClose={(): void => this.setState({ 
+                                isEdgeEvolutionModalOpen: false, 
+                                reanchoringEdge: null, 
+                                evolutionTargetNode: null 
+                            })}
+                            onConfirm={this.handleEvolutionConfirm}
+                        />
+                    </BackdropBlur>
+                )}
+
                 {!isFileLoaded && (
                     <div style={{
                         position: 'fixed',
@@ -217,20 +336,36 @@ class App extends Component<{}, AppState> {
         );
     }
 
+    private refreshLayout(): void {
+        const layoutResult: BlueprintPrerenderCombResult = this._layoutService.calculateLayout(this._registry);
+        this._layoutResult = layoutResult;
+        this.forceUpdate();
+    }
+
     private renderGraph(): ReactNode {
         if (!this._layoutResult) return null;
 
         const { prerenderNodes, prerenderEdges }: BlueprintPrerenderCombResult = this._layoutResult;
+        const { reanchoringEdge } = this.state;
 
         return (
             <>
                 {/* Render Edges (behind Nodes). */}
-                {prerenderEdges.map((properties: PrerenderEdge): ReactNode => (
-                    <EdgeLine
-                        key={properties.edge.id}
-                        {...properties}
-                    />
-                ))}
+                {prerenderEdges.map((properties: PrerenderEdge): ReactNode => {
+                    // If this edge is currently being re-anchored, hide it.
+                    if (reanchoringEdge && properties.edge.id === reanchoringEdge.id) {
+                        return null;
+                    }
+
+                    return (
+                        <EdgeLine
+                            key={properties.edge.id}
+                            {...properties}
+                            onCut={(): void => this.handleEdgeCut(properties.edge)}
+                            onReanchor={(): void => this.handleEdgeReanchor(properties.edge)}
+                        />
+                    );
+                })}
 
                 {/* Render Nodes (on top of Edges). */}
                 {prerenderNodes.map((properties: PrerenderNode): ReactNode => (
@@ -240,9 +375,9 @@ class App extends Component<{}, AppState> {
                         x={properties.x}
                         y={properties.y}
                         onStartEdge={(nodeId: string): void => {
-                            if (this._edgeDrawerRef) {
-                                this._edgeDrawerRef.handleStartEdge(nodeId);
-                            }
+                            if (!this._edgeDrawerRef) return;
+
+                            this._edgeDrawerRef.handleStartEdge(nodeId, { strokeColor: '#4CAF50', strokeDasharray: '5,5' });
                         }}
                         onCompleteEdge={(nodeId: string): void => {
                             if (this._edgeDrawerRef) {

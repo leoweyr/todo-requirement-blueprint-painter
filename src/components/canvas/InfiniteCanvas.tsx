@@ -108,7 +108,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         };
 
         // Render dividers if data is available.
-        const dividers = layerGapCenters ? layerGapCenters.map((x, index) => (
+        const dividers: ReactNode[] | null = layerGapCenters ? layerGapCenters.map((x, index) => (
             <VerticalDivider
                 key={`divider-${index}`}
                 x={x}
@@ -151,8 +151,8 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
 
         event.preventDefault();
 
-        const deltaX = event.clientX - this.state.startX;
-        const deltaY = event.clientY - this.state.startY;
+        const deltaX: number = event.clientX - this.state.startX;
+        const deltaY: number = event.clientY - this.state.startY;
 
         this.props.viewport.pan(deltaX, deltaY);
 
@@ -172,15 +172,15 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         event.preventDefault();
         
         // Determine zoom factor.
-        const sensitivity = 0.001;
-        const delta = -event.deltaY * sensitivity;
-        const factor = 1 + delta;
+        const sensitivity: number = 0.001;
+        const delta: number = -event.deltaY * sensitivity;
+        const factor: number = 1 + delta;
 
         // Get mouse position relative to container.
         if (this._containerRef) {
-            const rect = this._containerRef.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
+            const rect: DOMRect = this._containerRef.getBoundingClientRect();
+            const mouseX: number = event.clientX - rect.left;
+            const mouseY: number = event.clientY - rect.top;
 
             this.props.viewport.zoom(factor, mouseX, mouseY);
         }

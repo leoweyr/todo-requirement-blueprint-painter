@@ -37,11 +37,11 @@ export class CanvasViewport {
         // Content Width/Height logic:
         // The viewport shows the content bounds plus the padding.
         // The "logical width" to fit is (maximumX - minimumX) + (padding * 2).
-        const contentWidth = (this._contentBounds.maximumX - this._contentBounds.minimumX) + (this._padding * 2);
-        const contentHeight = (this._contentBounds.maximumY - this._contentBounds.minimumY) + (this._padding * 2);
+        const contentWidth: number = (this._contentBounds.maximumX - this._contentBounds.minimumX) + (this._padding * 2);
+        const contentHeight: number = (this._contentBounds.maximumY - this._contentBounds.minimumY) + (this._padding * 2);
 
-        const scaleX = this._containerSize.width / contentWidth;
-        const scaleY = this._containerSize.height / contentHeight;
+        const scaleX: number = this._containerSize.width / contentWidth;
+        const scaleY: number = this._containerSize.height / contentHeight;
 
         // The minimum scale is the one that fits the content exactly in the container.
         this._minimumScale = Math.min(scaleX, scaleY);
@@ -60,8 +60,8 @@ export class CanvasViewport {
         if (!this._contentBounds || !this._containerSize) return;
 
         // Calculate center of content.
-        const contentCenterX = (this._contentBounds.minimumX + this._contentBounds.maximumX) / 2;
-        const contentCenterY = (this._contentBounds.minimumY + this._contentBounds.maximumY) / 2;
+        const contentCenterX: number = (this._contentBounds.minimumX + this._contentBounds.maximumX) / 2;
+        const contentCenterY: number = (this._contentBounds.minimumY + this._contentBounds.maximumY) / 2;
 
         // Center viewport on content center.
         // The center of "content + padding" aligns with the center of "content" since padding is symmetric.
@@ -90,25 +90,25 @@ export class CanvasViewport {
         }
 
         // Apply pan.
-        let newX = this._x + deltaX;
-        let newY = this._y + deltaY;
+        let newX: number = this._x + deltaX;
+        let newY: number = this._y + deltaY;
 
         // Constraint: viewport cannot move outside standard view bounds.
         if (this._contentBounds && this._containerSize) {
-            const contentWidth = (this._contentBounds.maximumX - this._contentBounds.minimumX + this._padding * 2);
-            const contentHeight = (this._contentBounds.maximumY - this._contentBounds.minimumY + this._padding * 2);
+            const contentWidth: number = (this._contentBounds.maximumX - this._contentBounds.minimumX + this._padding * 2);
+            const contentHeight: number = (this._contentBounds.maximumY - this._contentBounds.minimumY + this._padding * 2);
             
-            const scaledContentWidth = contentWidth * this._scale;
-            const scaledContentHeight = contentHeight * this._scale;
+            const scaledContentWidth: number = contentWidth * this._scale;
+            const scaledContentHeight: number = contentHeight * this._scale;
 
-            const areaLeft = this._contentBounds.minimumX - this._padding;
-            const areaTop = this._contentBounds.minimumY - this._padding;
+            const areaLeft: number = this._contentBounds.minimumX - this._padding;
+            const areaTop: number = this._contentBounds.minimumY - this._padding;
             
-            const maximumX = -areaLeft * this._scale;
-            const minimumX = this._containerSize.width - scaledContentWidth - areaLeft * this._scale;
+            const maximumX: number = -areaLeft * this._scale;
+            const minimumX: number = this._containerSize.width - scaledContentWidth - areaLeft * this._scale;
             
-            const maximumY = -areaTop * this._scale;
-            const minimumY = this._containerSize.height - scaledContentHeight - areaTop * this._scale;
+            const maximumY: number = -areaTop * this._scale;
+            const minimumY: number = this._containerSize.height - scaledContentHeight - areaTop * this._scale;
             
             newX = Math.min(maximumX, Math.max(minimumX, newX));
             newY = Math.min(maximumY, Math.max(minimumY, newY));
@@ -120,8 +120,8 @@ export class CanvasViewport {
     }
 
     public zoom(factor: number, centerX: number, centerY: number): void {
-        const previousScale = this._scale;
-        let newScale = this._scale * factor;
+        const previousScale: number = this._scale;
+        let newScale: number = this._scale * factor;
 
         // Limit scale: cannot be smaller than minimumScale (fit-to-screen).
         newScale = Math.max(this._minimumScale, Math.min(newScale, 10));
@@ -134,29 +134,29 @@ export class CanvasViewport {
         }
 
         // Calculate the ratio of change.
-        const scaleRatio = newScale / previousScale;
+        const scaleRatio: number = newScale / previousScale;
 
         // Formula: newX = mouseX - (mouseX - oldX) * scaleRatio.
         // This keeps the point under the mouse fixed relative to the screen.
-        let newX = centerX - (centerX - this._x) * scaleRatio;
-        let newY = centerY - (centerY - this._y) * scaleRatio;
+        let newX: number = centerX - (centerX - this._x) * scaleRatio;
+        let newY: number = centerY - (centerY - this._y) * scaleRatio;
         
-        // Re-apply pan constraints after zoom to ensure we don't zoom out of bounds.
+        // Re-apply pan constraints after zoom to prevent zooming out of bounds.
         if (this._contentBounds && this._containerSize) {
-            const contentWidth = (this._contentBounds.maximumX - this._contentBounds.minimumX + this._padding * 2);
-            const contentHeight = (this._contentBounds.maximumY - this._contentBounds.minimumY + this._padding * 2);
+            const contentWidth: number = (this._contentBounds.maximumX - this._contentBounds.minimumX + this._padding * 2);
+            const contentHeight: number = (this._contentBounds.maximumY - this._contentBounds.minimumY + this._padding * 2);
             
-            const scaledContentWidth = contentWidth * newScale;
-            const scaledContentHeight = contentHeight * newScale;
+            const scaledContentWidth: number = contentWidth * newScale;
+            const scaledContentHeight: number = contentHeight * newScale;
 
-            const areaLeft = this._contentBounds.minimumX - this._padding;
-            const areaTop = this._contentBounds.minimumY - this._padding;
+            const areaLeft: number = this._contentBounds.minimumX - this._padding;
+            const areaTop: number = this._contentBounds.minimumY - this._padding;
 
-            const maximumX = -areaLeft * newScale;
-            const minimumX = this._containerSize.width - scaledContentWidth - areaLeft * newScale;
+            const maximumX: number = -areaLeft * newScale;
+            const minimumX: number = this._containerSize.width - scaledContentWidth - areaLeft * newScale;
             
-            const maximumY = -areaTop * newScale;
-            const minimumY = this._containerSize.height - scaledContentHeight - areaTop * newScale;
+            const maximumY: number = -areaTop * newScale;
+            const minimumY: number = this._containerSize.height - scaledContentHeight - areaTop * newScale;
             
             newX = Math.min(maximumX, Math.max(minimumX, newX));
             newY = Math.min(maximumY, Math.max(minimumY, newY));

@@ -37,7 +37,7 @@ class Legend extends Component<LegendProps, LegendState> {
     public componentDidMount(): void {
         this.updateStatuses();
         
-        // Listen for registry changes (simple polling or we could add an event emitter to registry).
+        // Listen for registry changes (simple polling; alternatively, an event emitter could be added to the registry).
         // For now, simple polling is robust enough for prototype.
         this.statusInterval = setInterval(this.updateStatuses, 1000);
     }

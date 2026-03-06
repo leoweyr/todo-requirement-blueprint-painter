@@ -18,6 +18,8 @@ interface EdgeDrawerState {
     startY: number;
     currentX: number;
     currentY: number;
+    strokeColor: string;
+    strokeDasharray: string;
 }
 
 
@@ -28,7 +30,9 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
         startX: 0,
         startY: 0,
         currentX: 0,
-        currentY: 0
+        currentY: 0,
+        strokeColor: '#4CAF50',
+        strokeDasharray: '5,5'
     };
 
     private handleGlobalMouseMove: (event: globalThis.MouseEvent) => void = (event: globalThis.MouseEvent): void => {
@@ -48,7 +52,7 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
     };
 
     public render(): ReactNode {
-        const { isDrawing, startX, startY, currentX, currentY } = this.state;
+        const { isDrawing, startX, startY, currentX, currentY, strokeColor, strokeDasharray } = this.state;
 
         if (!isDrawing) return null;
 
@@ -70,12 +74,12 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
                     y1={startY}
                     x2={currentX}
                     y2={currentY}
-                    stroke="#4CAF50"
+                    stroke={strokeColor}
                     strokeWidth="2"
-                    strokeDasharray="5,5"
+                    strokeDasharray={strokeDasharray}
                 />
-                <circle cx={startX} cy={startY} r="4" fill="#4CAF50" />
-                <circle cx={currentX} cy={currentY} r="4" fill="#4CAF50" />
+                <circle cx={startX} cy={startY} r="4" fill={strokeColor} />
+                <circle cx={currentX} cy={currentY} r="4" fill={strokeColor} />
             </svg>
         );
     }
@@ -84,15 +88,18 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
         window.removeEventListener('mousemove', this.handleGlobalMouseMove);
     }
 
-    public handleStartEdge(nodeId: string): void {
+    public handleStartEdge(nodeId: string, options?: { strokeColor?: string; strokeDasharray?: string }): void {
         const { prerenderNodes } = this.props;
-        const nodeProperties = prerenderNodes.find((prerenderNode: PrerenderNode): boolean => prerenderNode.node.id === nodeId);
+        const nodeProperties: PrerenderNode | undefined = prerenderNodes.find((prerenderNode: PrerenderNode): boolean => prerenderNode.node.id === nodeId);
 
         if (nodeProperties) {
             // Start from left-center of the node.
             // Approximation of half-height (min-height 80 / 2).
-            const startX: number = nodeProperties.x; 
+            const startX: number = nodeProperties.x;
             const startY: number = nodeProperties.y + 40;
+
+            const strokeColor = options?.strokeColor || '#4CAF50';
+            const strokeDasharray = options?.strokeDasharray || '5,5';
 
             this.setState({
                 isDrawing: true,
@@ -100,7 +107,9 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
                 startX: startX,
                 startY: startY,
                 currentX: startX,
-                currentY: startY
+                currentY: startY,
+                strokeColor: strokeColor,
+                strokeDasharray: strokeDasharray
             });
 
             window.addEventListener('mousemove', this.handleGlobalMouseMove);

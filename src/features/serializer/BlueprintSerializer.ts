@@ -46,7 +46,7 @@ export class BlueprintSerializer {
             }
         }
 
-        // If still no version, and we are overwriting (pasting partial content), use the registry's current version.
+        // If still no version, and partial content is being overwritten, use the registry's current version.
         if (!version && overwrite && registry.trbVersion) {
             version = registry.trbVersion;
         }
@@ -189,7 +189,7 @@ export class BlueprintSerializer {
 
     private static async processBlueprint(blueprintData: SerializedBlueprint, registry: DomainRegistry, overwrite: boolean): Promise<void> {
         // Phase 1: Parse and register global dictionaries (NodeStatus and EdgeEvolutionReason).
-        // This ensures that shared definitions are available before we process individual nodes that reference them.
+        // This ensures that shared definitions are available before individual nodes referencing them are processed.
         if (blueprintData.node_statuses) {
             for (const value of Object.values(blueprintData.node_statuses)) {
                 const statusName: string = value.name;

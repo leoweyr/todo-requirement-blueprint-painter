@@ -1,6 +1,7 @@
 import { Component, type CSSProperties, type ReactNode } from 'react';
 
 import { Edge } from '../../domain/Edge';
+import { type EdgeHistoryRecord } from "../../domain/EdgeHistoryRecord";
 import { EdgeType } from '../../domain/enums/EdgeType';
 import { EdgeStatus } from '../../domain/enums/EdgeStatus';
 
@@ -14,6 +15,8 @@ export interface EdgeLineProps {
     labelPositionDivisions?: number;
     labelPositionIndex?: number;
     curvature?: number;
+    onCut?: () => void;
+    onReanchor?: () => void;
 }
 
 
@@ -27,12 +30,21 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
         isHovered: false
     };
 
+    private _hoverTimeout: number | null = null;
+
     private handleMouseEnter: () => void = (): void => {
+        if (this._hoverTimeout) {
+            window.clearTimeout(this._hoverTimeout);
+            this._hoverTimeout = null;
+        }
+
         this.setState({ isHovered: true });
     };
 
     private handleMouseLeave: () => void = (): void => {
-        this.setState({ isHovered: false });
+        this._hoverTimeout = window.setTimeout((): void => {
+            this.setState({ isHovered: false });
+        }, 100);
     };
 
     public render(): ReactNode {
@@ -44,7 +56,9 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
             endY,
             labelPositionDivisions = 2,
             labelPositionIndex = 1,
-            curvature = 0
+            curvature = 0,
+            onCut,
+            onReanchor
         } = this.props;
 
         const { isHovered } = this.state;
@@ -57,9 +71,9 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
         let isVisible: boolean = true;
 
         if (edge.history && edge.history.length > 0) {
-            const latest = edge.history[edge.history.length - 1];
-            const date = new Date(latest.updatedAt);
-            const dateStr = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+            const latest: EdgeHistoryRecord = edge.history[edge.history.length - 1];
+            const date: Date = new Date(latest.updatedAt);
+            const dateStr: string = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
             tooltipText = `${latest.version} (${dateStr})`;
 
             // Determine line style based on Type.
@@ -160,13 +174,44 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                 >
                     {/* Highlight Stroke (Visible only when hovered). */}
                     {isHovered && (
-                        <path 
-                            d={pathData} 
-                            fill="none"
-                            stroke="rgba(0, 120, 215, 0.3)" 
-                            strokeWidth="8pt"
-                            strokeLinecap="round"
-                        />
+                        <>
+                            <path 
+                                d={pathData} 
+                                fill="none"
+                                stroke="rgba(0, 120, 215, 0.3)" 
+                                strokeWidth="8pt"
+                                strokeLinecap="round"
+                            />
+                            {/* Red Minus at Start (Downstream Left). */}
+                            <g 
+                                transform={`translate(${localStartX}, ${localStartY})`} 
+                                onClick={(event): void => {
+                                    event.stopPropagation();
+                                    if (onCut) onCut();
+                                }}
+                                onMouseEnter={this.handleMouseEnter}
+                                onMouseLeave={this.handleMouseLeave}
+                                style={{ cursor: 'pointer', pointerEvents: 'auto', filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.2))' }}
+                            >
+                                <circle r={11} fill="#FF3B30" stroke="#FFFFFF" strokeWidth={2} />
+                                <line x1={-5} y1={0} x2={5} y2={0} stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
+                            </g>
+
+                            {/* Blue Anchor at End (Upstream Right). */}
+                            <g 
+                                transform={`translate(${localEndX}, ${localEndY})`} 
+                                onClick={(event): void => {
+                                    event.stopPropagation();
+                                    if (onReanchor) onReanchor();
+                                }}
+                                onMouseEnter={this.handleMouseEnter}
+                                onMouseLeave={this.handleMouseLeave}
+                                style={{ cursor: 'pointer', pointerEvents: 'auto', filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.2))' }}
+                            >
+                                <circle r={11} fill="#007AFF" stroke="#FFFFFF" strokeWidth={2} />
+                                <path d="M0,-3 A1.5,1.5 0 1,1 0,0 A1.5,1.5 0 1,1 0,-3 M0,0 L0,4 M-3,2 Q0,5 3,2" fill="none" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" transform="scale(1.2)" />
+                            </g>
+                        </>
                     )}
 
                     {/* Visible Line. */}

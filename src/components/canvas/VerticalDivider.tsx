@@ -37,7 +37,7 @@ class VerticalDivider extends Component<VerticalDividerProps> {
             top = Math.min(startY, endY);
         }
 
-        const left = x - thickness / 2;
+        const left: number = x - thickness / 2;
 
         return {
             position: 'absolute',

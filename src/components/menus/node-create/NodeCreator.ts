@@ -34,7 +34,7 @@ export class NodeCreator {
             id,
             description,
             version,
-            updatedAt,  // Corrected order: Node constructor expects updatedAt before status based on my inspection of Node.ts.
+            updatedAt,  // Corrected order: Node constructor expects updatedAt before status based on inspection of Node.ts.
             status,
             metadata
         );
