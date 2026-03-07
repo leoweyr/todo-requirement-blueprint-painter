@@ -1,7 +1,7 @@
-import { Edge } from '../../domain/Edge';
 import { Node } from '../../domain/Node';
-import { NodeStatus } from '../../domain/NodeStatus.ts';
-import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason.ts';
+import { NodeStatus } from '../../domain/NodeStatus';
+import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
+import { Edge } from '../../domain/Edge';
 
 
 export class DomainRegistry {
@@ -89,6 +89,7 @@ export class DomainRegistry {
                 // Check latest history record for targetUpstream.
                 if (edge.history.length > 0) {
                     const latestRecord = edge.history[edge.history.length - 1];
+
                     if (latestRecord.targetUpstream.id === nodeId) {
                         edgesToRemove.push(edge);
                     }
@@ -164,6 +165,10 @@ export class DomainRegistry {
 
     public getNodeStatus(name: string): NodeStatus | undefined {
         return this._nodeStatuses.get(name);
+    }
+
+    public deleteNodeStatus(name: string): void {
+        this._nodeStatuses.delete(name);
     }
 
     public get allNodeStatuses(): NodeStatus[] {

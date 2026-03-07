@@ -1,11 +1,12 @@
-import { Component, type CSSProperties, type ReactNode } from 'react';
+import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
 
-import { DomainRegistry } from '../../features/registry/DomainRegistry.ts';
-import { NodeStatus } from '../../domain/NodeStatus.ts';
+import { DomainRegistry } from '../../features/registry/DomainRegistry';
+import { NodeStatus } from '../../domain/NodeStatus';
 
 
 interface LegendProps {
     registry: DomainRegistry;
+    onContextMenu?: (event: MouseEvent, statusName: string) => void;
 }
 
 
@@ -60,7 +61,17 @@ class Legend extends Component<LegendProps, LegendState> {
                 <h3 style={this.getTitleStyle()}>Node Statuses</h3>
                 <div style={this.getListStyle()}>
                     {statuses.map((status: NodeStatus): ReactNode => (
-                        <div key={status.name} style={this.getItemStyle()}>
+                        <div 
+                            key={status.name} 
+                            style={this.getItemStyle()}
+                            onContextMenu={(event: MouseEvent): void => {
+                                if (this.props.onContextMenu) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    this.props.onContextMenu(event, status.name);
+                                }
+                            }}
+                        >
                             <div style={this.getIndicatorStyle(status)} />
                             <span style={this.getTextStyle()}>
                                 {status.description}
@@ -83,7 +94,7 @@ class Legend extends Component<LegendProps, LegendState> {
             padding: '15px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             zIndex: 1000,
-            pointerEvents: 'none',  // Allow clicking through if needed, but usually legend blocks clicks.
+            pointerEvents: 'auto', 
             minWidth: '150px'
         };
     }
@@ -111,7 +122,8 @@ class Legend extends Component<LegendProps, LegendState> {
         return {
             display: 'flex',
             alignItems: 'center',
-            gap: '10px'
+            gap: '10px',
+            cursor: 'context-menu'
         };
     }
 

@@ -3,28 +3,29 @@ import { Component, type ReactNode, type MouseEvent } from 'react';
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
-import { type PrerenderEdge } from './features/graph/PrerenderEdge';
-import { type PrerenderNode } from './features/graph/PrerenderNode';
 import { DomainRegistry } from './features/registry/DomainRegistry';
 import ContextMenu from './components/menus/context-menu/ContextMenu';
-import { BlueprintPaster } from './components/menus/blueprint-paste/BlueprintPaster';
+import { EdgeDrawer } from './components/canvas/EdgeDrawer';
+import { Node } from './domain/Node';
+import { Edge } from './domain/Edge';
+import { EdgeEvolver } from './components/menus/edge-evolution/EdgeEvolver';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
+import { type PrerenderEdge } from './features/graph/PrerenderEdge';
+import EdgeLine from './components/elements/EdgeLine';
+import { type PrerenderNode } from './features/graph/PrerenderNode';
+import NodeRectangle from './components/elements/NodeRectangle';
+import { BlueprintPaster } from './components/menus/blueprint-paste/BlueprintPaster';
 import { BlueprintSaver } from './components/menus/blueprint-save/BlueprintSaver';
 import BackdropBlur from './components/menus/BackdropBlur';
 import NodeCreateModal from './components/menus/node-create/NodeCreateModal';
 import NodeStatusCreateModal from './components/menus/node-status-create/NodeStatusCreateModal';
-import FileOpenModal from './components/menus/file-open/FileOpenModal';
 import EdgeCreateModal from './components/menus/edge-create/EdgeCreateModal';
 import EdgeEvolutionReasonModal from './components/menus/edge-evolution/EdgeEvolutionReasonModal';
 import NodeContextMenu from './components/menus/node-context-menu/NodeContextMenu';
-import EdgeLine from './components/elements/EdgeLine';
-import NodeRectangle from './components/elements/NodeRectangle';
+import LegendContextMenu from './components/menus/legend-context-menu/LegendContextMenu';
+import FileOpenModal from './components/menus/file-open/FileOpenModal';
 import Legend from './components/canvas/Legend';
 import { EdgeCreator } from './components/menus/edge-create/EdgeCreator';
-import { EdgeDrawer } from './components/canvas/EdgeDrawer';
-import { EdgeEvolver } from './components/menus/edge-evolution/EdgeEvolver';
-import { Node } from './domain/Node';
-import { Edge } from './domain/Edge';
 
 
 interface AppState {
@@ -48,6 +49,14 @@ interface AppState {
         x: number;
         y: number;
         nodeId: string | null;
+    };
+
+    // Legend Context Menu State.
+    legendContextMenu: {
+        isOpen: boolean;
+        x: number;
+        y: number;
+        statusName: string | null;
     };
 }
 
@@ -139,6 +148,20 @@ class App extends Component<{}, AppState> {
         });
     };
 
+    private handleLegendContextMenu: (event: MouseEvent, statusName: string) => void = (event: MouseEvent, statusName: string): void => {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        this.setState({
+            legendContextMenu: {
+                isOpen: true,
+                x: event.clientX,
+                y: event.clientY,
+                statusName: statusName
+            }
+        });
+    };
+
     private handleDeleteNode: (nodeId: string) => void = (nodeId: string): void => {
         this._registry.deleteNode(nodeId);
         this.refreshLayout();
@@ -149,6 +172,20 @@ class App extends Component<{}, AppState> {
                 x: 0,
                 y: 0,
                 nodeId: null
+            }
+        });
+    };
+
+    private handleDeleteNodeStatus: (statusName: string) => void = (statusName: string): void => {
+        this._registry.deleteNodeStatus(statusName);
+        this.forceUpdate();  // Re-render to update Legend (since Legend polls or updates on prop change, but forceUpdate on App might not trigger Legend re-render if props don't change deeply, but Legend polls registry anyway).
+        
+        this.setState({
+            legendContextMenu: {
+                isOpen: false,
+                x: 0,
+                y: 0,
+                statusName: null
             }
         });
     };
@@ -171,6 +208,12 @@ class App extends Component<{}, AppState> {
                 x: 0,
                 y: 0,
                 nodeId: null
+            },
+            legendContextMenu: {
+                isOpen: false,
+                x: 0,
+                y: 0,
+                statusName: null
             }
         };
 
@@ -333,6 +376,18 @@ class App extends Component<{}, AppState> {
                     />
                 )}
 
+                {this.state.legendContextMenu.isOpen && this.state.legendContextMenu.statusName && (
+                    <LegendContextMenu
+                        statusName={this.state.legendContextMenu.statusName}
+                        x={this.state.legendContextMenu.x}
+                        y={this.state.legendContextMenu.y}
+                        onDelete={this.handleDeleteNodeStatus}
+                        onClose={(): void => this.setState({ 
+                            legendContextMenu: { ...this.state.legendContextMenu, isOpen: false } 
+                        })}
+                    />
+                )}
+
                 {!isFileLoaded && (
                     <div style={{
                         position: 'fixed',
@@ -357,7 +412,7 @@ class App extends Component<{}, AppState> {
                     </div>
                 )}
                 
-                {isFileLoaded && <Legend registry={this._registry} />}
+                {isFileLoaded && <Legend registry={this._registry} onContextMenu={this.handleLegendContextMenu} />}
             </>
         );
     }
