@@ -98,8 +98,8 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
             const startX: number = nodeProperties.x;
             const startY: number = nodeProperties.y + 40;
 
-            const strokeColor = options?.strokeColor || '#4CAF50';
-            const strokeDasharray = options?.strokeDasharray || '5,5';
+            const strokeColor: string = options?.strokeColor || '#4CAF50';
+            const strokeDasharray: string = options?.strokeDasharray || '5,5';
 
             this.setState({
                 isDrawing: true,

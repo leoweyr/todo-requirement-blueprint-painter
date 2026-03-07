@@ -29,6 +29,66 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
     private _unsubscribe?: () => void;
     private _containerRef: HTMLDivElement | null = null;
 
+    private handleMouseDown: (event: MouseEvent<HTMLDivElement>) => void = (event: MouseEvent<HTMLDivElement>): void => {
+        // Only left click starts drag.
+        if (event.button !== 0) return;
+
+        this.setState({
+            isDragging: true,
+            startX: event.clientX,
+            startY: event.clientY
+        });
+        
+        event.preventDefault();  // Prevent text selection.
+    };
+
+    private handleGlobalMouseMove: (event: globalThis.MouseEvent) => void = (event: globalThis.MouseEvent): void => {
+        if (!this.state.isDragging) return;
+
+        event.preventDefault();
+
+        const deltaX: number = event.clientX - this.state.startX;
+        const deltaY: number = event.clientY - this.state.startY;
+
+        this.props.viewport.pan(deltaX, deltaY);
+
+        this.setState({
+            startX: event.clientX,
+            startY: event.clientY
+        });
+    };
+
+    private handleGlobalMouseUp: () => void = (): void => {
+        if (this.state.isDragging) {
+            this.setState({ isDragging: false });
+        }
+    };
+
+    private handleNativeWheel: (event: globalThis.WheelEvent) => void = (event: globalThis.WheelEvent): void => {
+        event.preventDefault();
+        
+        // Determine zoom factor.
+        const sensitivity: number = 0.001;
+        const delta: number = -event.deltaY * sensitivity;
+        const factor: number = 1 + delta;
+
+        // Get mouse position relative to container.
+        if (this._containerRef) {
+            const rect: DOMRect = this._containerRef.getBoundingClientRect();
+            const mouseX: number = event.clientX - rect.left;
+            const mouseY: number = event.clientY - rect.top;
+
+            this.props.viewport.zoom(factor, mouseX, mouseY);
+        }
+    };
+
+    private handleWindowResize: () => void = (): void => {
+        if (this._containerRef) {
+            const rect: DOMRect = this._containerRef.getBoundingClientRect();
+            this.props.viewport.setContainerSize(rect.width, rect.height);
+        }
+    };
+
     constructor(props: InfiniteCanvasProps) {
         super(props);
         this.state = {
@@ -55,6 +115,9 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         window.addEventListener('mouseup', this.handleGlobalMouseUp);
         window.addEventListener('mousemove', this.handleGlobalMouseMove);
         
+        // Add window resize listener to update viewport container size.
+        window.addEventListener('resize', this.handleWindowResize);
+        
         // Add non-passive wheel listener to prevent browser zoom/scroll.
         if (this._containerRef) {
             this._containerRef.addEventListener('wheel', this.handleNativeWheel, { passive: false });
@@ -68,18 +131,11 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         
         window.removeEventListener('mouseup', this.handleGlobalMouseUp);
         window.removeEventListener('mousemove', this.handleGlobalMouseMove);
+        window.removeEventListener('resize', this.handleWindowResize);
         
         if (this._containerRef) {
             this._containerRef.removeEventListener('wheel', this.handleNativeWheel);
         }
-    }
-
-    public onViewportChanged(viewport: CanvasViewport): void {
-        void viewport;
-
-        this.setState((prevState) => ({
-            viewportVersion: prevState.viewportVersion + 1
-        }));
     }
 
     public render(): ReactNode {
@@ -133,58 +189,13 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         );
     }
 
-    private handleMouseDown = (event: MouseEvent<HTMLDivElement>): void => {
-        // Only left click starts drag.
-        if (event.button !== 0) return;
+    public onViewportChanged(viewport: CanvasViewport): void {
+        void viewport;
 
-        this.setState({
-            isDragging: true,
-            startX: event.clientX,
-            startY: event.clientY
-        });
-        
-        event.preventDefault();  // Prevent text selection.
-    };
-
-    private handleGlobalMouseMove = (event: globalThis.MouseEvent): void => {
-        if (!this.state.isDragging) return;
-
-        event.preventDefault();
-
-        const deltaX: number = event.clientX - this.state.startX;
-        const deltaY: number = event.clientY - this.state.startY;
-
-        this.props.viewport.pan(deltaX, deltaY);
-
-        this.setState({
-            startX: event.clientX,
-            startY: event.clientY
-        });
-    };
-
-    private handleGlobalMouseUp = (): void => {
-        if (this.state.isDragging) {
-            this.setState({ isDragging: false });
-        }
-    };
-
-    private handleNativeWheel = (event: globalThis.WheelEvent): void => {
-        event.preventDefault();
-        
-        // Determine zoom factor.
-        const sensitivity: number = 0.001;
-        const delta: number = -event.deltaY * sensitivity;
-        const factor: number = 1 + delta;
-
-        // Get mouse position relative to container.
-        if (this._containerRef) {
-            const rect: DOMRect = this._containerRef.getBoundingClientRect();
-            const mouseX: number = event.clientX - rect.left;
-            const mouseY: number = event.clientY - rect.top;
-
-            this.props.viewport.zoom(factor, mouseX, mouseY);
-        }
-    };
+        this.setState((prevState: InfiniteCanvasState) => ({
+            viewportVersion: prevState.viewportVersion + 1
+        }));
+    }
 }
 
 

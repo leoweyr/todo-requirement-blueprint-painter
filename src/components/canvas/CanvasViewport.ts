@@ -34,6 +34,10 @@ export class CanvasViewport {
     private _recalculateConstraints(forceFit: boolean = false): void {
         if (!this._contentBounds || !this._containerSize) return;
 
+        // Check if the viewport is currently at the minimum scale (standard view) BEFORE updating it.
+        // If so, snap to the new minimum scale and center.
+        const isAtMinimumScale: boolean = Math.abs(this._scale - this._minimumScale) < 0.001;
+
         // Content Width/Height logic:
         // The viewport shows the content bounds plus the padding.
         // The "logical width" to fit is (maximumX - minimumX) + (padding * 2).
@@ -49,8 +53,8 @@ export class CanvasViewport {
         // Ensure scale is not too small (e.g. infinite canvas shouldn't shrink to 0.0001).
         if (this._minimumScale === 0) this._minimumScale = 0.0001;
 
-        // Force reset to minimumScale on initialization (forceFit) or if current scale is invalid.
-        if (forceFit || this._scale < this._minimumScale) {
+        // Force reset to minimumScale on initialization (forceFit) or if current scale is invalid or if the viewport was at minimum scale.
+        if (forceFit || this._scale < this._minimumScale || isAtMinimumScale) {
             this._scale = this._minimumScale;
             this._centerContent();
         }

@@ -4,7 +4,7 @@ import { DomainRegistry } from '../../features/registry/DomainRegistry';
 import { NodeStatus } from '../../domain/NodeStatus';
 
 
-interface LegendProps {
+export interface LegendProps {
     registry: DomainRegistry;
     onContextMenu?: (event: MouseEvent, statusName: string) => void;
 }
@@ -21,7 +21,7 @@ class Legend extends Component<LegendProps, LegendState> {
     private updateStatuses: () => void = (): void => {
         const statuses: NodeStatus[] = this.props.registry.allNodeStatuses;
         
-        // Only update if length changed or content changed (simple check).
+        // Only update if length changed or content changed.
         if (JSON.stringify(statuses) !== JSON.stringify(this.state.statuses)) {
              this.setState({ statuses });
         }
@@ -38,8 +38,8 @@ class Legend extends Component<LegendProps, LegendState> {
     public componentDidMount(): void {
         this.updateStatuses();
         
-        // Listen for registry changes (simple polling; alternatively, an event emitter could be added to the registry).
-        // For now, simple polling is robust enough for prototype.
+        // Listen for registry changes.
+        // Simple polling is robust enough for the prototype.
         this.statusInterval = setInterval(this.updateStatuses, 1000);
     }
 
