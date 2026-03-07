@@ -13,6 +13,7 @@ import ContextMenu from './context-menu/ContextMenu';
 import BackdropBlur from './BackdropBlur';
 import NodeCreateModal from './node-create/NodeCreateModal';
 import NodeStatusCreateModal from './node-status-create/NodeStatusCreateModal';
+import NodeStatusEditModal from './node-status-edit/NodeStatusEditModal';
 import EdgeCreateModal from './edge-create/EdgeCreateModal';
 import EdgeEvolutionReasonModal from './edge-evolution/EdgeEvolutionReasonModal';
 import NodeContextMenu from './node-context-menu/NodeContextMenu';
@@ -32,6 +33,10 @@ interface MenuManagerState {
     isNodeCreateModalOpen: boolean;
     isNodeStatusCreateModalOpen: boolean;
     
+    // The following properties manage the node status edit state.
+    isNodeStatusEditModalOpen: boolean;
+    nodeStatusToEdit: string | null;
+
     // The following properties manage the edge creation state.
     isEdgeCreateModalOpen: boolean;
     edgeCreateSourceNode: Node | null;
@@ -117,12 +122,27 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
         });
     };
 
+    private handleEditNodeStatus: (statusName: string) => void = (statusName: string): void => {
+        this.setState({
+            legendContextMenu: {
+                isOpen: false,
+                x: 0,
+                y: 0,
+                statusName: null
+            },
+            isNodeStatusEditModalOpen: true,
+            nodeStatusToEdit: statusName
+        });
+    };
+
     constructor(properties: MenuManagerProps) {
         super(properties);
 
         this.state = {
             isNodeCreateModalOpen: false,
             isNodeStatusCreateModalOpen: false,
+            isNodeStatusEditModalOpen: false,
+            nodeStatusToEdit: null,
             isEdgeCreateModalOpen: false,
             edgeCreateSourceNode: null,
             edgeCreateTargetNode: null,
@@ -184,6 +204,17 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
                     </BackdropBlur>
                 )}
 
+                {this.state.isNodeStatusEditModalOpen && this.state.nodeStatusToEdit && (
+                    <BackdropBlur>
+                        <NodeStatusEditModal
+                            registry={registry}
+                            statusName={this.state.nodeStatusToEdit}
+                            onClose={(): void => this.setState({ isNodeStatusEditModalOpen: false, nodeStatusToEdit: null })}
+                            onLayoutUpdate={(): void => this.props.onLayoutRefresh()}
+                        />
+                    </BackdropBlur>
+                )}
+
                 {this.state.isEdgeCreateModalOpen && this.state.edgeCreateSourceNode && this.state.edgeCreateTargetNode && (
                     <BackdropBlur>
                         <EdgeCreateModal
@@ -230,6 +261,7 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
                         statusName={this.state.legendContextMenu.statusName}
                         x={this.state.legendContextMenu.x}
                         y={this.state.legendContextMenu.y}
+                        onEdit={this.handleEditNodeStatus}
                         onDelete={this.handleDeleteNodeStatus}
                         onClose={(): void => this.setState({ 
                             legendContextMenu: { ...this.state.legendContextMenu, isOpen: false } 
@@ -303,7 +335,6 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
         });
     }
 
-    // Internal Handlers.
     public setReanchoringEdge(edge: Edge | null): void {
         this.setState({ reanchoringEdge: edge });
     }

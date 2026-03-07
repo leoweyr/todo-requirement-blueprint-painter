@@ -171,6 +171,24 @@ export class DomainRegistry {
         this._nodeStatuses.delete(name);
     }
 
+    public updateNodeStatus(oldName: string, newStatus: NodeStatus): void {
+        if (oldName !== newStatus.name && this._nodeStatuses.has(newStatus.name)) {
+            throw new Error(`Node Status '${newStatus.name}' already exists.`);
+        }
+
+        if (oldName !== newStatus.name) {
+            this._nodeStatuses.delete(oldName);
+        }
+
+        this._nodeStatuses.set(newStatus.name, newStatus);
+
+        this._nodes.forEach((node: Node) => {
+            if (node.status.name === oldName) {
+                node.status = newStatus;
+            }
+        });
+    }
+
     public get allNodeStatuses(): NodeStatus[] {
         return Array.from(this._nodeStatuses.values());
     }

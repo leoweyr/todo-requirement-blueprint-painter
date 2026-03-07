@@ -7,6 +7,7 @@ export interface LegendContextMenuProps {
     statusName: string;
     x: number;
     y: number;
+    onEdit: (statusName: string) => void;
     onDelete: (statusName: string) => void;
     onClose: () => void;
 }
@@ -35,12 +36,16 @@ class LegendContextMenu extends Component<LegendContextMenuProps> {
 
         return (
             <div 
-                ref={(el) => { this._overlayRef = el; }}
+                ref={(el: HTMLDivElement | null): void => { this._overlayRef = el; }}
                 style={this.getOverlayStyle()}
                 onClick={this.handleOverlayClick}
                 onContextMenu={this.handleContextMenuOnMenu}
             >
                 <div style={this.getMenuContainerStyle(x, y)}>
+                    <ContextMenuItem
+                        label="Edit"
+                        onClick={(): void => this.handleItemClick(() => this.props.onEdit(statusName))}
+                    />
                     <ContextMenuItem
                         label="Delete"
                         onClick={(): void => this.handleItemClick(() => onDelete(statusName))}
