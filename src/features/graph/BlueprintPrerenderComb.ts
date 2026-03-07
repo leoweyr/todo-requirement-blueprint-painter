@@ -437,7 +437,7 @@ export class BlueprintPrerenderComb {
         });
 
         // Step 7.3: Apply curvature to overlapping edges.
-        const CURVATURE_GAP = 50; // Pixels to separate overlapping edges.
+        const CURVATURE_GAP = 50;  // Pixels to separate overlapping edges.
 
         edgeGroups.forEach((group: PrerenderEdge[]): void => {
             const count: number = group.length;
