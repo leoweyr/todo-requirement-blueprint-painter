@@ -24,12 +24,16 @@ class Legend extends Component<LegendProps, LegendState> {
         const statuses: NodeStatus[] = this.props.registry.allNodeStatuses;
         const reasons: EdgeEvolutionReason[] = this.props.registry.allEdgeEvolutionReasons;
         
+        // Add fake "Cut" reason.
+        const cutReason = new EdgeEvolutionReason('CUT', 'Cut (Removed).', { color: '#FF3B30' });
+        const allReasons = [cutReason, ...reasons];
+
         // Only update if content changed.
         const statusesChanged = JSON.stringify(statuses) !== JSON.stringify(this.state.statuses);
-        const reasonsChanged = JSON.stringify(reasons) !== JSON.stringify(this.state.reasons);
+        const reasonsChanged = JSON.stringify(allReasons) !== JSON.stringify(this.state.reasons);
 
         if (statusesChanged || reasonsChanged) {
-             this.setState({ statuses, reasons });
+             this.setState({ statuses, reasons: allReasons });
         }
     };
 

@@ -313,6 +313,8 @@ class App extends Component<{}, AppState> {
                                 
                                 if (!targetNode) return null;
 
+                                const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#4CAF50';
+
                                 return (
                                     <EdgeLine
                                         key={`${properties.edge.id}-${nextHistoryIndex}-new-born`}
@@ -320,7 +322,7 @@ class App extends Component<{}, AppState> {
                                         endX={targetNode.x + NODE_WIDTH}
                                         endY={targetNode.y + NODE_HEIGHT / 2}
                                         historyIndex={nextHistoryIndex}
-                                        highlightColor="#4CAF50"  // Green.
+                                        highlightColor={reasonColor}
                                         onCut={(): void => this._handleEdgeCut(properties.edge)}
                                         onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
                                     />
@@ -395,13 +397,15 @@ class App extends Component<{}, AppState> {
                         const isUpstreamSame = oldRecord.targetUpstream.id === newRecord.targetUpstream.id;
                         
                         if (isUpstreamSame) {
-                            // Same Upstream -> Yellow Highlight.
-                            // Render new version with Yellow highlight.
+                            // Same Upstream -> Highlight with Reason Color.
+                            // Render new version with Reason highlight.
                             const targetNode = nodeMap.get(newRecord.targetUpstream.id);
                             const overrideProps = targetNode ? {
                                 endX: targetNode.x + NODE_WIDTH,
                                 endY: targetNode.y + NODE_HEIGHT / 2
                              } : {};
+                            
+                            const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#FFD700';
 
                             return (
                                 <EdgeLine
@@ -409,15 +413,17 @@ class App extends Component<{}, AppState> {
                                     {...properties}
                                     {...overrideProps}
                                     historyIndex={nextHistoryIndex}
-                                    highlightColor="#FFD700"  // Gold/Yellow.
+                                    highlightColor={reasonColor}
                                     onCut={(): void => this._handleEdgeCut(properties.edge)}
                                     onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
                                 />
                             );
                         } else {
-                            // Different Upstream -> Red (Old) and Green (New).
+                            // Different Upstream -> Red (Old) and Reason Color (New).
                             const oldTargetNode = nodeMap.get(oldRecord.targetUpstream.id);
                             const newTargetNode = nodeMap.get(newRecord.targetUpstream.id);
+
+                            const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#4CAF50';
 
                             return (
                                 <>
@@ -428,7 +434,7 @@ class App extends Component<{}, AppState> {
                                             endX={oldTargetNode.x + NODE_WIDTH}
                                             endY={oldTargetNode.y + NODE_HEIGHT / 2}
                                             historyIndex={currentHistoryIndex}
-                                            highlightColor="#FF3B30"  // Red.
+                                            highlightColor="#FF3B30"  // Red for Old/Cut.
                                             onCut={(): void => this._handleEdgeCut(properties.edge)}
                                             onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
                                         />
@@ -441,7 +447,7 @@ class App extends Component<{}, AppState> {
                                             endX={newTargetNode.x + NODE_WIDTH}
                                             endY={newTargetNode.y + NODE_HEIGHT / 2}
                                             historyIndex={nextHistoryIndex}
-                                            highlightColor="#4CAF50"  // Green.
+                                            highlightColor={reasonColor}
                                             onCut={(): void => this._handleEdgeCut(properties.edge)}
                                             onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
                                         />
