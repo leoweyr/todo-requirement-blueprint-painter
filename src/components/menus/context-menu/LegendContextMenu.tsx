@@ -4,11 +4,11 @@ import ContextMenuItem from './ContextMenuItem';
 
 
 export interface LegendContextMenuProps {
-    statusName: string;
+    itemName: string;
     x: number;
     y: number;
-    onEdit: (statusName: string) => void;
-    onDelete: (statusName: string) => void;
+    onEdit: (itemName: string) => void;
+    onDelete: (itemName: string) => void;
     onClose: () => void;
 }
 
@@ -32,7 +32,7 @@ class LegendContextMenu extends Component<LegendContextMenuProps> {
     };
 
     public render(): ReactNode {
-        const { x, y, onDelete, statusName } = this.props;
+        const { x, y, onDelete, itemName } = this.props;
 
         return (
             <div 
@@ -44,11 +44,11 @@ class LegendContextMenu extends Component<LegendContextMenuProps> {
                 <div style={this.getMenuContainerStyle(x, y)}>
                     <ContextMenuItem
                         label="Edit"
-                        onClick={(): void => this.handleItemClick(() => this.props.onEdit(statusName))}
+                        onClick={(): void => this.handleItemClick(() => this.props.onEdit(itemName))}
                     />
                     <ContextMenuItem
                         label="Delete"
-                        onClick={(): void => this.handleItemClick(() => onDelete(statusName))}
+                        onClick={(): void => this.handleItemClick(() => onDelete(itemName))}
                         style={{ color: '#FF3B30' }}
                     />
                 </div>

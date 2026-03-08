@@ -2,6 +2,7 @@ import { Node } from '../../domain/Node';
 import { NodeStatus } from '../../domain/NodeStatus';
 import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
 import { Edge } from '../../domain/Edge';
+import { EdgeHistoryRecord } from '../../domain/EdgeHistoryRecord';
 
 
 export class DomainRegistry {
@@ -112,14 +113,14 @@ export class DomainRegistry {
 
         // Step 2. Remove any edges from OTHER nodes that point to this node (Upstream Dependency).
         // Iterate over all remaining nodes.
-        this._nodes.forEach((node: Node) => {
+        this._nodes.forEach((node: Node): void => {
             // Find edges to remove.
             const edgesToRemove: Edge[] = [];
 
-            node.edges.forEach((edge: Edge) => {
+            node.edges.forEach((edge: Edge): void => {
                 // Check latest history record for targetUpstream.
                 if (edge.history.length > 0) {
-                    const latestRecord = edge.history[edge.history.length - 1];
+                    const latestRecord: EdgeHistoryRecord = edge.history[edge.history.length - 1];
 
                     if (latestRecord.targetUpstream.id === nodeId) {
                         edgesToRemove.push(edge);
@@ -128,7 +129,7 @@ export class DomainRegistry {
             });
 
             // Remove identified edges.
-            edgesToRemove.forEach((edge: Edge) => {
+            edgesToRemove.forEach((edge: Edge): void => {
                 node.removeEdge(edge);
             });
         });
@@ -203,21 +204,23 @@ export class DomainRegistry {
     }
 
     public updateNodeStatus(oldName: string, newStatus: NodeStatus): void {
+        const existingStatus: NodeStatus | undefined = this._nodeStatuses.get(oldName);
+
+        if (!existingStatus) {
+            throw new Error(`Node Status '${oldName}' not found.`);
+        }
+
         if (oldName !== newStatus.name && this._nodeStatuses.has(newStatus.name)) {
             throw new Error(`Node Status '${newStatus.name}' already exists.`);
         }
 
+        // Update the existing object in place so all references remain valid.
+        existingStatus.update(newStatus.name, newStatus.description, newStatus.metadata);
+
         if (oldName !== newStatus.name) {
             this._nodeStatuses.delete(oldName);
+            this._nodeStatuses.set(newStatus.name, existingStatus);
         }
-
-        this._nodeStatuses.set(newStatus.name, newStatus);
-
-        this._nodes.forEach((node: Node) => {
-            if (node.status.name === oldName) {
-                node.status = newStatus;
-            }
-        });
     }
 
     public get allNodeStatuses(): NodeStatus[] {
@@ -236,5 +239,29 @@ export class DomainRegistry {
 
     public get allEdgeEvolutionReasons(): EdgeEvolutionReason[] {
         return Array.from(this._edgeEvolutionReasons.values());
+    }
+
+    public deleteEdgeEvolutionReason(name: string): void {
+        this._edgeEvolutionReasons.delete(name);
+    }
+
+    public updateEdgeEvolutionReason(oldName: string, newReason: EdgeEvolutionReason): void {
+        const existingReason: EdgeEvolutionReason | undefined = this._edgeEvolutionReasons.get(oldName);
+
+        if (!existingReason) {
+            throw new Error(`Edge Evolution Reason '${oldName}' not found.`);
+        }
+
+        if (oldName !== newReason.name && this._edgeEvolutionReasons.has(newReason.name)) {
+            throw new Error(`Edge Evolution Reason '${newReason.name}' already exists.`);
+        }
+
+        // Update the existing object in place so all references remain valid.
+        existingReason.update(newReason.name, newReason.description, newReason.metadata);
+
+        if (oldName !== newReason.name) {
+            this._edgeEvolutionReasons.delete(oldName);
+            this._edgeEvolutionReasons.set(newReason.name, existingReason);
+        }
     }
 }

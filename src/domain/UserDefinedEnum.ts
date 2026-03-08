@@ -26,6 +26,14 @@ export class UserDefinedEnum {
         return this._metadata;
     }
 
+    public update(name: string, description: string, metadata?: Record<string, unknown>): void {
+        this.validateName(name);
+
+        this._name = name;
+        this._description = description;
+        this._metadata = metadata;
+    }
+
     public toObject(): { name: string; description: string; metadata?: Record<string, unknown> } {
         const result: { name: string; description: string; metadata?: Record<string, unknown> } = {
             name: this._name,

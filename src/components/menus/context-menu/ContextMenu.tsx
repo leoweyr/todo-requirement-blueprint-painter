@@ -6,6 +6,7 @@ import ContextMenuItem from './ContextMenuItem.tsx';
 export interface ContextMenuProps {
     onCreateNode: () => void;
     onCreateNodeStatus: () => void;
+    onCreateEdgeEvolutionReason: () => void;
     onPaste: () => void;
     onSave: () => void;
 }
@@ -62,7 +63,7 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
 
     public render(): ReactNode {
         const { isOpen, x, y } = this.state;
-        const { onCreateNode, onCreateNodeStatus, onPaste, onSave } = this.props;
+        const { onCreateNode, onCreateNodeStatus, onCreateEdgeEvolutionReason, onPaste, onSave } = this.props;
 
         if (!isOpen) {
             return null;
@@ -71,6 +72,7 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
         const items: Record<string, () => void> = {
             'New Node': onCreateNode,
             'New Node Status': onCreateNodeStatus,
+            'New Evolution Reason': onCreateEdgeEvolutionReason,
             'Paste': onPaste,
             'Save': onSave
         };

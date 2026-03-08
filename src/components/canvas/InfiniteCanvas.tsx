@@ -104,7 +104,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
 
         // Initialize container size.
         if (this._containerRef) {
-            const rect = this._containerRef.getBoundingClientRect();
+            const rect: DOMRect = this._containerRef.getBoundingClientRect();
             this.props.viewport.setContainerSize(rect.width, rect.height);
         }
 
@@ -192,7 +192,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
     public onViewportChanged(viewport: CanvasViewport): void {
         void viewport;
 
-        this.setState((prevState: InfiniteCanvasState) => ({
+        this.setState((prevState: InfiniteCanvasState): Pick<InfiniteCanvasState, 'viewportVersion'> => ({
             viewportVersion: prevState.viewportVersion + 1
         }));
     }

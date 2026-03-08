@@ -17,14 +17,12 @@ class VerticalDivider extends Component<VerticalDividerProps> {
     }
 
     private getStyles(): CSSProperties {
-        const {
-            x,
-            startY = 0,
-            endY = 0,
-            fullHeight = false,
-            thickness = 6,
-            color = '#666666'
-        } = this.props;
+        const x: number = this.props.x;
+        const startY: number = this.props.startY || 0;
+        const endY: number = this.props.endY || 0;
+        const fullHeight: boolean = this.props.fullHeight || false;
+        const thickness: number = this.props.thickness || 6;
+        const color: string = this.props.color || '#666666';
 
         let top: number | string;
         let height: number | string;

@@ -2,28 +2,34 @@ import { Component, type CSSProperties, type ReactNode, type MouseEvent } from '
 
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
 import { NodeStatus } from '../../domain/NodeStatus';
+import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
 
 
 export interface LegendProps {
     registry: DomainRegistry;
-    onContextMenu?: (event: MouseEvent, statusName: string) => void;
+    onContextMenu?: (event: MouseEvent, type: 'node-status' | 'edge-evolution-reason', name: string) => void;
 }
 
 
 interface LegendState {
     statuses: NodeStatus[];
+    reasons: EdgeEvolutionReason[];
 }
 
 
 class Legend extends Component<LegendProps, LegendState> {
-    private _statusInterval: number | null = null;
+    private _interval: number | null = null;
 
-    private _updateStatuses: () => void = (): void => {
+    private _updateData: () => void = (): void => {
         const statuses: NodeStatus[] = this.props.registry.allNodeStatuses;
+        const reasons: EdgeEvolutionReason[] = this.props.registry.allEdgeEvolutionReasons;
         
-        // Only update if the length changed or the content changed.
-        if (JSON.stringify(statuses) !== JSON.stringify(this.state.statuses)) {
-             this.setState({ statuses });
+        // Only update if content changed.
+        const statusesChanged = JSON.stringify(statuses) !== JSON.stringify(this.state.statuses);
+        const reasonsChanged = JSON.stringify(reasons) !== JSON.stringify(this.state.reasons);
+
+        if (statusesChanged || reasonsChanged) {
+             this.setState({ statuses, reasons });
         }
     };
 
@@ -31,54 +37,85 @@ class Legend extends Component<LegendProps, LegendState> {
         super(props);
 
         this.state = {
-            statuses: []
+            statuses: [],
+            reasons: []
         };
     }
 
     public componentDidMount(): void {
-        this._updateStatuses();
+        this._updateData();
         
         // Listen for registry changes.
-        // Simple polling is robust enough for the prototype.
-        this._statusInterval = setInterval(this._updateStatuses, 1000);
+        this._interval = window.setInterval(this._updateData, 1000);
     }
 
     public componentWillUnmount(): void {
-        if (this._statusInterval) {
-            clearInterval(this._statusInterval);
+        if (this._interval) {
+            window.clearInterval(this._interval);
         }
     }
 
     public render(): ReactNode {
-        const { statuses }: LegendState = this.state;
+        const { statuses, reasons }: LegendState = this.state;
 
-        if (statuses.length === 0) {
+        if (statuses.length === 0 && reasons.length === 0) {
             return null;
         }
 
         return (
             <div style={this.getContainerStyle()}>
-                <h3 style={this.getTitleStyle()}>Node Statuses</h3>
-                <div style={this.getListStyle()}>
-                    {statuses.map((status: NodeStatus): ReactNode => (
-                        <div 
-                            key={status.name} 
-                            style={this.getItemStyle()}
-                            onContextMenu={(event: MouseEvent): void => {
-                                if (this.props.onContextMenu) {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    this.props.onContextMenu(event, status.name);
-                                }
-                            }}
-                        >
-                            <div style={this.getIndicatorStyle(status)} />
-                            <span style={this.getTextStyle()}>
-                                {status.description}
-                            </span>
+                {statuses.length > 0 && (
+                    <>
+                        <h3 style={this.getTitleStyle()}>Node Statuses</h3>
+                        <div style={this.getListStyle()}>
+                            {statuses.map((status: NodeStatus): ReactNode => (
+                                <div 
+                                    key={status.name} 
+                                    style={this.getItemStyle()}
+                                    onContextMenu={(event: MouseEvent): void => {
+                                        if (this.props.onContextMenu) {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            this.props.onContextMenu(event, 'node-status', status.name);
+                                        }
+                                    }}
+                                >
+                                    <div style={this.getStatusIndicatorStyle(status)} />
+                                    <span style={this.getTextStyle()}>
+                                        {status.description}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    </>
+                )}
+
+                {reasons.length > 0 && (
+                    <>
+                        {statuses.length > 0 && <div style={{ height: '15px' }} />}
+                        <h3 style={this.getTitleStyle()}>Edge Evolution Reasons</h3>
+                        <div style={this.getListStyle()}>
+                            {reasons.map((reason: EdgeEvolutionReason): ReactNode => (
+                                <div 
+                                    key={reason.name} 
+                                    style={this.getItemStyle()}
+                                    onContextMenu={(event: MouseEvent): void => {
+                                        if (this.props.onContextMenu) {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            this.props.onContextMenu(event, 'edge-evolution-reason', reason.name);
+                                        }
+                                    }}
+                                >
+                                    <div style={this.getReasonIndicatorStyle(reason)} />
+                                    <span style={this.getTextStyle()}>
+                                        {reason.description}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
         );
     }
@@ -95,7 +132,7 @@ class Legend extends Component<LegendProps, LegendState> {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             zIndex: 1000,
             pointerEvents: 'auto', 
-            minWidth: '150px'
+            minWidth: '180px'
         };
     }
 
@@ -127,7 +164,7 @@ class Legend extends Component<LegendProps, LegendState> {
         };
     }
 
-    private getIndicatorStyle(status: NodeStatus): CSSProperties {
+    private getStatusIndicatorStyle(status: NodeStatus): CSSProperties {
         const metadata: Record<string, unknown> | undefined = status.metadata;
         const backgroundColor: string = (metadata?.backgroundColor as string) || '#F5F5F5';
         const borderColor: string = (metadata?.borderColor as string) || '#666666';
@@ -138,6 +175,20 @@ class Legend extends Component<LegendProps, LegendState> {
             borderRadius: '50%',
             backgroundColor: backgroundColor,
             border: `1px solid ${borderColor}`,
+            flexShrink: 0
+        };
+    }
+
+    private getReasonIndicatorStyle(reason: EdgeEvolutionReason): CSSProperties {
+        const metadata: Record<string, unknown> | undefined = reason.metadata;
+        const color: string = (metadata?.color as string) || '#0078D7';
+
+        return {
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: color,
+            opacity: 0.5,
             flexShrink: 0
         };
     }

@@ -293,9 +293,9 @@ export class BlueprintPrerenderComb {
         sortedLayerIndices.forEach((layerIndex: number, i: number): void => {
             if (i > 0) {
                 // Initialize currentX to at least the minimum spacing from previous layer.
-                const prevLayerIndex = sortedLayerIndices[i - 1];
-                const prevLayerX = layerXPositions.get(prevLayerIndex) || 0;
-                let requiredX = prevLayerX + this._NODE_WIDTH + this._MIN_LAYER_SPACING;
+                const prevLayerIndex: number = sortedLayerIndices[i - 1];
+                const prevLayerX: number = layerXPositions.get(prevLayerIndex) || 0;
+                let requiredX: number = prevLayerX + this._NODE_WIDTH + this._MIN_LAYER_SPACING;
 
                 // Find edges between this layer and the previous layer to determine required width.
                 // Edges go Downstream (this layer) -> Upstream (prev layer).
@@ -304,24 +304,24 @@ export class BlueprintPrerenderComb {
                 currentLayerNodes.forEach((graphNode: GraphNode): void => {
                     graphNode.node.edges.forEach((edge: Edge): void => {
                          if (edge.history.length > 0) {
-                            const latestRecord = edge.history[edge.history.length - 1];
-                            const upstreamNode = latestRecord.targetUpstream;
-                            const upstreamGraphNode = graphNodes.get(upstreamNode.id);
+                            const latestRecord: EdgeHistoryRecord = edge.history[edge.history.length - 1];
+                            const upstreamNode: Node = latestRecord.targetUpstream;
+                            const upstreamGraphNode: GraphNode | undefined = graphNodes.get(upstreamNode.id);
 
                             if (upstreamGraphNode && upstreamGraphNode.layer <= prevLayerIndex) {
                                 // Calculate required spacing based on text width and position.
                                 const text: string = edge.demandDescription || "";
                                 
                                 if (text) {
-                                    const halfTextWidth = this._estimateTextWidth(text) / 2;
-                                    const upstreamLayer = upstreamGraphNode.layer;
-                                    const layerDiff = layerIndex - upstreamLayer;
-                                    const divisions = layerDiff + 1;
-                                    const ratio = 1 / divisions;
+                                    const halfTextWidth: number = this._estimateTextWidth(text) / 2;
+                                    const upstreamLayer: number = upstreamGraphNode.layer;
+                                    const layerDiff: number = layerIndex - upstreamLayer;
+                                    const divisions: number = layerDiff + 1;
+                                    const ratio: number = 1 / divisions;
                                     
                                     const upstreamX: number = layerXPositions.get(upstreamLayer) || 0;
-                                    const nodeWidth = this._NODE_WIDTH;
-                                    const padding = this._TEXT_PADDING;
+                                    const nodeWidth: number = this._NODE_WIDTH;
+                                    const padding: number = this._TEXT_PADDING;
                                     
                                     // Requirement 1: Avoid overlap with the current node (Layer N).
                                     // The text right edge must be less than the node left edge minus padding.
@@ -331,7 +331,7 @@ export class BlueprintPrerenderComb {
                                     // X_N > X_N * (1 - Ratio) + X_U * Ratio + HalfText + Padding.
                                     // X_N * Ratio > X_U * Ratio + HalfText + Padding.
                                     // X_N > X_U + (HalfText + Padding) / Ratio.
-                                    const requiredX1 = upstreamX + (halfTextWidth + padding) / ratio;
+                                    const requiredX1: number = upstreamX + (halfTextWidth + padding) / ratio;
                                     
                                     // Requirement 2: Avoid overlap with the previous node (Layer N-1).
                                     // The text left edge must be greater than the previous node right edge plus padding.
@@ -339,7 +339,7 @@ export class BlueprintPrerenderComb {
                                     // X_N * (1 - Ratio) + X_U * Ratio - HalfText > X_{N-1} + wNode + Padding.
                                     // X_N * (1 - Ratio) > X_{N-1} + wNode + Padding + HalfText - X_U * Ratio.
                                     // X_N > (X_{N-1} + wNode + Padding + HalfText - X_U * Ratio) / (1 - Ratio).
-                                    const requiredX2 = (prevLayerX + nodeWidth + halfTextWidth + padding - upstreamX * ratio) / (1 - ratio);
+                                    const requiredX2: number = (prevLayerX + nodeWidth + halfTextWidth + padding - upstreamX * ratio) / (1 - ratio);
                                     
                                     requiredX = Math.max(requiredX, requiredX1, requiredX2);
                                 }

@@ -1,4 +1,4 @@
-import { Component, type CSSProperties, type ReactNode } from 'react';
+import { Component, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 
 import { Edge } from '../../domain/Edge';
 import { type EdgeHistoryRecord } from "../../domain/EdgeHistoryRecord";
@@ -215,7 +215,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                                     {/* Red Minus at Start (Downstream Left). */}
                             <g 
                                 transform={`translate(${localStartX}, ${localStartY})`} 
-                                onClick={(event): void => {
+                                onClick={(event: MouseEvent): void => {
                                     event.stopPropagation();
                                     if (onCut) onCut();
                                 }}
@@ -230,7 +230,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                             {/* Blue Anchor at End (Upstream Right). */}
                             <g 
                                 transform={`translate(${localEndX}, ${localEndY})`} 
-                                onClick={(event): void => {
+                                onClick={(event: MouseEvent): void => {
                                     event.stopPropagation();
                                     if (onReanchor) onReanchor();
                                 }}

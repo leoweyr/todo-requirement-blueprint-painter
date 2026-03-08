@@ -104,12 +104,16 @@ class App extends Component<{}, AppState> {
         }
     };
 
-    private _handleLegendContextMenu: (event: MouseEvent, statusName: string) => void = (event: MouseEvent, statusName: string): void => {
+    private _handleLegendContextMenu: (event: MouseEvent, type: 'node-status' | 'edge-evolution-reason', name: string) => void = (event: MouseEvent, type: 'node-status' | 'edge-evolution-reason', name: string): void => {
         event.preventDefault();
         event.stopPropagation();
         
         if (this._menuManagerRef) {
-            this._menuManagerRef.openLegendContextMenu(event, statusName);
+            if (type === 'node-status') {
+                this._menuManagerRef.openLegendContextMenu(event, name);
+            } else {
+                this._menuManagerRef.openEdgeEvolutionReasonContextMenu(event, name);
+            }
         }
     };
 
