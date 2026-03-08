@@ -16,12 +16,12 @@ interface LegendState {
 
 
 class Legend extends Component<LegendProps, LegendState> {
-    private statusInterval: number | null = null;
+    private _statusInterval: number | null = null;
 
-    private updateStatuses: () => void = (): void => {
+    private _updateStatuses: () => void = (): void => {
         const statuses: NodeStatus[] = this.props.registry.allNodeStatuses;
         
-        // Only update if length changed or content changed.
+        // Only update if the length changed or the content changed.
         if (JSON.stringify(statuses) !== JSON.stringify(this.state.statuses)) {
              this.setState({ statuses });
         }
@@ -36,16 +36,16 @@ class Legend extends Component<LegendProps, LegendState> {
     }
 
     public componentDidMount(): void {
-        this.updateStatuses();
+        this._updateStatuses();
         
         // Listen for registry changes.
         // Simple polling is robust enough for the prototype.
-        this.statusInterval = setInterval(this.updateStatuses, 1000);
+        this._statusInterval = setInterval(this._updateStatuses, 1000);
     }
 
     public componentWillUnmount(): void {
-        if (this.statusInterval) {
-            clearInterval(this.statusInterval);
+        if (this._statusInterval) {
+            clearInterval(this._statusInterval);
         }
     }
 

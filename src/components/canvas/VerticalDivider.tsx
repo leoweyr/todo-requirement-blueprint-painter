@@ -30,8 +30,8 @@ class VerticalDivider extends Component<VerticalDividerProps> {
         let height: number | string;
 
         if (fullHeight) {
-            top = '-50000px';  // Very large negative value to cover effectively "infinite" upwards.
-            height = '100000px';  // Very large value to cover effectively "infinite" downwards.
+            top = '-50000px';  // Use a very large negative value to cover effectively "infinite" upwards.
+            height = '100000px';  // Use a very large value to cover effectively "infinite" downwards.
         } else {
             height = Math.abs(endY - startY);
             top = Math.min(startY, endY);

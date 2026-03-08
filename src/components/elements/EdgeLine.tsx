@@ -15,6 +15,9 @@ export interface EdgeLineProps {
     labelPositionDivisions?: number;
     labelPositionIndex?: number;
     curvature?: number;
+    historyIndex?: number;  // Optional index to force rendering a specific history version.
+    overrideColor?: string;  // Optional color override (e.g., for diff view).
+    highlightColor?: string;  // Optional highlight color (e.g. for transition diffs).
     onCut?: () => void;
     onReanchor?: () => void;
 }
@@ -32,7 +35,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
 
     private _hoverTimeout: number | null = null;
 
-    private handleMouseEnter: () => void = (): void => {
+    private _handleMouseEnter: () => void = (): void => {
         if (this._hoverTimeout) {
             window.clearTimeout(this._hoverTimeout);
             this._hoverTimeout = null;
@@ -41,7 +44,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
         this.setState({ isHovered: true });
     };
 
-    private handleMouseLeave: () => void = (): void => {
+    private _handleMouseLeave: () => void = (): void => {
         this._hoverTimeout = window.setTimeout((): void => {
             this.setState({ isHovered: false });
         }, 100);
@@ -57,11 +60,19 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
             labelPositionDivisions = 2,
             labelPositionIndex = 1,
             curvature = 0,
+            historyIndex,
+            overrideColor,
+            highlightColor,
             onCut,
             onReanchor
         } = this.props;
 
         const { isHovered } = this.state;
+
+        // Determine effective highlight.
+        const showHighlight = isHovered || !!highlightColor;
+        const effectiveHighlightColor = highlightColor || "rgba(0, 120, 215, 0.3)";
+        const effectiveHighlightWidth = highlightColor ? "6pt" : "8pt";  // Slightly thinner for permanent highlights.
 
         const hasText: boolean = !!edge.demandDescription;
 
@@ -69,37 +80,51 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
         let strokeDasharray: string = 'none';
         let strokeColor: string = '#000000';
         let isVisible: boolean = true;
+        let lineWidth: string = '1pt';
 
         if (edge.history && edge.history.length > 0) {
-            const latest: EdgeHistoryRecord = edge.history[edge.history.length - 1];
-            const date: Date = new Date(latest.updatedAt);
+            // Use historyIndex if provided, otherwise latest.
+            const index = (historyIndex !== undefined && historyIndex >= 0 && historyIndex < edge.history.length) 
+                ? historyIndex 
+                : edge.history.length - 1;
+                
+            const record: EdgeHistoryRecord = edge.history[index];
+            const date: Date = new Date(record.updatedAt);
             const dateStr: string = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
-            tooltipText = `${latest.version} (${dateStr})`;
+            tooltipText = `${record.version} (${dateStr})`;
 
             // Determine line style based on Type.
-            if (latest.type === EdgeType.OPTIMIZES) {
+            if (record.type === EdgeType.OPTIMIZES) {
                 strokeDasharray = '5,5';
             }
 
             // Determine line color and visibility based on Status.
-            switch (latest.status) {
-                case EdgeStatus.ACTIVE:
-                    strokeColor = '#4CAF50';
-                    break;
-                case EdgeStatus.DEPRECATED:
-                    strokeColor = '#9E9E9E';
-                    break;
-                case EdgeStatus.CUT:
-                    isVisible = false;
-                    break;
-                default:
-                    strokeColor = '#000000';
-                    break;
+            if (overrideColor) {
+                strokeColor = overrideColor;
+
+                // If overriding color (e.g. diff view), make it slightly thicker.
+                lineWidth = '2pt';
+            } else {
+                switch (record.status) {
+                    case EdgeStatus.ACTIVE:
+                        strokeColor = '#4CAF50';
+                        break;
+                    case EdgeStatus.DEPRECATED:
+                        strokeColor = '#9E9E9E';
+                        break;
+                    case EdgeStatus.CUT:
+                        isVisible = false;
+                        break;
+                    default:
+                        strokeColor = '#000000';
+                        break;
+                }
             }
         }
 
-        if (!isVisible) {
-            return null;
+        if (!isVisible && !overrideColor) { 
+             // If it is CUT in history, it should not be drawn.
+             return null;
         }
 
         // Calculate Control Point for Quadratic Bezier Curve.
@@ -172,25 +197,30 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                     height={totalHeight} 
                     style={{ display: 'block', overflow: 'visible' }}
                 >
-                    {/* Highlight Stroke (Visible only when hovered). */}
-                    {isHovered && (
+                    {/* Highlight Stroke (Visible on hover OR when highlightColor is set). */}
+                    {showHighlight && (
                         <>
                             <path 
                                 d={pathData} 
                                 fill="none"
-                                stroke="rgba(0, 120, 215, 0.3)" 
-                                strokeWidth="8pt"
+                                stroke={effectiveHighlightColor} 
+                                strokeWidth={effectiveHighlightWidth}
                                 strokeLinecap="round"
+                                style={{ opacity: highlightColor ? 0.6 : 1 }}  // Make static highlights slightly transparent.
                             />
-                            {/* Red Minus at Start (Downstream Left). */}
+
+                            {/* Interactive controls only show on actual Hover, not just static highlight */}
+                            {isHovered && (
+                                <>
+                                    {/* Red Minus at Start (Downstream Left). */}
                             <g 
                                 transform={`translate(${localStartX}, ${localStartY})`} 
                                 onClick={(event): void => {
                                     event.stopPropagation();
                                     if (onCut) onCut();
                                 }}
-                                onMouseEnter={this.handleMouseEnter}
-                                onMouseLeave={this.handleMouseLeave}
+                                onMouseEnter={this._handleMouseEnter}
+                                onMouseLeave={this._handleMouseLeave}
                                 style={{ cursor: 'pointer', pointerEvents: 'auto', filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.2))' }}
                             >
                                 <circle r={11} fill="#FF3B30" stroke="#FFFFFF" strokeWidth={2} />
@@ -204,8 +234,8 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                                     event.stopPropagation();
                                     if (onReanchor) onReanchor();
                                 }}
-                                onMouseEnter={this.handleMouseEnter}
-                                onMouseLeave={this.handleMouseLeave}
+                                onMouseEnter={this._handleMouseEnter}
+                                onMouseLeave={this._handleMouseLeave}
                                 style={{ cursor: 'pointer', pointerEvents: 'auto', filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.2))' }}
                             >
                                 <circle r={11} fill="#007AFF" stroke="#FFFFFF" strokeWidth={2} />
@@ -213,13 +243,15 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                             </g>
                         </>
                     )}
+                </>
+            )}
 
-                    {/* Visible Line. */}
+            {/* Visible Line. */}
                     <path 
                         d={pathData} 
                         fill="none"
                         stroke={strokeColor} 
-                        strokeWidth="1pt"
+                        strokeWidth={lineWidth}
                         strokeDasharray={strokeDasharray}
                     />
 
@@ -230,23 +262,23 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                         stroke="transparent" 
                         strokeWidth="10pt"
                         style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-                        onMouseEnter={this.handleMouseEnter}
-                        onMouseLeave={this.handleMouseLeave}
+                        onMouseEnter={this._handleMouseEnter}
+                        onMouseLeave={this._handleMouseLeave}
                     />
                 </svg>
 
                 {hasText && (
                     <div 
-                        style={this.getLabelContainerStyle(labelX, labelY)}
-                        onMouseEnter={this.handleMouseEnter}
-                        onMouseLeave={this.handleMouseLeave}
+                        style={this._getLabelContainerStyle(labelX, labelY)}
+                        onMouseEnter={this._handleMouseEnter}
+                        onMouseLeave={this._handleMouseLeave}
                     >
-                        <div style={this.getLabelTextStyle()}>
+                        <div style={this._getLabelTextStyle()}>
                             {edge.demandDescription}
                         </div>
                         
                         {isHovered && tooltipText && (
-                            <div style={this.getTooltipStyle()}>
+                            <div style={this._getTooltipStyle()}>
                                 {tooltipText}
                             </div>
                         )}
@@ -256,7 +288,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
         );
     }
 
-    private getLabelContainerStyle(centerX: number, centerY: number): CSSProperties {
+    private _getLabelContainerStyle(centerX: number, centerY: number): CSSProperties {
         return {
             position: 'absolute',
             left: centerX,
@@ -279,7 +311,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
         };
     }
 
-    private getLabelTextStyle(): CSSProperties {
+    private _getLabelTextStyle(): CSSProperties {
         return {
             backgroundColor: '#ffffff',
             padding: '2px',
@@ -292,7 +324,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
         };
     }
 
-    private getTooltipStyle(): CSSProperties {
+    private _getTooltipStyle(): CSSProperties {
         return {
             marginTop: '2px',
             backgroundColor: '#ffffff',

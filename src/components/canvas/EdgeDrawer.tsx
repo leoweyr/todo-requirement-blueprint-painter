@@ -23,23 +23,12 @@ interface EdgeDrawerState {
 }
 
 
-export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
-    public state: EdgeDrawerState = {
-        isDrawing: false,
-        startNodeId: null,
-        startX: 0,
-        startY: 0,
-        currentX: 0,
-        currentY: 0,
-        strokeColor: '#4CAF50',
-        strokeDasharray: '5,5'
-    };
-
-    private handleGlobalMouseMove: (event: globalThis.MouseEvent) => void = (event: globalThis.MouseEvent): void => {
+class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
+    private _handleGlobalMouseMove: (event: globalThis.MouseEvent) => void = (event: globalThis.MouseEvent): void => {
         if (this.state.isDrawing) {
             const { viewport } = this.props;
             
-            // Convert screen coordinates to world coordinates.
+            // Calculate worldX as (screenX - viewportX) / scale.
             // worldX = (screenX - viewportX) / scale.
             const worldX: number = (event.clientX - viewport.x) / viewport.scale;
             const worldY: number = (event.clientY - viewport.y) / viewport.scale;
@@ -49,6 +38,17 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
                 currentY: worldY
             });
         }
+    };
+
+    public state: EdgeDrawerState = {
+        isDrawing: false,
+        startNodeId: null,
+        startX: 0,
+        startY: 0,
+        currentX: 0,
+        currentY: 0,
+        strokeColor: '#4CAF50',
+        strokeDasharray: '5,5'
     };
 
     public render(): ReactNode {
@@ -85,7 +85,7 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
     }
 
     public componentWillUnmount(): void {
-        window.removeEventListener('mousemove', this.handleGlobalMouseMove);
+        window.removeEventListener('mousemove', this._handleGlobalMouseMove);
     }
 
     public handleStartEdge(nodeId: string, options?: { strokeColor?: string; strokeDasharray?: string }): void {
@@ -94,7 +94,7 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
 
         if (nodeProperties) {
             // Start from left-center of the node.
-            // Approximation of half-height (min-height 80 / 2).
+            // This is an approximation of half-height (min-height 80 / 2).
             const startX: number = nodeProperties.x;
             const startY: number = nodeProperties.y + 40;
 
@@ -112,7 +112,7 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
                 strokeDasharray: strokeDasharray
             });
 
-            window.addEventListener('mousemove', this.handleGlobalMouseMove);
+            window.addEventListener('mousemove', this._handleGlobalMouseMove);
         }
     }
 
@@ -138,6 +138,9 @@ export class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
             startNodeId: null
         });
 
-        window.removeEventListener('mousemove', this.handleGlobalMouseMove);
+        window.removeEventListener('mousemove', this._handleGlobalMouseMove);
     }
 }
+
+
+export default EdgeDrawer;

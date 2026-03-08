@@ -3,7 +3,7 @@ import { Edge } from '../../../domain/Edge';
 import { EdgeHistoryRecord } from '../../../domain/EdgeHistoryRecord';
 import { EdgeStatus } from '../../../domain/enums/EdgeStatus';
 import { EdgeType } from '../../../domain/enums/EdgeType';
-import { EdgeDrawer } from '../../canvas/EdgeDrawer';
+import EdgeDrawer from '../../canvas/EdgeDrawer';
 import { Node } from '../../../domain/Node';
 import { EdgeCreator } from './EdgeCreator';
 

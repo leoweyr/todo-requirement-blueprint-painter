@@ -6,19 +6,31 @@ import { type BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResul
 import { type PrerenderNode } from './PrerenderNode';
 import { type PrerenderEdge } from './PrerenderEdge';
 import { type GraphNode } from './GraphNode';
+import { type EdgeHistoryRecord } from '../../domain/EdgeHistoryRecord';
 
 
 export class BlueprintPrerenderComb {
-    private readonly ROW_HEIGHT: number = 150;  // Vertical spacing between node centers.
-    private readonly MIN_LAYER_SPACING: number = 100;  // Minimum spacing between layers.
-    private readonly TEXT_PADDING: number = 50;  // Padding around text in the gap.
-    private readonly NODE_WIDTH: number = 200;
-    private readonly NODE_HEIGHT: number = 80;
-    private readonly PADDING: number = 50;
+    private readonly _ROW_HEIGHT: number = 150;  // Defines the vertical spacing between node centers.
+    private readonly _MIN_LAYER_SPACING: number = 100;  // Defines the minimum spacing between layers.
+    private readonly _TEXT_PADDING: number = 50;  // Defines the padding around text in the gap.
+    private readonly _NODE_WIDTH: number = 200;
+    private readonly _NODE_HEIGHT: number = 80;
+    private readonly _PADDING: number = 50;
 
     public calculateLayout(registry: DomainRegistry): BlueprintPrerenderCombResult {
         const nodes: Node[] = registry.allNodes;
         const graphNodes: Map<string, GraphNode> = new Map<string, GraphNode>();
+
+        // Step 0: Extract all edge history update times for the timeline slider.
+        const updateTimesSet: Set<string> = new Set<string>();
+
+        nodes.forEach((node: Node): void => {
+            node.edges.forEach((edge: Edge): void => {
+                edge.history.forEach((record: EdgeHistoryRecord): void => {
+                    updateTimesSet.add(record.updatedAt);
+                });
+            });
+        });
 
         // Step 1: Initialize graph nodes.
         nodes.forEach((node: Node): void => {
@@ -31,7 +43,7 @@ export class BlueprintPrerenderComb {
             });
         });
 
-        // Step 2: Build dependency map (Upstream -> Downstream List).
+        // Step 2: Build the dependency map (Upstream -> Downstream List).
         // Identify dependencies to calculate height from leaves.
         // TRB Model: Downstream (Child) --[depends on]--> Upstream (Parent).
         // Dependents Map: Upstream Node ID -> List of Downstream Node IDs.
@@ -188,7 +200,7 @@ export class BlueprintPrerenderComb {
                     // sortedByConnectivity is [Low .... High].
                     // Take Low (index 0), put at left (0).
                     // Take next Low (index 1), put at right (max).
-                    // ... until meet in middle.
+                    // Continue until meet in middle.
                     for (let index: number = 0; index < sortedByConnectivity.length; index++) {
                         if (index % 2 === 0) {
                             newOrder[left++] = sortedByConnectivity[index];
@@ -234,7 +246,7 @@ export class BlueprintPrerenderComb {
                             return avgA - avgB;
                         }
 
-                        // Fallback to ID
+                        // Fallback to ID.
                         return a.id.localeCompare(b.id);
                     });
                 }
@@ -259,7 +271,7 @@ export class BlueprintPrerenderComb {
 
         // The total height of the graph based on the widest layer.
         // This is used to center other layers vertically.
-        const totalGraphHeight: number = maxNodesInLayer * this.ROW_HEIGHT;
+        const totalGraphHeight: number = maxNodesInLayer * this._ROW_HEIGHT;
 
         // Step 6: Generate final coordinates.
         const resultNodes: Map<string, { x: number; y: number }> = new Map<string, { x: number; y: number }>();
@@ -276,14 +288,14 @@ export class BlueprintPrerenderComb {
         // Accumulate X based on the gap required by the longest edge text between adjacent layers.
         const layerXPositions: Map<number, number> = new Map<number, number>();
         const layerGapCenters: number[] = [];
-        let currentX: number = this.PADDING;
+        let currentX: number = this._PADDING;
 
         sortedLayerIndices.forEach((layerIndex: number, i: number): void => {
             if (i > 0) {
                 // Initialize currentX to at least the minimum spacing from previous layer.
                 const prevLayerIndex = sortedLayerIndices[i - 1];
                 const prevLayerX = layerXPositions.get(prevLayerIndex) || 0;
-                let requiredX = prevLayerX + this.NODE_WIDTH + this.MIN_LAYER_SPACING;
+                let requiredX = prevLayerX + this._NODE_WIDTH + this._MIN_LAYER_SPACING;
 
                 // Find edges between this layer and the previous layer to determine required width.
                 // Edges go Downstream (this layer) -> Upstream (prev layer).
@@ -298,18 +310,18 @@ export class BlueprintPrerenderComb {
 
                             if (upstreamGraphNode && upstreamGraphNode.layer <= prevLayerIndex) {
                                 // Calculate required spacing based on text width and position.
-                                const text = edge.demandDescription || "";
+                                const text: string = edge.demandDescription || "";
                                 
                                 if (text) {
-                                    const halfTextWidth = this.estimateTextWidth(text) / 2;
+                                    const halfTextWidth = this._estimateTextWidth(text) / 2;
                                     const upstreamLayer = upstreamGraphNode.layer;
                                     const layerDiff = layerIndex - upstreamLayer;
                                     const divisions = layerDiff + 1;
                                     const ratio = 1 / divisions;
                                     
-                                    const upstreamX = layerXPositions.get(upstreamLayer) || 0;
-                                    const nodeWidth = this.NODE_WIDTH;
-                                    const padding = this.TEXT_PADDING;
+                                    const upstreamX: number = layerXPositions.get(upstreamLayer) || 0;
+                                    const nodeWidth = this._NODE_WIDTH;
+                                    const padding = this._TEXT_PADDING;
                                     
                                     // Requirement 1: Avoid overlap with the current node (Layer N).
                                     // The text right edge must be less than the node left edge minus padding.
@@ -340,10 +352,10 @@ export class BlueprintPrerenderComb {
 
                 // Calculate and store the center of the gap between prevLayer and currentLayer.
                 // Gap is from (prevLayerX + NODE_WIDTH) to (currentX).
-                const gapCenter = prevLayerX + this.NODE_WIDTH + (currentX - (prevLayerX + this.NODE_WIDTH)) / 2;
+                const gapCenter: number = prevLayerX + this._NODE_WIDTH + (currentX - (prevLayerX + this._NODE_WIDTH)) / 2;
                 layerGapCenters.push(gapCenter);
             } else {
-                currentX = this.PADDING;
+                currentX = this._PADDING;
             }
             layerXPositions.set(layerIndex, currentX);
         });
@@ -358,13 +370,13 @@ export class BlueprintPrerenderComb {
                 const layerNodes: GraphNode[] | undefined = layers.get(layerIndex);
                 
                 if (layerNodes) {
-                    const currentLayerHeight: number = layerNodes.length * this.ROW_HEIGHT;
-                    const startY: number = (totalGraphHeight - currentLayerHeight) / 2 + this.PADDING;
-                    const layerX = layerXPositions.get(layerIndex) || 0;
+                    const currentLayerHeight: number = layerNodes.length * this._ROW_HEIGHT;
+                    const startY: number = (totalGraphHeight - currentLayerHeight) / 2 + this._PADDING;
+                    const layerX: number = layerXPositions.get(layerIndex) || 0;
 
                     layerNodes.forEach((graphNode: GraphNode, index: number): void => {
                         const x: number = layerX;
-                        const y: number = startY + (index * this.ROW_HEIGHT);
+                        const y: number = startY + (index * this._ROW_HEIGHT);
                         
                         resultNodes.set(graphNode.id, { x, y });
 
@@ -390,11 +402,11 @@ export class BlueprintPrerenderComb {
         });
 
         // Step 7.2: Generate edges.
-        const centerY: number = this.NODE_HEIGHT / 2;
+        const centerY: number = this._NODE_HEIGHT / 2;
         const edgeGroups: Map<string, PrerenderEdge[]> = new Map<string, PrerenderEdge[]>();
 
         nodes.forEach((downstreamNode: Node): void => {
-            const startPosition = resultNodes.get(downstreamNode.id);
+            const startPosition: { x: number; y: number } | undefined = resultNodes.get(downstreamNode.id);
             
             if (!startPosition) return;
 
@@ -409,16 +421,17 @@ export class BlueprintPrerenderComb {
 
                 if (!endPosition || !upstreamGraphNode || !downstreamGraphNode) return;
 
-                const layerDiff = downstreamGraphNode.layer - upstreamGraphNode.layer;
+                const layerDiff: number = downstreamGraphNode.layer - upstreamGraphNode.layer;
+
                 // Cross layer count = layerDiff - 1.
                 // Divisions = (Cross layer count) + 2 = layerDiff - 1 + 2 = layerDiff + 1.
-                const divisions = Math.max(2, layerDiff + 1);
+                const divisions: number = Math.max(2, layerDiff + 1);
 
                 const prerenderEdge: PrerenderEdge = {
                     edge: edge,
                     startX: startPosition.x,
                     startY: startPosition.y + centerY,
-                    endX: endPosition.x + this.NODE_WIDTH,
+                    endX: endPosition.x + this._NODE_WIDTH,
                     endY: endPosition.y + centerY,
                     labelPositionDivisions: divisions,
                     labelPositionIndex: 1,
@@ -426,7 +439,7 @@ export class BlueprintPrerenderComb {
                 };
 
                 // Group edges by sorted node IDs to detect overlaps.
-                const key = [downstreamNode.id, upstreamNode.id].sort().join('-');
+                const key: string = [downstreamNode.id, upstreamNode.id].sort().join('-');
 
                 if (!edgeGroups.has(key)) {
                     edgeGroups.set(key, []);
@@ -448,7 +461,7 @@ export class BlueprintPrerenderComb {
                 // Distribute curvature symmetrically.
                 // If count is even: -Gap/2, +Gap/2, -Gap*1.5, +Gap*1.5...
                 // If count is odd: 0, -Gap, +Gap, -2*Gap, +2*Gap...
-                // Simpler formula: offset = (index - (count - 1) / 2) * GAP
+                // Simpler formula: offset = (index - (count - 1) / 2) * GAP.
                 group.forEach((edge: PrerenderEdge, index: number): void => {
                     const offset: number = (index - (count - 1) / 2) * CURVATURE_GAP;
                     edge.curvature = offset;
@@ -463,14 +476,17 @@ export class BlueprintPrerenderComb {
             contentBounds: {
                 minimumX: minimumX,
                 minimumY: minimumY,
-                maximumX: maximumX + this.NODE_WIDTH,  // Include node width in bounds.
-                maximumY: maximumY + this.NODE_HEIGHT  // Include node height in bounds.
+                maximumX: maximumX + this._NODE_WIDTH,  // Include node width in bounds.
+                maximumY: maximumY + this._NODE_HEIGHT  // Include node height in bounds.
             },
-            layerGapCenters
+            layerGapCenters,
+            updateTimes: Array.from(updateTimesSet).sort((a: string, b: string): number => {
+                return new Date(a).getTime() - new Date(b).getTime();
+            })
         };
     }
 
-    private estimateTextWidth(text: string): number {
+    private _estimateTextWidth(text: string): number {
         // Estimate width: length * 9px per char + 20px padding.
         return text.length * 9 + 20;
     }

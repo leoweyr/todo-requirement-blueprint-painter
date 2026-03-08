@@ -12,7 +12,7 @@ export interface InfiniteCanvasProps {
     style?: CSSProperties;
     layerGapCenters?: number[];  // X-coordinates for vertical dividers.
     onContextMenu?: (event: MouseEvent) => void;
-    // Callback for background click.
+    // Callback triggered on background click.
     onClick?: (event: MouseEvent) => void;
 }
 
@@ -29,7 +29,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
     private _unsubscribe?: () => void;
     private _containerRef: HTMLDivElement | null = null;
 
-    private handleMouseDown: (event: MouseEvent<HTMLDivElement>) => void = (event: MouseEvent<HTMLDivElement>): void => {
+    private _handleMouseDown: (event: MouseEvent<HTMLDivElement>) => void = (event: MouseEvent<HTMLDivElement>): void => {
         // Only left click starts drag.
         if (event.button !== 0) return;
 
@@ -42,7 +42,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         event.preventDefault();  // Prevent text selection.
     };
 
-    private handleGlobalMouseMove: (event: globalThis.MouseEvent) => void = (event: globalThis.MouseEvent): void => {
+    private _handleGlobalMouseMove: (event: globalThis.MouseEvent) => void = (event: globalThis.MouseEvent): void => {
         if (!this.state.isDragging) return;
 
         event.preventDefault();
@@ -58,16 +58,16 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         });
     };
 
-    private handleGlobalMouseUp: () => void = (): void => {
+    private _handleGlobalMouseUp: () => void = (): void => {
         if (this.state.isDragging) {
             this.setState({ isDragging: false });
         }
     };
 
-    private handleNativeWheel: (event: globalThis.WheelEvent) => void = (event: globalThis.WheelEvent): void => {
+    private _handleNativeWheel: (event: globalThis.WheelEvent) => void = (event: globalThis.WheelEvent): void => {
         event.preventDefault();
         
-        // Determine zoom factor.
+        // Determine the zoom factor.
         const sensitivity: number = 0.001;
         const delta: number = -event.deltaY * sensitivity;
         const factor: number = 1 + delta;
@@ -82,7 +82,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         }
     };
 
-    private handleWindowResize: () => void = (): void => {
+    private _handleWindowResize: () => void = (): void => {
         if (this._containerRef) {
             const rect: DOMRect = this._containerRef.getBoundingClientRect();
             this.props.viewport.setContainerSize(rect.width, rect.height);
@@ -112,15 +112,15 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         // Currently relying on parent updating bounds via viewport methods.
         
         // Add global mouse up/move listener to handle drag outside canvas.
-        window.addEventListener('mouseup', this.handleGlobalMouseUp);
-        window.addEventListener('mousemove', this.handleGlobalMouseMove);
+        window.addEventListener('mouseup', this._handleGlobalMouseUp);
+        window.addEventListener('mousemove', this._handleGlobalMouseMove);
         
         // Add window resize listener to update viewport container size.
-        window.addEventListener('resize', this.handleWindowResize);
+        window.addEventListener('resize', this._handleWindowResize);
         
         // Add non-passive wheel listener to prevent browser zoom/scroll.
         if (this._containerRef) {
-            this._containerRef.addEventListener('wheel', this.handleNativeWheel, { passive: false });
+            this._containerRef.addEventListener('wheel', this._handleNativeWheel, { passive: false });
         }
     }
 
@@ -129,12 +129,12 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
             this._unsubscribe();
         }
         
-        window.removeEventListener('mouseup', this.handleGlobalMouseUp);
-        window.removeEventListener('mousemove', this.handleGlobalMouseMove);
-        window.removeEventListener('resize', this.handleWindowResize);
+        window.removeEventListener('mouseup', this._handleGlobalMouseUp);
+        window.removeEventListener('mousemove', this._handleGlobalMouseMove);
+        window.removeEventListener('resize', this._handleWindowResize);
         
         if (this._containerRef) {
-            this._containerRef.removeEventListener('wheel', this.handleNativeWheel);
+            this._containerRef.removeEventListener('wheel', this._handleNativeWheel);
         }
     }
 
@@ -164,7 +164,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
         };
 
         // Render dividers if data is available.
-        const dividers: ReactNode[] | null = layerGapCenters ? layerGapCenters.map((x, index) => (
+        const dividers: ReactNode[] | null = layerGapCenters ? layerGapCenters.map((x: number, index: number): ReactNode => (
             <VerticalDivider
                 key={`divider-${index}`}
                 x={x}
@@ -177,7 +177,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
                 ref={(ref: HTMLDivElement | null): void => { this._containerRef = ref; }}
                 className={className}
                 style={containerStyle}
-                onMouseDown={this.handleMouseDown}
+                onMouseDown={this._handleMouseDown}
                 onContextMenu={this.props.onContextMenu}
                 onClick={this.props.onClick}
             >
