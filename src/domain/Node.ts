@@ -124,13 +124,13 @@ export class Node {
     }
 
     private validateVersion(version: string): void {
-        const pattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+        const pattern = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 
         if (!pattern.test(version)) {
             throw new ValidationError(
                 'version',
                 version,
-                `Invalid Semantic Version format: "${version}". Must follow SemVer (e.g., 1.0.0)`,
+                `Invalid Semantic Version format: "${version}". Must follow SemVer (e.g., 1.0.0 or v1.0.0)`,
                 'SemVer'
             );
         }
