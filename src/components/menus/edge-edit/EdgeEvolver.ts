@@ -5,7 +5,7 @@ import { EdgeStatus } from '../../../domain/enums/EdgeStatus';
 import { EdgeType } from '../../../domain/enums/EdgeType';
 import { EdgeDrawer } from '../../canvas/EdgeDrawer';
 import { Node } from '../../../domain/Node';
-import { EdgeCreator } from '../edge-create/EdgeCreator';
+import { EdgeCreator } from './EdgeCreator';
 
 
 export class EdgeEvolver {

@@ -1,10 +1,10 @@
 import { Component, type ReactNode, type CSSProperties, type ChangeEvent } from 'react';
 
-import { DomainRegistry } from '../../../features/registry/DomainRegistry.ts';
-import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb.ts';
-import { CanvasViewport } from '../../canvas/CanvasViewport.ts';
-import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult.ts';
-import { BlueprintSerializer } from '../../../features/serializer/BlueprintSerializer.ts';
+import { DomainRegistry } from '../../../features/registry/DomainRegistry';
+import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb';
+import { CanvasViewport } from '../../canvas/CanvasViewport';
+import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
+import { BlueprintSerializer } from '../../../features/serializer/BlueprintSerializer';
 
 
 export interface FileOpenModalProps {

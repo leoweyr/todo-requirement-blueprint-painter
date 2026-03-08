@@ -3,7 +3,7 @@ import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry.ts';
 import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb.ts';
 import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult.ts';
-import { NodeCreator } from './NodeCreator.ts';
+import { NodeCreator } from '../node-edit/NodeCreator.ts';
 import { NodeStatus } from '../../../domain/NodeStatus.ts';
 
 

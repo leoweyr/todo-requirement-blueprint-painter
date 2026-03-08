@@ -5,20 +5,20 @@ import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderC
 import { CanvasViewport } from '../canvas/CanvasViewport';
 import { Node } from '../../domain/Node';
 import { Edge } from '../../domain/Edge';
-import { EdgeEvolver } from './edge-evolution/EdgeEvolver';
-import { BlueprintPaster } from './blueprint-paste/BlueprintPaster';
-import { BlueprintSaver } from './blueprint-save/BlueprintSaver';
+import { EdgeEvolver } from './edge-edit/EdgeEvolver';
+import { BlueprintPaster } from './blueprint-edit/BlueprintPaster';
+import { BlueprintSaver } from './blueprint-edit/BlueprintSaver';
 import { type BlueprintPrerenderCombResult } from '../../features/graph/BlueprintPrerenderCombResult';
 import ContextMenu from './context-menu/ContextMenu';
 import BackdropBlur from './BackdropBlur';
-import NodeCreateModal from './node-create/NodeCreateModal';
-import NodeStatusCreateModal from './node-status-create/NodeStatusCreateModal';
+import NodeCreateModal from './modals/NodeCreateModal';
+import NodeStatusCreateModal from './modals/NodeStatusCreateModal';
 import NodeStatusEditModal from './node-status-edit/NodeStatusEditModal';
 import NodeEditModal from './node-edit/NodeEditModal';
-import EdgeCreateModal from './edge-create/EdgeCreateModal';
-import EdgeEvolutionReasonModal from './edge-evolution/EdgeEvolutionReasonModal';
-import NodeContextMenu from './node-context-menu/NodeContextMenu';
-import LegendContextMenu from './legend-context-menu/LegendContextMenu';
+import EdgeCreateModal from './modals/EdgeCreateModal';
+import EdgeEvolutionReasonModal from './modals/EdgeEvolutionReasonModal';
+import NodeContextMenu from './context-menu/NodeContextMenu';
+import LegendContextMenu from './context-menu/LegendContextMenu';
 
 
 export interface MenuManagerProps {

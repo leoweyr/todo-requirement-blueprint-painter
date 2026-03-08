@@ -6,7 +6,7 @@ import { type BlueprintPrerenderCombResult } from '../../../features/graph/Bluep
 import { Node } from '../../../domain/Node';
 import { EdgeType } from '../../../domain/enums/EdgeType';
 import { EdgeStatus } from '../../../domain/enums/EdgeStatus';
-import { EdgeCreator } from './EdgeCreator';
+import { EdgeCreator } from '../edge-edit/EdgeCreator';
 
 
 export interface EdgeCreateModalProps {
