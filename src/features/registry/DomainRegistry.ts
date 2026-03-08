@@ -71,6 +71,37 @@ export class DomainRegistry {
         return this._nodes.get(id);
     }
 
+    public updateNode(nodeId: string, updates: { description?: string; version?: string; statusName?: string; metadata?: string | Record<string, any> }): void {
+        const node: Node | undefined = this.getNode(nodeId);
+        
+        if (!node) {
+            throw new Error(`Node with ID ${nodeId} not found.`);
+        }
+
+        if (updates.description !== undefined) {
+            node.description = updates.description;
+        }
+
+        if (updates.version !== undefined && updates.version !== node.version) {
+            node.version = updates.version;
+            node.updatedAt = new Date().toISOString();
+        }
+
+        if (updates.statusName !== undefined) {
+            const status: NodeStatus | undefined = this.getNodeStatus(updates.statusName);
+            
+            if (!status) {
+                throw new Error(`Node Status ${updates.statusName} not found.`);
+            }
+            
+            node.status = status;
+        }
+
+        if (updates.metadata !== undefined) {
+            node.metadata = updates.metadata;
+        }
+    }
+
     public deleteNode(nodeId: string): void {
         if (!this._nodes.has(nodeId)) {
             return;

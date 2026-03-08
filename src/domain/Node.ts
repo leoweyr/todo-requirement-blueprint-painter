@@ -18,18 +18,19 @@ export class Node {
         version: string,
         updatedAt: string,
         status: NodeStatus,
-        metadata: Record<string, any>
+        metadata: string | Record<string, any>
     ) {
         this.validateId(id);
         this.validateVersion(version);
         this.validateUpdatedAt(updatedAt);
+        const parsedMetadata = this.parseAndValidateMetadata(metadata);
 
         this._id = id;
         this._description = description;
         this._version = version;
         this._updatedAt = updatedAt;
         this._status = status;
-        this._metadata = metadata;
+        this._metadata = parsedMetadata;
         this._edges = [];
     }
 
@@ -77,8 +78,8 @@ export class Node {
         return this._metadata;
     }
 
-    public set metadata(metadata: Record<string, any>) {
-        this._metadata = metadata;
+    public set metadata(metadata: string | Record<string, any>) {
+        this._metadata = this.parseAndValidateMetadata(metadata);
     }
 
     public get edges(): Edge[] {
@@ -144,5 +145,37 @@ export class Node {
                 'ISO 8601'
             );
         }
+    }
+
+    private parseAndValidateMetadata(metadata: string | Record<string, any>): Record<string, any> {
+        let parsed: any = metadata;
+
+        if (typeof metadata === 'string') {
+            if (!metadata.trim()) {
+                return {};
+            }
+
+            try {
+                parsed = JSON.parse(metadata);
+            } catch (error) {
+                throw new ValidationError(
+                    'metadata',
+                    metadata,
+                    'Invalid JSON format',
+                    'JSON'
+                );
+            }
+        }
+
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+             throw new ValidationError(
+                'metadata',
+                JSON.stringify(parsed),
+                'Metadata must be a JSON object.',
+                'Record<string, any>'
+            );
+        }
+
+        return parsed;
     }
 }

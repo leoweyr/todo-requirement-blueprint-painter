@@ -7,6 +7,7 @@ export interface NodeContextMenuProps {
     nodeId: string;
     x: number;
     y: number;
+    onEdit: (nodeId: string) => void;
     onDelete: (nodeId: string) => void;
     onClose: () => void;
 }
@@ -31,7 +32,7 @@ class NodeContextMenu extends Component<NodeContextMenuProps> {
     };
 
     public render(): ReactNode {
-        const { x, y, onDelete, nodeId } = this.props;
+        const { x, y, onEdit, onDelete, nodeId } = this.props;
 
         return (
             <div 
@@ -42,6 +43,12 @@ class NodeContextMenu extends Component<NodeContextMenuProps> {
             >
                 <div style={this.getMenuContainerStyle(x, y)}>
                     <ContextMenuItem
+                        key="edit"
+                        label="Edit"
+                        onClick={(): void => this.handleItemClick(() => onEdit(nodeId))}
+                    />
+                    <ContextMenuItem
+                        key="delete"
                         label="Delete"
                         onClick={(): void => this.handleItemClick(() => onDelete(nodeId))}
                         style={{ color: '#FF3B30' }}

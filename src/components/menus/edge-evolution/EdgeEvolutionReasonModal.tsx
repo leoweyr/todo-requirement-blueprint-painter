@@ -17,15 +17,6 @@ interface EdgeEvolutionReasonModalState {
 
 
 class EdgeEvolutionReasonModal extends Component<EdgeEvolutionReasonModalProps, EdgeEvolutionReasonModalState> {
-    public constructor(props: EdgeEvolutionReasonModalProps) {
-        super(props);
-        
-        const reasons: EdgeEvolutionReason[] = props.registry.allEdgeEvolutionReasons;
-        this.state = {
-            selectedReasonName: reasons.length > 0 ? reasons[0].name : ''
-        };
-    }
-
     private handleReasonChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
         event: ChangeEvent<HTMLSelectElement>
     ): void => {
@@ -39,6 +30,58 @@ class EdgeEvolutionReasonModal extends Component<EdgeEvolutionReasonModalProps, 
             this.props.onConfirm(selectedReasonName);
         }
     };
+
+    public constructor(props: EdgeEvolutionReasonModalProps) {
+        super(props);
+        
+        const reasons: EdgeEvolutionReason[] = props.registry.allEdgeEvolutionReasons;
+
+        this.state = {
+            selectedReasonName: reasons.length > 0 ? reasons[0].name : ''
+        };
+    }
+
+    public render(): ReactNode {
+        const { selectedReasonName }: EdgeEvolutionReasonModalState = this.state;
+        const { onClose, registry }: EdgeEvolutionReasonModalProps = this.props;
+        const reasons: EdgeEvolutionReason[] = registry.allEdgeEvolutionReasons;
+
+        return (
+            <div style={this.getContainerStyle()}>
+                <h2 style={this.getTitleStyle()}>Evolution Reason</h2>
+                <div style={this.getFieldGroupStyle()}>
+                    <label style={this.getLabelStyle()}>Select reason for this evolution:</label>
+                    <select
+                        value={selectedReasonName}
+                        onChange={this.handleReasonChange}
+                        style={this.getInputStyle()}
+                        autoFocus
+                    >
+                        {reasons.map((reason: EdgeEvolutionReason): ReactNode => (
+                            <option key={reason.name} value={reason.name}>
+                                {reason.name} - {reason.description}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div style={this.getButtonGroupStyle()}>
+                    <button
+                        style={{ ...this.getButtonStyle(), backgroundColor: '#8E8E93' }}
+                        onClick={onClose}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        style={this.getButtonStyle()}
+                        onClick={this.handleConfirm}
+                        disabled={!selectedReasonName}
+                    >
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     private getContainerStyle(): CSSProperties {
         return {
@@ -113,48 +156,6 @@ class EdgeEvolutionReasonModal extends Component<EdgeEvolutionReasonModalProps, 
             transition: 'background-color 0.2s ease',
             flex: 1
         };
-    }
-
-    public render(): ReactNode {
-        const { selectedReasonName }: EdgeEvolutionReasonModalState = this.state;
-        const { onClose, registry }: EdgeEvolutionReasonModalProps = this.props;
-        const reasons: EdgeEvolutionReason[] = registry.allEdgeEvolutionReasons;
-
-        return (
-            <div style={this.getContainerStyle()}>
-                <h2 style={this.getTitleStyle()}>Evolution Reason</h2>
-                <div style={this.getFieldGroupStyle()}>
-                    <label style={this.getLabelStyle()}>Select reason for this evolution:</label>
-                    <select
-                        value={selectedReasonName}
-                        onChange={this.handleReasonChange}
-                        style={this.getInputStyle()}
-                        autoFocus
-                    >
-                        {reasons.map((reason: EdgeEvolutionReason): ReactNode => (
-                            <option key={reason.name} value={reason.name}>
-                                {reason.name} - {reason.description}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div style={this.getButtonGroupStyle()}>
-                    <button
-                        style={{ ...this.getButtonStyle(), backgroundColor: '#8E8E93' }}
-                        onClick={onClose}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        style={this.getButtonStyle()}
-                        onClick={this.handleConfirm}
-                        disabled={!selectedReasonName}
-                    >
-                        Confirm
-                    </button>
-                </div>
-            </div>
-        );
     }
 }
 

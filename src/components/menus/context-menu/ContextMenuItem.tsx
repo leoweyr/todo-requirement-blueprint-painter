@@ -14,10 +14,6 @@ interface ContextMenuItemState {
 
 
 class ContextMenuItem extends Component<ContextMenuItemProps, ContextMenuItemState> {
-    public state: ContextMenuItemState = {
-        isHovered: false
-    };
-
     private handleMouseEnter: () => void = (): void => {
         this.setState({ isHovered: true });
     };
@@ -25,6 +21,13 @@ class ContextMenuItem extends Component<ContextMenuItemProps, ContextMenuItemSta
     private handleMouseLeave: () => void = (): void => {
         this.setState({ isHovered: false });
     };
+
+    public constructor(props: ContextMenuItemProps) {
+        super(props);
+        this.state = {
+            isHovered: false
+        };
+    }
 
     public render(): ReactNode {
         const { label, onClick, style } = this.props;

@@ -1,21 +1,20 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 
-import { DomainRegistry } from '../../../features/registry/DomainRegistry.ts';
-import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb.ts';
-import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult.ts';
-import { NodeCreator } from './NodeCreator.ts';
-import { NodeStatus } from '../../../domain/NodeStatus.ts';
+import { DomainRegistry } from '../../../features/registry/DomainRegistry';
+import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
+import { NodeStatus } from '../../../domain/NodeStatus';
+import { Node } from '../../../domain/Node';
 
 
-export interface NodeCreateModalProps {
+export interface NodeEditModalProps {
     registry: DomainRegistry;
-    layoutService: BlueprintPrerenderComb;
+    nodeId: string;
     onClose: () => void;
     onLayoutUpdate: (result: BlueprintPrerenderCombResult) => void;
 }
 
 
-interface NodeCreateModalState {
+interface NodeEditModalState {
     description: string;
     version: string;
     selectedStatus: string;
@@ -24,7 +23,7 @@ interface NodeCreateModalState {
 }
 
 
-class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalState> {
+class NodeEditModal extends Component<NodeEditModalProps, NodeEditModalState> {
     private handleDescriptionChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
         this.setState({ description: event.target.value });
     };
@@ -43,60 +42,61 @@ class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalSta
     };
 
     private handleConfirmClick: () => void = (): void => {
-        const { description, version, selectedStatus, metadataJson }: NodeCreateModalState = this.state;
-        const { registry, layoutService, onClose, onLayoutUpdate }: NodeCreateModalProps = this.props;
+        const { description, version, selectedStatus, metadataJson }: NodeEditModalState = this.state;
+        const { registry, nodeId, onClose, onLayoutUpdate }: NodeEditModalProps = this.props;
 
         if (description && version && selectedStatus) {
             try {
-                NodeCreator.create(registry, description, version, selectedStatus, metadataJson);
+                registry.updateNode(nodeId, {
+                    description,
+                    version,
+                    statusName: selectedStatus,
+                    metadata: metadataJson
+                });
                 
-                const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
-                onLayoutUpdate(result);
-                
+                onLayoutUpdate({} as BlueprintPrerenderCombResult); 
                 onClose();
             } catch (error) {
-                if (error instanceof Error) {
+                 if (error instanceof Error) {
                     this.setState({ metadataError: error.message });
                 } else {
-                    this.setState({ metadataError: 'Creation failed' });
+                    this.setState({ metadataError: 'Update failed' });
                 }
             }
         }
     };
 
-    public constructor(props: NodeCreateModalProps) {
+    public constructor(props: NodeEditModalProps) {
         super(props);
 
-        const initialStatus: string = props.registry.allNodeStatuses.length > 0 ? props.registry.allNodeStatuses[0].name : '';
-
-        this.state = {
-            description: '',
-            version: '1.0.0',
-            selectedStatus: initialStatus,
-            metadataJson: '{}',
-            metadataError: null
-        };
-    }
-
-    public componentDidMount(): void {
-        // Force update if schema loads after mount.
-        if (!this.props.registry.schema) {
-            const checkSchema = setInterval(() => {
-                if (this.props.registry.schema) {
-                    this.forceUpdate();
-                    clearInterval(checkSchema);
-                }
-            }, 100);
+        const node: Node | undefined = props.registry.getNode(props.nodeId);
+        
+        if (node) {
+            this.state = {
+                description: node.description,
+                version: node.version,
+                selectedStatus: node.status.name,
+                metadataJson: JSON.stringify(node.metadata, null, 2),
+                metadataError: null
+            };
+        } else {
+             this.state = {
+                description: '',
+                version: '',
+                selectedStatus: '',
+                metadataJson: '{}',
+                metadataError: 'Node not found'
+            };
         }
     }
 
     public render(): ReactNode {
-        const { description, version, selectedStatus, metadataJson, metadataError }: NodeCreateModalState = this.state;
-        const { onClose, registry }: NodeCreateModalProps = this.props;
+        const { description, version, selectedStatus, metadataJson, metadataError }: NodeEditModalState = this.state;
+        const { onClose, registry }: NodeEditModalProps = this.props;
 
         return (
             <div style={this.getContainerStyle()}>
-                <h2 style={this.getTitleStyle()}>Create New Node</h2>
+                <h2 style={this.getTitleStyle()}>Edit Node</h2>
 
                 <div style={this.getFieldGroupStyle()}>
                     <label style={this.getLabelStyle()}>Description</label>
@@ -157,21 +157,11 @@ class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalSta
                         onClick={this.handleConfirmClick}
                         disabled={!description || !version || !selectedStatus || !!metadataError}
                     >
-                        Create
+                        Save
                     </button>
                 </div>
             </div>
         );
-    }
-
-    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
-        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
-
-        if (definition && definition.properties && definition.properties[propertyName]) {
-            return definition.properties[propertyName].description || fallback;
-        }
-
-        return fallback;
     }
 
     private getContainerStyle(): CSSProperties {
@@ -248,7 +238,17 @@ class NodeCreateModal extends Component<NodeCreateModalProps, NodeCreateModalSta
             flex: 1
         };
     }
+
+    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
+
+        if (definition && definition.properties && definition.properties[propertyName]) {
+            return definition.properties[propertyName].description || fallback;
+        }
+
+        return fallback;
+    }
 }
 
 
-export default NodeCreateModal;
+export default NodeEditModal;

@@ -14,6 +14,7 @@ import BackdropBlur from './BackdropBlur';
 import NodeCreateModal from './node-create/NodeCreateModal';
 import NodeStatusCreateModal from './node-status-create/NodeStatusCreateModal';
 import NodeStatusEditModal from './node-status-edit/NodeStatusEditModal';
+import NodeEditModal from './node-edit/NodeEditModal';
 import EdgeCreateModal from './edge-create/EdgeCreateModal';
 import EdgeEvolutionReasonModal from './edge-evolution/EdgeEvolutionReasonModal';
 import NodeContextMenu from './node-context-menu/NodeContextMenu';
@@ -36,6 +37,10 @@ interface MenuManagerState {
     // The following properties manage the node status edit state.
     isNodeStatusEditModalOpen: boolean;
     nodeStatusToEdit: string | null;
+
+    // The following properties manage the node edit state.
+    isNodeEditModalOpen: boolean;
+    nodeEditNodeId: string | null;
 
     // The following properties manage the edge creation state.
     isEdgeCreateModalOpen: boolean;
@@ -122,6 +127,19 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
         });
     };
 
+    private handleEditNode: (nodeId: string) => void = (nodeId: string): void => {
+        this.setState({
+            nodeContextMenu: {
+                isOpen: false,
+                x: 0,
+                y: 0,
+                nodeId: null
+            },
+            isNodeEditModalOpen: true,
+            nodeEditNodeId: nodeId
+        });
+    };
+
     private handleEditNodeStatus: (statusName: string) => void = (statusName: string): void => {
         this.setState({
             legendContextMenu: {
@@ -143,6 +161,8 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
             isNodeStatusCreateModalOpen: false,
             isNodeStatusEditModalOpen: false,
             nodeStatusToEdit: null,
+            isNodeEditModalOpen: false,
+            nodeEditNodeId: null,
             isEdgeCreateModalOpen: false,
             edgeCreateSourceNode: null,
             edgeCreateTargetNode: null,
@@ -215,6 +235,17 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
                     </BackdropBlur>
                 )}
 
+                {this.state.isNodeEditModalOpen && this.state.nodeEditNodeId && (
+                    <BackdropBlur>
+                        <NodeEditModal
+                            registry={registry}
+                            nodeId={this.state.nodeEditNodeId}
+                            onClose={(): void => this.setState({ isNodeEditModalOpen: false, nodeEditNodeId: null })}
+                            onLayoutUpdate={(): void => this.props.onLayoutRefresh()}
+                        />
+                    </BackdropBlur>
+                )}
+
                 {this.state.isEdgeCreateModalOpen && this.state.edgeCreateSourceNode && this.state.edgeCreateTargetNode && (
                     <BackdropBlur>
                         <EdgeCreateModal
@@ -249,6 +280,7 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
                         nodeId={this.state.nodeContextMenu.nodeId}
                         x={this.state.nodeContextMenu.x}
                         y={this.state.nodeContextMenu.y}
+                        onEdit={this.handleEditNode}
                         onDelete={this.handleDeleteNode}
                         onClose={(): void => this.setState({ 
                             nodeContextMenu: { ...this.state.nodeContextMenu, isOpen: false } 

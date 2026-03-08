@@ -36,7 +36,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
     private handleTypeChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
         event: ChangeEvent<HTMLSelectElement>
     ): void => {
-        const value = event.target.value;
+        const value: string = event.target.value;
 
         // Type assertion needed because event.target.value is string.
         if (Object.values(EdgeType).includes(value as EdgeType)) {
@@ -47,7 +47,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
     private handleStatusChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
         event: ChangeEvent<HTMLSelectElement>
     ): void => {
-        const value = event.target.value;
+        const value: string = event.target.value;
 
         if (Object.values(EdgeStatus).includes(value as EdgeStatus)) {
             this.setState({ selectedStatus: value as EdgeStatus });

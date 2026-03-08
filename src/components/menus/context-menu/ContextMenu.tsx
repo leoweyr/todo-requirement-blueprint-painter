@@ -21,16 +21,6 @@ interface ContextMenuState {
 class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
     private _overlayRef: HTMLDivElement | null = null;
 
-    public handleOpen: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        event.preventDefault();
-        
-        this.setState({
-            isOpen: true,
-            x: event.clientX,
-            y: event.clientY
-        });
-    };
-
     private handleClose: () => void = (): void => {
         this.setState({ isOpen: false });
     };
@@ -48,6 +38,16 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
 
     private handleContextMenuOnMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.preventDefault();
+    };
+
+    public handleOpen: (event: MouseEvent) => void = (event: MouseEvent): void => {
+        event.preventDefault();
+        
+        this.setState({
+            isOpen: true,
+            x: event.clientX,
+            y: event.clientY
+        });
     };
 
     constructor(props: ContextMenuProps) {

@@ -13,15 +13,6 @@ export class NodeCreator {
     ): void {
         const id: string = crypto.randomUUID();
         const updatedAt: string = new Date().toISOString();
-        let metadata: Record<string, any> = {};
-
-        try {
-            if (metadataJson.trim()) {
-                metadata = JSON.parse(metadataJson);
-            }
-        } catch (error) {
-            console.error('Invalid JSON metadata, using empty object.', error);
-        }
 
         const status: NodeStatus | undefined = registry.getNodeStatus(statusName);
 
@@ -36,7 +27,7 @@ export class NodeCreator {
             version,
             updatedAt,  // Corrected order: Node constructor expects updatedAt before status based on inspection of Node.ts.
             status,
-            metadata
+            metadataJson
         );
 
         registry.registerNode(node);

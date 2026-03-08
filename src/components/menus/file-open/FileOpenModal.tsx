@@ -200,7 +200,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
                 throw new Error(message);
             }
             
-            const data: any = await response.json();
+            const data: { name: string; type: string }[] = await response.json();
             
             if (!Array.isArray(data)) {
                  throw new Error('Invalid API response format');
@@ -208,8 +208,8 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
 
             // Filter for directories and extract names, removing 'v' prefix.
             const versions: string[] = data
-                .filter((item: any): boolean => item.type === 'dir')
-                .map((item: any): string => item.name.replace(/^v/, ''))
+                .filter((item: { name: string; type: string }): boolean => item.type === 'dir')
+                .map((item: { name: string; type: string }): string => item.name.replace(/^v/, ''))
                 .sort((versionA: string, versionB: string): number => versionB.localeCompare(versionA));
 
             if (versions.length > 0) {

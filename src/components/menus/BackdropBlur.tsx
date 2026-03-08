@@ -11,6 +11,12 @@ export interface BackdropBlurProps {
 
 
 class BackdropBlur extends Component<BackdropBlurProps> {
+    private handleBackdropClick: (event: MouseEvent<HTMLDivElement>) => void = (event: MouseEvent<HTMLDivElement>): void => {
+        if (event.target === event.currentTarget) {
+            this.props.onClick?.();
+        }
+    }
+
     public render(): ReactNode {
         const { children } = this.props;
 
@@ -22,12 +28,6 @@ class BackdropBlur extends Component<BackdropBlurProps> {
                 {children}
             </div>
         );
-    }
-
-    private handleBackdropClick: (event: MouseEvent<HTMLDivElement>) => void = (event: MouseEvent<HTMLDivElement>) => {
-        if (event.target === event.currentTarget) {
-            this.props.onClick?.();
-        }
     }
 
     private getStyle(): CSSProperties {
