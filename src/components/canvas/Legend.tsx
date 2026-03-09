@@ -75,7 +75,7 @@ class Legend extends Component<LegendProps, LegendState> {
                             {statuses.map((status: NodeStatus): ReactNode => (
                                 <div 
                                     key={status.name} 
-                                    style={this.getItemStyle()}
+                                    style={{ ...this.getItemStyle(), cursor: 'context-menu' }}
                                     onContextMenu={(event: MouseEvent): void => {
                                         if (this.props.onContextMenu) {
                                             event.preventDefault();
@@ -102,8 +102,10 @@ class Legend extends Component<LegendProps, LegendState> {
                             {reasons.map((reason: EdgeEvolutionReason): ReactNode => (
                                 <div 
                                     key={reason.name} 
-                                    style={this.getItemStyle()}
+                                    style={{ ...this.getItemStyle(), cursor: reason.name === 'CUT' ? 'default' : 'context-menu' }}
                                     onContextMenu={(event: MouseEvent): void => {
+                                        if (reason.name === 'CUT') return;
+
                                         if (this.props.onContextMenu) {
                                             event.preventDefault();
                                             event.stopPropagation();
