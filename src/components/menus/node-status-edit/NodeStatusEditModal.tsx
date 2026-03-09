@@ -136,6 +136,7 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
                         value={name}
                         onChange={this.handleNameChange}
                         style={this.getInputStyle()}
+                        placeholder={this.getPlaceholder('UserDefinedEnum', 'name', 'MY_STATUS')}
                     />
                 </div>
 
@@ -146,6 +147,7 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
                         value={description}
                         onChange={this.handleDescriptionChange}
                         style={this.getInputStyle()}
+                        placeholder={this.getPlaceholder('UserDefinedEnum', 'description', 'Description of the status')}
                     />
                 </div>
 
@@ -282,6 +284,16 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
             transition: 'background-color 0.2s ease',
             flex: 1
         };
+    }
+
+    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
+
+        if (definition && definition.properties && definition.properties[propertyName]) {
+            return definition.properties[propertyName].description || fallback;
+        }
+
+        return fallback;
     }
 }
 

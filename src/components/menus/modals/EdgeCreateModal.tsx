@@ -102,7 +102,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
                         value={demandDescription}
                         onChange={this.handleDescriptionChange}
                         style={this.getInputStyle()}
-                        placeholder="Describe the demand..."
+                        placeholder={this.getPlaceholder('Edge', 'demand_description', 'Describe the demand...')}
                     />
                 </div>
 
@@ -228,6 +228,30 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
             transition: 'background-color 0.2s ease',
             flex: 1
         };
+    }
+
+    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
+
+        if (definition && definition.properties && definition.properties[propertyName]) {
+            return definition.properties[propertyName].description || fallback;
+        }
+        
+        // Fallback for nested Edge definition if 'Edge' key is not found directly.
+        // This handles case where Edge might be defined inline in Node.
+        if (definitionKey === 'Edge') {
+             const nodeDef: any = this.props.registry.getSchemaDefinition('Node');
+
+             if (nodeDef && nodeDef.properties && nodeDef.properties.edges && nodeDef.properties.edges.items) {
+                 const edgeProps = nodeDef.properties.edges.items.properties;
+
+                 if (edgeProps && edgeProps[propertyName]) {
+                     return edgeProps[propertyName].description || fallback;
+                 }
+             }
+        }
+
+        return fallback;
     }
 }
 

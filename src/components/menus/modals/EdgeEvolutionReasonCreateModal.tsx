@@ -95,7 +95,7 @@ class EdgeEvolutionReasonCreateModal extends Component<EdgeEvolutionReasonCreate
                         value={name}
                         onChange={this.handleNameChange}
                         style={this.getInputStyle()}
-                        placeholder="REFACTORING"
+                        placeholder={this.getPlaceholder('UserDefinedEnum', 'name', 'REFACTORING')}
                     />
                 </div>
 
@@ -106,7 +106,7 @@ class EdgeEvolutionReasonCreateModal extends Component<EdgeEvolutionReasonCreate
                         value={description}
                         onChange={this.handleDescriptionChange}
                         style={this.getInputStyle()}
-                        placeholder="Refactoring for performance"
+                        placeholder={this.getPlaceholder('UserDefinedEnum', 'description', 'Refactoring for performance')}
                     />
                 </div>
 
@@ -244,6 +244,16 @@ class EdgeEvolutionReasonCreateModal extends Component<EdgeEvolutionReasonCreate
             transition: 'background-color 0.2s ease',
             flex: 1
         };
+    }
+
+    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+        const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
+
+        if (definition && definition.properties && definition.properties[propertyName]) {
+            return definition.properties[propertyName].description || fallback;
+        }
+
+        return fallback;
     }
 }
 
