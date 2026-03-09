@@ -1,7 +1,7 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 
-import { DomainRegistry } from '../../../features/registry/DomainRegistry.ts';
-import { EdgeEvolutionReason } from '../../../domain/EdgeEvolutionReason.ts';
+import { DomainRegistry } from '../../../features/registry/DomainRegistry';
+import { EdgeEvolutionReason } from '../../../domain/EdgeEvolutionReason';
 
 
 export interface EdgeEvolutionReasonEditModalProps {

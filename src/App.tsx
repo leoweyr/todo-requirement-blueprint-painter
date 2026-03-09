@@ -3,23 +3,19 @@ import { Component, type ReactNode, type MouseEvent } from 'react';
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
-import { type PrerenderEdge } from './features/graph/PrerenderEdge';
 import { type PrerenderNode } from './features/graph/PrerenderNode';
 import { DomainRegistry } from './features/registry/DomainRegistry';
 import { BlueprintPaster } from './components/menus/blueprint-edit/BlueprintPaster';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import FileOpenModal from './components/menus/modals/FileOpenModal';
-import EdgeLine from './components/elements/EdgeLine';
 import NodeRectangle from './components/elements/NodeRectangle';
 import Legend from './components/canvas/Legend';
 import { TimelineSlider } from './components/canvas/TimelineSlider';
 import { EdgeCreator } from './components/menus/edge-edit/EdgeCreator';
-import EdgeDrawer from './components/canvas/EdgeDrawer';
-import { EdgeEvolver } from './components/menus/edge-edit/EdgeEvolver';
+import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
+import { EdgeInteractionManager } from './components/canvas/edge-interaction/EdgeInteractionManager';
 import { Node } from './domain/Node';
-import { Edge } from './domain/Edge';
 import MenuManager from './components/menus/MenuManager';
-import { EdgeHistoryRecord } from './domain/EdgeHistoryRecord';
 
 
 interface AppState {
@@ -32,8 +28,9 @@ interface AppState {
 class App extends Component<{}, AppState> {
     private readonly _viewport: CanvasViewport;
     private readonly _layoutService: BlueprintPrerenderComb;
-    private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private readonly _registry: DomainRegistry;
+
+    private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private _edgeDrawerRef: EdgeDrawer | null = null;
     private _menuManagerRef: MenuManager | null = null;
 
@@ -69,25 +66,7 @@ class App extends Component<{}, AppState> {
         });
     };
 
-    private _handleEdgeCut: (edge: Edge) => void = (edge: Edge): void => {
-        if (this._menuManagerRef) {
-            this._menuManagerRef.startEdgeCut(edge);
-        }
-    };
 
-    private _handleEdgeReanchor: (edge: Edge) => void = (edge: Edge): void => {
-        EdgeEvolver.initiateReanchor(
-            edge, 
-            this._registry, 
-            this._edgeDrawerRef, 
-            (reanchoringEdge: Edge): void => {
-                if (this._menuManagerRef) {
-                    this._menuManagerRef.setReanchoringEdge(reanchoringEdge);
-                }
-                this.forceUpdate();  // Re-render to hide the edge in renderGraph.
-            }
-        );
-    };
 
     private _handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         if (this._menuManagerRef) {
@@ -262,9 +241,6 @@ class App extends Component<{}, AppState> {
         // Create a map for fast node position lookup.
         const nodeMap: Map<string, PrerenderNode> = new Map<string, PrerenderNode>();
         prerenderNodes.forEach((node: PrerenderNode): void => { nodeMap.set(node.node.id, node); });
-        
-        const NODE_WIDTH = 200;
-        const NODE_HEIGHT = 64;
 
         // Represents the current time point.
         const currentTime = updateTimes && updateTimes[timelineIndex];
@@ -275,196 +251,26 @@ class App extends Component<{}, AppState> {
         return (
             <>
                 {/* Render the edges behind the nodes. */}
-                {prerenderEdges.map((properties: PrerenderEdge): ReactNode => {
-                    // If this edge is currently being re-anchored, hide it.
-                    if (reanchoringEdge && properties.edge.id === reanchoringEdge.id) {
-                        return null;
-                    }
-
-                    // Filter the history based on the timeline.
-                    // If updateTimes is missing (empty graph), show everything (default behavior).
-                    if (!currentTime) {
-                         return (
-                            <EdgeLine
-                                key={properties.edge.id}
-                                {...properties}
-                                onCut={(): void => this._handleEdgeCut(properties.edge)}
-                                onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
-                            />
-                        );
-                    }
-
-                    // Determine which history record to show.
-                    // Find the latest record created ON or BEFORE currentTime.
-                    const relevantHistory: EdgeHistoryRecord[] = properties.edge.history.filter((h: EdgeHistoryRecord): boolean => h.updatedAt <= currentTime);
-                    
-                    if (relevantHistory.length === 0) {
-                        // The edge did not exist yet at this time.
-                        
-                        // Logic for newly added edges.
-                        // If in transition and the edge appears in the next time step, show it as NEW (Green).
-                        if (timelineIsTransition && nextTime) {
-                            const nextHistory: EdgeHistoryRecord[] = properties.edge.history.filter((h: EdgeHistoryRecord): boolean => h.updatedAt <= nextTime);
-
-                            if (nextHistory.length > 0) {
-                                const nextHistoryIndex = nextHistory.length - 1;
-                                const newRecord = nextHistory[nextHistoryIndex];
-                                const targetNode = nodeMap.get(newRecord.targetUpstream.id);
-                                
-                                if (!targetNode) return null;
-
-                                const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#4CAF50';
-
-                                return (
-                                    <EdgeLine
-                                        key={`${properties.edge.id}-${nextHistoryIndex}-new-born`}
-                                        {...properties}
-                                        endX={targetNode.x + NODE_WIDTH}
-                                        endY={targetNode.y + NODE_HEIGHT / 2}
-                                        historyIndex={nextHistoryIndex}
-                                        highlightColor={reasonColor}
-                                        onCut={(): void => this._handleEdgeCut(properties.edge)}
-                                        onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
-                                    />
-                                );
-                            }
-                        }
-
-                        return null; 
-                    }
-
-                    // If not in transition, just show the state at currentTime.
-                    if (!timelineIsTransition) {
-                        const historyIndex = relevantHistory.length - 1;
-                        const record = relevantHistory[historyIndex];
-                        const targetNode = nodeMap.get(record.targetUpstream.id);
-                        
-                        // If the target node is missing (which should not happen), fallback to default properties.
-                        const overrideProps = targetNode ? {
-                            endX: targetNode.x + NODE_WIDTH,
-                            endY: targetNode.y + NODE_HEIGHT / 2
-                        } : {};
-
-                        return (
-                             <EdgeLine
-                                key={`${properties.edge.id}-${historyIndex}`}
-                                {...properties}
-                                {...overrideProps}
-                                historyIndex={historyIndex}  // Override to show past state.
-                                onCut={(): void => this._handleEdgeCut(properties.edge)}
-                                onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
-                            />
-                        );
-                    } else {
-                        // Transition Mode: Show BOTH states if changed between current and next.
-                        const currentHistoryIndex = relevantHistory.length - 1;
-                        
-                        let nextHistoryIndex = currentHistoryIndex;
-
-                        if (nextTime) {
-                             // Find the latest record created ON or BEFORE nextTime.
-                             const nextHistory: EdgeHistoryRecord[] = properties.edge.history.filter((h: EdgeHistoryRecord): boolean => h.updatedAt <= nextTime);
-                             if (nextHistory.length > 0) {
-                                 nextHistoryIndex = nextHistory.length - 1;
-                             }
-                        }
-                        
-                        // If the indices are the same, there is no change in this transition step.
-                        if (nextHistoryIndex === currentHistoryIndex) {
-                             const record = relevantHistory[currentHistoryIndex];
-                             const targetNode = nodeMap.get(record.targetUpstream.id);
-                             const overrideProps = targetNode ? {
-                                endX: targetNode.x + NODE_WIDTH,
-                                endY: targetNode.y + NODE_HEIGHT / 2
-                             } : {};
-
-                             return (
-                                <EdgeLine
-                                    key={`${properties.edge.id}-${currentHistoryIndex}`}
-                                    {...properties}
-                                    {...overrideProps}
-                                    historyIndex={currentHistoryIndex}
-                                    onCut={(): void => this._handleEdgeCut(properties.edge)}
-                                    onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
-                                />
-                            );
-                        }
-                        
-                        // Change detected. Compare upstream nodes.
-                        const oldRecord = properties.edge.history[currentHistoryIndex];
-                        const newRecord = properties.edge.history[nextHistoryIndex];
-                        
-                        const isUpstreamSame = oldRecord.targetUpstream.id === newRecord.targetUpstream.id;
-                        
-                        if (isUpstreamSame) {
-                            // Same Upstream -> Highlight with Reason Color.
-                            // Render new version with Reason highlight.
-                            const targetNode = nodeMap.get(newRecord.targetUpstream.id);
-                            const overrideProps = targetNode ? {
-                                endX: targetNode.x + NODE_WIDTH,
-                                endY: targetNode.y + NODE_HEIGHT / 2
-                             } : {};
-                            
-                            const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#FFD700';
-
-                            return (
-                                <EdgeLine
-                                    key={`${properties.edge.id}-${nextHistoryIndex}-yellow`}
-                                    {...properties}
-                                    {...overrideProps}
-                                    historyIndex={nextHistoryIndex}
-                                    highlightColor={reasonColor}
-                                    onCut={(): void => this._handleEdgeCut(properties.edge)}
-                                    onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
-                                />
-                            );
-                        } else {
-                            // Different Upstream -> Red (Old) and Reason Color (New).
-                            const oldTargetNode = nodeMap.get(oldRecord.targetUpstream.id);
-                            const newTargetNode = nodeMap.get(newRecord.targetUpstream.id);
-
-                            const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#4CAF50';
-
-                            return (
-                                <>
-                                    {oldTargetNode && (
-                                        <EdgeLine
-                                            key={`${properties.edge.id}-${currentHistoryIndex}-old`}
-                                            {...properties}
-                                            endX={oldTargetNode.x + NODE_WIDTH}
-                                            endY={oldTargetNode.y + NODE_HEIGHT / 2}
-                                            historyIndex={currentHistoryIndex}
-                                            highlightColor="#FF3B30"  // Red for Old/Cut.
-                                            onCut={(): void => this._handleEdgeCut(properties.edge)}
-                                            onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
-                                        />
-                                    )}
-
-                                    {newTargetNode && (
-                                        <EdgeLine
-                                            key={`${properties.edge.id}-${nextHistoryIndex}-new`}
-                                            {...properties}
-                                            endX={newTargetNode.x + NODE_WIDTH}
-                                            endY={newTargetNode.y + NODE_HEIGHT / 2}
-                                            historyIndex={nextHistoryIndex}
-                                            highlightColor={reasonColor}
-                                            onCut={(): void => this._handleEdgeCut(properties.edge)}
-                                            onReanchor={(): void => this._handleEdgeReanchor(properties.edge)}
-                                        />
-                                    )}
-                                </>
-                            );
-                        }
-                    }
-                })}
+                {EdgeInteractionManager.renderEdges(
+                    prerenderEdges,
+                    reanchoringEdge || null,
+                    currentTime,
+                    nextTime,
+                    timelineIsTransition,
+                    nodeMap,
+                    this._registry,
+                    this._edgeDrawerRef,
+                    this._menuManagerRef,
+                    (): void => this.forceUpdate()
+                )}
 
                 {/* Render the nodes on top of the edges. */}
-                {prerenderNodes.map((properties: PrerenderNode): ReactNode => (
+                {prerenderNodes.map((prerenderNode: PrerenderNode): ReactNode => (
                     <NodeRectangle
-                        key={properties.node.id}
-                        node={properties.node}
-                        x={properties.x}
-                        y={properties.y}
+                        key={prerenderNode.node.id}
+                        node={prerenderNode.node}
+                        x={prerenderNode.x}
+                        y={prerenderNode.y}
                         onStartEdge={(nodeId: string): void => {
                             if (!this._edgeDrawerRef) return;
 

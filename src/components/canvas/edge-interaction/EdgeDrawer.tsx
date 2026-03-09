@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from 'react';
 
-import { CanvasViewport } from './CanvasViewport';
-import { type PrerenderNode } from '../../features/graph/PrerenderNode';
+import { CanvasViewport } from '../CanvasViewport';
+import { type PrerenderNode } from '../../../features/graph/PrerenderNode';
 
 
 export interface EdgeDrawerProps {

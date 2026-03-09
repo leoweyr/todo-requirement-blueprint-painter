@@ -1,7 +1,7 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 
-import { DomainRegistry } from '../../../features/registry/DomainRegistry.ts';
-import { NodeStatusCreator } from '../node-status-edit/NodeStatusCreator.ts';
+import { DomainRegistry } from '../../../features/registry/DomainRegistry';
+import { NodeStatusCreator } from '../node-status-edit/NodeStatusCreator';
 
 
 export interface NodeStatusCreateModalProps {

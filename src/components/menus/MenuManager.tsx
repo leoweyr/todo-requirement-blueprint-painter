@@ -5,7 +5,7 @@ import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderC
 import { CanvasViewport } from '../canvas/CanvasViewport';
 import { Node } from '../../domain/Node';
 import { Edge } from '../../domain/Edge';
-import { EdgeEvolver } from './edge-edit/EdgeEvolver';
+import { EdgeInteractionManager } from '../canvas/edge-interaction/EdgeInteractionManager';
 import { BlueprintPaster } from './blueprint-edit/BlueprintPaster';
 import { BlueprintSaver } from './blueprint-edit/BlueprintSaver';
 import { type BlueprintPrerenderCombResult } from '../../features/graph/BlueprintPrerenderCombResult';
@@ -87,7 +87,7 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
         
         if (!reanchoringEdge) return;
 
-        EdgeEvolver.confirmEvolution(
+        EdgeInteractionManager.confirmEvolution(
             this.props.registry,
             reanchoringEdge,
             evolutionTargetNode,
@@ -447,7 +447,7 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
     }
 
     public startEdgeCut(edge: Edge): void {
-        EdgeEvolver.initiateCut(edge, (reanchoringEdge: Edge, evolutionTargetNode: Node | null, isModalOpen: boolean): void => {
+        EdgeInteractionManager.initiateCut(edge, (reanchoringEdge: Edge, evolutionTargetNode: Node | null, isModalOpen: boolean): void => {
             this.setState({
                 isEdgeEvolutionModalOpen: isModalOpen,
                 reanchoringEdge: reanchoringEdge,
