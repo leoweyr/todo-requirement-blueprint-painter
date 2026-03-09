@@ -1,4 +1,4 @@
-import { Component, type ReactNode, type MouseEvent } from 'react';
+import { Component, type ReactNode, type MouseEvent, type CSSProperties } from 'react';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
@@ -22,6 +22,7 @@ interface AppState {
     isFileLoaded: boolean;
     timelineIndex: number;  // Current index on the timeline (versions).
     timelineIsTransition: boolean;  // Whether we are in the transition state after the index.
+    timelineRawPosition: number;  // Float value for smooth animation.
 }
 
 
@@ -51,7 +52,8 @@ class App extends Component<{}, AppState> {
         
         this.setState({
             timelineIndex: maxIndex,
-            timelineIsTransition: false
+            timelineIsTransition: false,
+            timelineRawPosition: maxIndex
         });
     };
 
@@ -59,10 +61,11 @@ class App extends Component<{}, AppState> {
         this._refreshLayout();
     };
 
-    private _handleTimelineChange: (index: number, isTransition: boolean) => void = (index: number, isTransition: boolean): void => {
+    private _handleTimelineChange: (index: number, isTransition: boolean, rawPosition: number) => void = (index: number, isTransition: boolean, rawPosition: number): void => {
         this.setState({
             timelineIndex: index,
-            timelineIsTransition: isTransition
+            timelineIsTransition: isTransition,
+            timelineRawPosition: rawPosition
         });
     };
 
@@ -102,7 +105,8 @@ class App extends Component<{}, AppState> {
         this.state = {
             isFileLoaded: false,
             timelineIndex: 0,
-            timelineIsTransition: false
+            timelineIsTransition: false,
+            timelineRawPosition: 0
         };
 
         this._viewport = new CanvasViewport(0, 0, 1);
@@ -198,19 +202,7 @@ class App extends Component<{}, AppState> {
                 />
 
                 {!isFileLoaded && (
-                    <div style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        backdropFilter: 'blur(5px)',
-                        zIndex: 2000,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
+                    <div style={this._getModalOverlayStyle()}>
                         <FileOpenModal 
                             onFileLoaded={(): void => this.setState({ isFileLoaded: true })}
                             registry={this._registry}
@@ -234,13 +226,63 @@ class App extends Component<{}, AppState> {
     private _renderGraph(): ReactNode {
         if (!this._layoutResult) return null;
 
-        const { prerenderNodes, prerenderEdges, updateTimes }: BlueprintPrerenderCombResult = this._layoutResult;
+        const { prerenderNodes: latestNodes, prerenderEdges, updateTimes, frames }: BlueprintPrerenderCombResult = this._layoutResult;
         const reanchoringEdge = this._menuManagerRef?.reanchoringEdge;
-        const { timelineIndex, timelineIsTransition }: AppState = this.state;
+        const { timelineIndex, timelineIsTransition, timelineRawPosition }: AppState = this.state;
+
+        // Interpolation Logic.
+        const displayedNodes: PrerenderNode[] = [];
+        
+        // If we have frames (historical layouts), interpolate.
+        if (frames && frames.size > 0) {
+             const startIndex: number = Math.floor(timelineRawPosition);
+             const endIndex: number = Math.ceil(timelineRawPosition);
+             const progress: number = timelineRawPosition - startIndex;
+             
+             const startFrame: PrerenderNode[] = frames.get(startIndex) || latestNodes;
+             const endFrame: PrerenderNode[] = frames.get(endIndex) || startFrame;
+             
+             // Map end frame nodes for fast lookup.
+             const endNodeMap: Map<string, PrerenderNode> = new Map<string, PrerenderNode>();
+             endFrame.forEach((n: PrerenderNode): void => { endNodeMap.set(n.node.id, n); });
+             
+             // Track processed IDs to handle new nodes.
+             const processedIds: Set<string> = new Set<string>();
+
+             // Interpolate from Start to End.
+             startFrame.forEach((startNode: PrerenderNode): void => {
+                 const endNode: PrerenderNode | undefined = endNodeMap.get(startNode.node.id);
+                 
+                 if (endNode) {
+                     // Node exists in both frames: Interpolate.
+                     displayedNodes.push({
+                         node: startNode.node,
+                         x: startNode.x + (endNode.x - startNode.x) * progress,
+                         y: startNode.y + (endNode.y - startNode.y) * progress
+                     });
+                 } else {
+                     // Node exists only in Start Frame: Keep at Start Position.
+                     displayedNodes.push(startNode);
+                 }
+
+                 processedIds.add(startNode.node.id);
+             });
+             
+             // Handle Nodes that appear ONLY in End Frame.
+             endFrame.forEach((endNode: PrerenderNode): void => {
+                 if (!processedIds.has(endNode.node.id)) {
+                     // New Node: Use End Position.
+                     displayedNodes.push(endNode);
+                 }
+             });
+        } else {
+            // Fallback: Use latest nodes if no frames.
+            displayedNodes.push(...latestNodes);
+        }
 
         // Create a map for fast node position lookup.
         const nodeMap: Map<string, PrerenderNode> = new Map<string, PrerenderNode>();
-        prerenderNodes.forEach((node: PrerenderNode): void => { nodeMap.set(node.node.id, node); });
+        displayedNodes.forEach((node: PrerenderNode): void => { nodeMap.set(node.node.id, node); });
 
         // Represents the current time point.
         const currentTime = updateTimes && updateTimes[timelineIndex];
@@ -265,7 +307,7 @@ class App extends Component<{}, AppState> {
                 )}
 
                 {/* Render the nodes on top of the edges. */}
-                {prerenderNodes.map((prerenderNode: PrerenderNode): ReactNode => (
+                {displayedNodes.map((prerenderNode: PrerenderNode): ReactNode => (
                     <NodeRectangle
                         key={prerenderNode.node.id}
                         node={prerenderNode.node}
@@ -287,6 +329,23 @@ class App extends Component<{}, AppState> {
             </>
         );
     }
+
+    private _getModalOverlayStyle(): CSSProperties {
+        return {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+        };
+    }
+
 }
 
 

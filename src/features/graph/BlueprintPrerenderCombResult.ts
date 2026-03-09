@@ -8,4 +8,5 @@ export interface BlueprintPrerenderCombResult {
     contentBounds: { minimumX: number; minimumY: number; maximumX: number; maximumY: number };
     layerGapCenters: number[];  // Represents the X-coordinates of the center of gaps between adjacent layers.
     updateTimes: string[];  // Represents a sorted list of all unique edge history update timestamps.
+    frames?: Map<number, PrerenderNode[]>;  // Map<TimeIndex, Nodes>. Pre-calculated layout for each timeline version.
 }

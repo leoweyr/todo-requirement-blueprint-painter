@@ -18,19 +18,42 @@ export class BlueprintPrerenderComb {
     private readonly _PADDING: number = 50;
 
     public calculateLayout(registry: DomainRegistry): BlueprintPrerenderCombResult {
-        const nodes: Node[] = registry.allNodes;
-        const graphNodes: Map<string, GraphNode> = new Map<string, GraphNode>();
-
-        // Step 0: Extract all edge history update times for the timeline slider.
+        // Step 0: Extract all edge history update times.
         const updateTimesSet: Set<string> = new Set<string>();
-
-        nodes.forEach((node: Node): void => {
+        registry.allNodes.forEach((node: Node): void => {
             node.edges.forEach((edge: Edge): void => {
                 edge.history.forEach((record: EdgeHistoryRecord): void => {
                     updateTimesSet.add(record.updatedAt);
                 });
             });
         });
+
+        const updateTimes: string[] = Array.from(updateTimesSet).sort((a: string, b: string): number => {
+            return new Date(a).getTime() - new Date(b).getTime();
+        });
+
+        // Main layout (latest).
+        const result = this._calculateLayoutInternal(registry, undefined);
+        result.updateTimes = updateTimes;
+        
+        // Frames for animation.
+        const frames: Map<number, PrerenderNode[]> = new Map<number, PrerenderNode[]>();
+        
+        updateTimes.forEach((time: string, index: number): void => {
+            const frameResult = this._calculateLayoutInternal(registry, time);
+            frames.set(index, frameResult.prerenderNodes);
+        });
+        
+        result.frames = frames;
+
+        return result;
+    }
+
+    private _calculateLayoutInternal(registry: DomainRegistry, timeLimit?: string): BlueprintPrerenderCombResult {
+        const nodes: Node[] = registry.allNodes;
+        const graphNodes: Map<string, GraphNode> = new Map<string, GraphNode>();
+
+        // Step 0: Logic moved to calculateLayout wrapper.
 
         // Step 1: Initialize graph nodes.
         nodes.forEach((node: Node): void => {
@@ -51,16 +74,9 @@ export class BlueprintPrerenderComb {
 
         nodes.forEach((downstreamNode: Node): void => {
             downstreamNode.edges.forEach((edge: Edge): void => {
-                if (edge.history.length > 0) {
-                    // Find the upstream dependency from the latest history record.
-                    const latestRecord = edge.history[edge.history.length - 1];
-
-                    // IMPORTANT: Skip if the edge is CUT (Status == CUT).
-                    // A cut edge does not create a dependency, so it should not influence layer calculation.
-                    if (latestRecord.status === EdgeStatus.CUT) {
-                        return;
-                    }
-
+                const latestRecord: EdgeHistoryRecord | null = this._getEffectiveRecord(edge, timeLimit);
+                
+                if (latestRecord && latestRecord.status !== EdgeStatus.CUT) {
                     const upstreamNodeId: string = latestRecord.targetUpstream.id;
 
                     if (!dependentsMap.has(upstreamNodeId)) {
@@ -224,8 +240,10 @@ export class BlueprintPrerenderComb {
                             let count: number = 0;
 
                             node.edges.forEach((edge: Edge): void => {
-                                if (edge.history.length > 0) {
-                                    const upstreamId: string = edge.history[edge.history.length - 1].targetUpstream.id;
+                                const latestRecord: EdgeHistoryRecord | null = this._getEffectiveRecord(edge, timeLimit);
+
+                                if (latestRecord && latestRecord.status !== EdgeStatus.CUT) {
+                                    const upstreamId: string = latestRecord.targetUpstream.id;
 
                                     if (nodeIndices.has(upstreamId)) {
                                         sum += nodeIndices.get(upstreamId)!;
@@ -303,8 +321,9 @@ export class BlueprintPrerenderComb {
 
                 currentLayerNodes.forEach((graphNode: GraphNode): void => {
                     graphNode.node.edges.forEach((edge: Edge): void => {
-                         if (edge.history.length > 0) {
-                            const latestRecord: EdgeHistoryRecord = edge.history[edge.history.length - 1];
+                        const latestRecord: EdgeHistoryRecord | null = this._getEffectiveRecord(edge, timeLimit);
+
+                        if (latestRecord && latestRecord.status !== EdgeStatus.CUT) {
                             const upstreamNode: Node = latestRecord.targetUpstream;
                             const upstreamGraphNode: GraphNode | undefined = graphNodes.get(upstreamNode.id);
 
@@ -411,9 +430,13 @@ export class BlueprintPrerenderComb {
             if (!startPosition) return;
 
             downstreamNode.edges.forEach((edge: Edge): void => {
-                if (edge.history.length === 0) return;
+                const latestRecord: EdgeHistoryRecord | null = this._getEffectiveRecord(edge, timeLimit);
+
+                if (!latestRecord) return;
+
+                if (timeLimit && latestRecord.status === EdgeStatus.CUT) return;
                 
-                const upstreamNode = edge.history[edge.history.length - 1].targetUpstream;
+                const upstreamNode: Node = latestRecord.targetUpstream;
                 const endPosition = resultNodes.get(upstreamNode.id);
                 // Get upstream graph node to find layer.
                 const upstreamGraphNode = graphNodes.get(upstreamNode.id);
@@ -480,10 +503,18 @@ export class BlueprintPrerenderComb {
                 maximumY: maximumY + this._NODE_HEIGHT  // Include node height in bounds.
             },
             layerGapCenters,
-            updateTimes: Array.from(updateTimesSet).sort((a: string, b: string): number => {
-                return new Date(a).getTime() - new Date(b).getTime();
-            })
+            updateTimes: []
         };
+    }
+
+    private _getEffectiveRecord(edge: Edge, timeLimit?: string): EdgeHistoryRecord | null {
+        if (!timeLimit) {
+            return edge.history.length > 0 ? edge.history[edge.history.length - 1] : null;
+        }
+        
+        const relevant: EdgeHistoryRecord[] = edge.history.filter((h: EdgeHistoryRecord): boolean => h.updatedAt <= timeLimit);
+
+        return relevant.length > 0 ? relevant[relevant.length - 1] : null;
     }
 
     private _estimateTextWidth(text: string): number {

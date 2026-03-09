@@ -6,7 +6,8 @@ export interface TimelineSliderProps {
 
     // Callback function that returns the index of the time point and whether it is the transition phase AFTER that time point.
     // If isTransition is true, the slider is between index and index+1.
-    onTimeChange: (timeIndex: number, isTransition: boolean) => void;
+    // rawPosition provides the exact float value (0.0 to length-1) for smooth interpolation.
+    onTimeChange: (timeIndex: number, isTransition: boolean, rawPosition: number) => void;
 }
 
 interface TimelineSliderState {
@@ -282,9 +283,9 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             const isTransition: boolean = snapped % 1 !== 0;
             const index: number = Math.floor(snapped);
             
-            this.props.onTimeChange(index, isTransition);
+            this.props.onTimeChange(index, isTransition, newPos);
             
-            return { 
+            return {
                 currentPosition: newPos,
                 viewOffset: newViewOffset,
                 isLeftEdgeActive,
