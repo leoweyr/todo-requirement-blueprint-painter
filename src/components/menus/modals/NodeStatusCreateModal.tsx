@@ -1,6 +1,7 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
+import { ColorUtils } from '../../../utils/ColorUtils';
 import { NodeStatusCreator } from '../node-status-edit/NodeStatusCreator';
 
 
@@ -15,6 +16,7 @@ interface NodeStatusCreateModalState {
     description: string;
     error: string | null;
     selectedColorPreset: ColorPreset | null;
+    customFillColor: string;
 }
 
 
@@ -46,22 +48,39 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
     };
 
     private handleColorSelect: (preset: ColorPreset) => void = (preset: ColorPreset): void => {
-        this.setState({ selectedColorPreset: preset });
+        this.setState({ 
+            selectedColorPreset: preset,
+            customFillColor: '' 
+        });
+    };
+
+    private handleCustomColorChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
+        this.setState({ 
+            selectedColorPreset: null,
+            customFillColor: event.target.value
+        });
     };
 
     private handleConfirmClick: () => void = (): void => {
-        const { name, description, selectedColorPreset }: NodeStatusCreateModalState = this.state;
+        const { name, description, selectedColorPreset, customFillColor }: NodeStatusCreateModalState = this.state;
         const { registry, onClose }: NodeStatusCreateModalProps = this.props;
 
         if (name && description) {
             try {
                 let metadata: Record<string, unknown> | undefined;
 
-                if (this.isColorSelectionEnabled() && selectedColorPreset) {
-                    metadata = {
-                        backgroundColor: selectedColorPreset.fill,
-                        borderColor: selectedColorPreset.stroke
-                    };
+                if (this.isColorSelectionEnabled()) {
+                    if (selectedColorPreset) {
+                        metadata = {
+                            backgroundColor: selectedColorPreset.fill,
+                            borderColor: selectedColorPreset.stroke
+                        };
+                    } else if (customFillColor) {
+                        metadata = {
+                            backgroundColor: customFillColor,
+                            borderColor: ColorUtils.calculateBorderColor(customFillColor)
+                        };
+                    }
                 }
 
                 NodeStatusCreator.create(registry, name, description, metadata);
@@ -79,7 +98,8 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
             name: '',
             description: '',
             error: null,
-            selectedColorPreset: this.isColorSelectionEnabled() ? NodeStatusCreateModal.COLOR_PRESETS[0] : null
+            selectedColorPreset: this.isColorSelectionEnabled() ? NodeStatusCreateModal.COLOR_PRESETS[0] : null,
+            customFillColor: ''
         };
     }
 
@@ -138,6 +158,21 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
                                 />
                             ))}
                         </div>
+                        
+                        <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <label style={{ fontSize: '12px', color: '#666' }}>Custom Fill:</label>
+                            <input 
+                                type="color" 
+                                value={this.state.customFillColor || '#ffffff'}
+                                onChange={this.handleCustomColorChange}
+                                style={{ cursor: 'pointer', height: '30px', width: '50px', padding: 0, border: 'none' }}
+                            />
+                            {this.state.customFillColor && (
+                                <span style={{ fontSize: '11px', color: '#888' }}>
+                                    Border will be auto-calculated.
+                                </span>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -173,7 +208,9 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
         for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
             const num1: number = v1[i] || 0;
             const num2: number = v2[i] || 0;
+
             if (num1 > num2) return true;
+
             if (num1 < num2) return false;
         }
         return true;

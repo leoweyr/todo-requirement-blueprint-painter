@@ -17,6 +17,7 @@ interface EdgeEvolutionReasonEditModalState {
     description: string;
     error: string | null;
     selectedColorPreset: ColorPreset | null;
+    customColor: string;
 }
 
 
@@ -46,11 +47,21 @@ class EdgeEvolutionReasonEditModal extends Component<EdgeEvolutionReasonEditModa
     };
 
     private handleColorSelect: (preset: ColorPreset) => void = (preset: ColorPreset): void => {
-        this.setState({ selectedColorPreset: preset });
+        this.setState({ 
+            selectedColorPreset: preset,
+            customColor: ''
+        });
+    };
+
+    private handleCustomColorChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
+        this.setState({ 
+            selectedColorPreset: null,
+            customColor: event.target.value
+        });
     };
 
     private handleConfirmClick: () => void = (): void => {
-        const { name, description, selectedColorPreset }: EdgeEvolutionReasonEditModalState = this.state;
+        const { name, description, selectedColorPreset, customColor }: EdgeEvolutionReasonEditModalState = this.state;
         const { registry, reasonName, onClose, onLayoutUpdate }: EdgeEvolutionReasonEditModalProps = this.props;
 
         if (name && description) {
@@ -60,6 +71,10 @@ class EdgeEvolutionReasonEditModal extends Component<EdgeEvolutionReasonEditModa
                 if (selectedColorPreset) {
                     metadata = {
                         color: selectedColorPreset.color
+                    };
+                } else if (customColor) {
+                    metadata = {
+                        color: customColor
                     };
                 }
 
@@ -81,7 +96,8 @@ class EdgeEvolutionReasonEditModal extends Component<EdgeEvolutionReasonEditModa
             name: '',
             description: '',
             error: null,
-            selectedColorPreset: null
+            selectedColorPreset: null,
+            customColor: ''
         };
     }
 
@@ -92,10 +108,15 @@ class EdgeEvolutionReasonEditModal extends Component<EdgeEvolutionReasonEditModa
 
         if (reason) {
             let preset: ColorPreset | null = null;
+            let customCol: string = '';
 
             if (reason.metadata && reason.metadata.color) {
                 const color: string = reason.metadata.color as string;
-                preset = EdgeEvolutionReasonEditModal.COLOR_PRESETS.find((p: ColorPreset): boolean => p.color === color) || { name: 'Custom', color: color };
+                preset = EdgeEvolutionReasonEditModal.COLOR_PRESETS.find((p: ColorPreset): boolean => p.color === color) || null;
+                
+                if (!preset) {
+                    customCol = color;
+                }
             } else {
                 // Default to Blue if no color set.
                 preset = EdgeEvolutionReasonEditModal.COLOR_PRESETS[0];
@@ -104,7 +125,8 @@ class EdgeEvolutionReasonEditModal extends Component<EdgeEvolutionReasonEditModa
             this.setState({
                 name: reason.name,
                 description: reason.description,
-                selectedColorPreset: preset
+                selectedColorPreset: preset,
+                customColor: customCol
             });
         } else {
             this.setState({ error: 'Reason not found.' });
@@ -152,6 +174,16 @@ class EdgeEvolutionReasonEditModal extends Component<EdgeEvolutionReasonEditModa
                                 title={preset.name}
                             />
                         ))}
+                    </div>
+                    
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <label style={{ fontSize: '12px', color: '#666' }}>Custom Color:</label>
+                        <input 
+                            type="color" 
+                            value={this.state.customColor || '#007AFF'}
+                            onChange={this.handleCustomColorChange}
+                            style={{ cursor: 'pointer', height: '30px', width: '50px', padding: 0, border: 'none' }}
+                        />
                     </div>
                 </div>
 

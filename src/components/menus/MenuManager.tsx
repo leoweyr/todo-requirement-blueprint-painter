@@ -6,6 +6,7 @@ import { CanvasViewport } from '../canvas/CanvasViewport';
 import { Node } from '../../domain/Node';
 import { Edge } from '../../domain/Edge';
 import { EdgeInteractionManager } from '../canvas/edge-interaction/EdgeInteractionManager';
+import type { EdgeMenuHandler } from '../canvas/edge-interaction/EdgeMenuHandler';
 import { BlueprintPaster } from './blueprint-edit/BlueprintPaster';
 import { BlueprintSaver } from './blueprint-edit/BlueprintSaver';
 import { type BlueprintPrerenderCombResult } from '../../features/graph/BlueprintPrerenderCombResult';
@@ -78,7 +79,7 @@ interface MenuManagerState {
 }
 
 
-class MenuManager extends Component<MenuManagerProps, MenuManagerState> {
+class MenuManager extends Component<MenuManagerProps, MenuManagerState> implements EdgeMenuHandler {
     private _contextMenuRef: ContextMenu | null = null;
 
     // The following methods are internal handlers.

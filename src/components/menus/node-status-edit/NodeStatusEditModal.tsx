@@ -2,6 +2,7 @@ import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
 import { NodeStatus } from '../../../domain/NodeStatus';
+import { ColorUtils } from '../../../utils/ColorUtils';
 
 
 export interface NodeStatusEditModalProps {
@@ -17,6 +18,7 @@ interface NodeStatusEditModalState {
     description: string;
     error: string | null;
     selectedColorPreset: ColorPreset | null;
+    customFillColor: string;
 }
 
 
@@ -48,11 +50,21 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
     };
 
     private handleColorSelect: (preset: ColorPreset) => void = (preset: ColorPreset): void => {
-        this.setState({ selectedColorPreset: preset });
+        this.setState({ 
+            selectedColorPreset: preset,
+            customFillColor: '' 
+        });
+    };
+
+    private handleCustomColorChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
+        this.setState({ 
+            selectedColorPreset: null,
+            customFillColor: event.target.value
+        });
     };
 
     private handleConfirmClick: () => void = (): void => {
-        const { name, description, selectedColorPreset }: NodeStatusEditModalState = this.state;
+        const { name, description, selectedColorPreset, customFillColor }: NodeStatusEditModalState = this.state;
         const { registry, statusName, onClose, onLayoutUpdate }: NodeStatusEditModalProps = this.props;
 
         if (name && description) {
@@ -67,6 +79,9 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
                 if (selectedColorPreset) {
                     metadata.backgroundColor = selectedColorPreset.fill;
                     metadata.borderColor = selectedColorPreset.stroke;
+                } else if (customFillColor) {
+                    metadata.backgroundColor = customFillColor;
+                    metadata.borderColor = ColorUtils.calculateBorderColor(customFillColor);
                 }
 
                 const newStatus = new NodeStatus(name, description, metadata);
@@ -89,7 +104,8 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
             name: '',
             description: '',
             error: null,
-            selectedColorPreset: null
+            selectedColorPreset: null,
+            customFillColor: ''
         };
     }
 
@@ -99,15 +115,16 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
 
         if (status) {
             let selectedPreset: ColorPreset | null = null;
+            let customFill: string = '';
             
             if (status.metadata && status.metadata.backgroundColor) {
                 const fill = status.metadata.backgroundColor as string;
                 // Find matching preset by fill color.
                 selectedPreset = NodeStatusEditModal.COLOR_PRESETS.find(p => p.fill.toLowerCase() === fill.toLowerCase()) || null;
                 
-                // Default to the first preset if no match is found.
+                // If no preset matches, set as custom color.
                 if (!selectedPreset) {
-                    selectedPreset = NodeStatusEditModal.COLOR_PRESETS[0];
+                    customFill = fill;
                 }
             } else {
                 selectedPreset = NodeStatusEditModal.COLOR_PRESETS[0];
@@ -116,7 +133,8 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
             this.setState({
                 name: status.name,
                 description: status.description,
-                selectedColorPreset: selectedPreset
+                selectedColorPreset: selectedPreset,
+                customFillColor: customFill
             });
         }
     }
@@ -162,6 +180,21 @@ class NodeStatusEditModal extends Component<NodeStatusEditModalProps, NodeStatus
                                 title={preset.name}
                             />
                         ))}
+                    </div>
+                    
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <label style={{ fontSize: '12px', color: '#666' }}>Custom Fill:</label>
+                        <input 
+                            type="color" 
+                            value={this.state.customFillColor || '#ffffff'}
+                            onChange={this.handleCustomColorChange}
+                            style={{ cursor: 'pointer', height: '30px', width: '50px', padding: 0, border: 'none' }}
+                        />
+                        {this.state.customFillColor && (
+                            <span style={{ fontSize: '11px', color: '#888' }}>
+                                Border will be auto-calculated.
+                            </span>
+                        )}
                     </div>
                 </div>
 

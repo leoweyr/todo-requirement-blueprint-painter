@@ -9,9 +9,9 @@ import { Node } from '../../../domain/Node';
 import type { PrerenderEdge } from '../../../features/graph/PrerenderEdge';
 import type { PrerenderNode } from '../../../features/graph/PrerenderNode';
 import EdgeLine from '../../elements/EdgeLine';
-import type MenuManager from '../../menus/MenuManager';
 import { EdgeCreator } from '../../menus/edge-edit/EdgeCreator';
 import EdgeDrawer from './EdgeDrawer';
+import type { EdgeMenuHandler } from './EdgeMenuHandler';
 
 
 export class EdgeInteractionManager {
@@ -83,7 +83,7 @@ export class EdgeInteractionManager {
         nodeMap: Map<string, PrerenderNode>,
         registry: DomainRegistry,
         edgeDrawer: EdgeDrawer | null,
-        menuManager: MenuManager | null,
+        menuManager: EdgeMenuHandler | null,
         onLayoutUpdate: () => void
     ): ReactNode {
         const handleCut = (edge: Edge): void => {

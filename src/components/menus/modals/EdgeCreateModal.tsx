@@ -40,7 +40,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
 
         // Type assertion needed because event.target.value is string.
         if (Object.values(EdgeType).includes(value as EdgeType)) {
-             this.setState({ selectedType: value as EdgeType });
+            this.setState({ selectedType: value as EdgeType });
         }
     };
 

@@ -15,6 +15,7 @@ interface EdgeEvolutionReasonCreateModalState {
     description: string;
     error: string | null;
     selectedColorPreset: ColorPreset | null;
+    customColor: string;
 }
 
 
@@ -44,11 +45,21 @@ class EdgeEvolutionReasonCreateModal extends Component<EdgeEvolutionReasonCreate
     };
 
     private handleColorSelect: (preset: ColorPreset) => void = (preset: ColorPreset): void => {
-        this.setState({ selectedColorPreset: preset });
+        this.setState({ 
+            selectedColorPreset: preset,
+            customColor: '' 
+        });
+    };
+
+    private handleCustomColorChange: (event: ChangeEvent<HTMLInputElement>) => void = (event: ChangeEvent<HTMLInputElement>): void => {
+        this.setState({ 
+            selectedColorPreset: null,
+            customColor: event.target.value
+        });
     };
 
     private handleConfirmClick: () => void = (): void => {
-        const { name, description, selectedColorPreset }: EdgeEvolutionReasonCreateModalState = this.state;
+        const { name, description, selectedColorPreset, customColor }: EdgeEvolutionReasonCreateModalState = this.state;
         const { registry, onClose }: EdgeEvolutionReasonCreateModalProps = this.props;
 
         if (name && description) {
@@ -58,6 +69,10 @@ class EdgeEvolutionReasonCreateModal extends Component<EdgeEvolutionReasonCreate
                 if (selectedColorPreset) {
                     metadata = {
                         color: selectedColorPreset.color
+                    };
+                } else if (customColor) {
+                    metadata = {
+                        color: customColor
                     };
                 }
 
@@ -76,7 +91,8 @@ class EdgeEvolutionReasonCreateModal extends Component<EdgeEvolutionReasonCreate
             name: '',
             description: '',
             error: null,
-            selectedColorPreset: EdgeEvolutionReasonCreateModal.COLOR_PRESETS[0]
+            selectedColorPreset: EdgeEvolutionReasonCreateModal.COLOR_PRESETS[0],
+            customColor: ''
         };
     }
 
@@ -121,6 +137,16 @@ class EdgeEvolutionReasonCreateModal extends Component<EdgeEvolutionReasonCreate
                                 title={preset.name}
                             />
                         ))}
+                    </div>
+                    
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <label style={{ fontSize: '12px', color: '#666' }}>Custom Color:</label>
+                        <input 
+                            type="color" 
+                            value={this.state.customColor || '#007AFF'}
+                            onChange={this.handleCustomColorChange}
+                            style={{ cursor: 'pointer', height: '30px', width: '50px', padding: 0, border: 'none' }}
+                        />
                     </div>
                 </div>
 

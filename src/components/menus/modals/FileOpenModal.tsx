@@ -203,7 +203,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
             const data: { name: string; type: string }[] = await response.json();
             
             if (!Array.isArray(data)) {
-                 throw new Error('Invalid API response format');
+                throw new Error('Invalid API response format');
             }
 
             // Filter for directories and extract names, removing 'v' prefix.
@@ -219,7 +219,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
                     isLoadingVersions: false 
                 });
             } else {
-                 throw new Error('No versions found in API response.');
+                throw new Error('No versions found in API response.');
             }
         } catch (error) {
             console.error('Error fetching versions:', error);
@@ -293,7 +293,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
                 </div>
 
                 <div style={{...this.getButtonGroupStyle(), justifyContent: 'space-between', marginTop: '20px'}}>
-                     <button 
+                    <button 
                         style={{...this.getButtonStyle(), backgroundColor: '#8E8E93'}}
                         onClick={this.handleCancelClick}
                     >
