@@ -2,16 +2,16 @@ import yaml from 'js-yaml';
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 
-import { DomainRegistry } from '../registry/DomainRegistry.ts';
-import { type SerializedBlueprint } from './SerializedBlueprint.ts';
-import { NodeStatus } from '../../domain/NodeStatus.ts';
-import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason.ts';
-import { type SerializedNode } from './SerializedNode.ts';
-import { Node } from '../../domain/Node.ts';
-import { type SerializedEdge } from './SerializedEdge.ts';
-import { type SerializedEdgeHistory } from './SerializedEdgeHistory.ts';
-import { EdgeHistoryRecord } from '../../domain/EdgeHistoryRecord.ts';
-import { Edge } from '../../domain/Edge.ts';
+import { Edge } from '../../domain/Edge';
+import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
+import { EdgeHistoryRecord } from '../../domain/EdgeHistoryRecord';
+import { Node } from '../../domain/Node';
+import { NodeStatus } from '../../domain/NodeStatus';
+import { DomainRegistry } from '../registry/DomainRegistry';
+import { type SerializedBlueprint } from './SerializedBlueprint';
+import { type SerializedEdge } from './SerializedEdge';
+import { type SerializedEdgeHistory } from './SerializedEdgeHistory';
+import { type SerializedNode } from './SerializedNode';
 
 
 export class BlueprintSerializer {
@@ -74,21 +74,32 @@ export class BlueprintSerializer {
             registry.trbVersion = version;
         }
 
-        // Fetch schema from remote.
-        const versionPath: string = version.startsWith('v') ? version : `v${version}`;
-        const schemaUrl: string = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${versionPath}/trb.schema.json`;
-        let schema: unknown;
+        // Fetch schema from remote ONLY if necessary.
+        // If registry already has the correct schema for this version, use it.
+        let schema: unknown = registry.schema;
+        
+        // Check if fetching is required:
+        // 1. No schema in registry.
+        // 2. Registry version does not match target version (and it is being replaced/set).
+        // Note: 'overwrite' mode usually implies keeping the existing version unless an explicit upgrade occurs, 
+        // but this case focuses on reloading the SAME version (Undo/Redo).
+        const shouldFetch: boolean = !schema || (registry.trbVersion !== version && !overwrite);
 
-        const response: Response = await fetch(schemaUrl);
+        if (shouldFetch) {
+            const versionPath: string = version.startsWith('v') ? version : `v${version}`;
+            const schemaUrl: string = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${versionPath}/trb.schema.json`;
 
-        if (!response.ok) {
-            throw new Error(
-                `Remote schema not found or inaccessible: ${schemaUrl} (${response.status} ${response.statusText})`
-            );
+            const response: Response = await fetch(schemaUrl);
+
+            if (!response.ok) {
+                throw new Error(
+                    `Remote schema not found or inaccessible: ${schemaUrl} (${response.status} ${response.statusText})`
+                );
+            }
+
+            schema = await response.json();
+            registry.schema = schema;
         }
-
-        schema = await response.json();
-        registry.schema = schema;
 
         const jsonValidator: Ajv = new Ajv();
 
@@ -121,7 +132,6 @@ export class BlueprintSerializer {
 
             const blueprintData: SerializedBlueprint = data as SerializedBlueprint;
             await BlueprintSerializer.processBlueprint(blueprintData, registry, overwrite);
-
         } else if (isPartialDictionaries) {
             const fakeBlueprint: unknown = { ...data as object, nodes: [] };
             
@@ -137,10 +147,9 @@ export class BlueprintSerializer {
             
             const partialData: SerializedBlueprint = data as SerializedBlueprint; 
             await BlueprintSerializer.processBlueprint({ ...partialData, nodes: [] }, registry, overwrite);
-
         } else if (isNode) {
             // Validate against the Node definition in the schema.
-            const schemaObject = schema as { definitions?: { node: object }, $defs?: { node: object } };
+            const schemaObject: { definitions?: { node: object }, $defs?: { node: object } } = schema as { definitions?: { node: object }, $defs?: { node: object } };
 
             const nodeValidator: ValidateFunction = jsonValidator.compile(
                 schemaObject.definitions?.node || schemaObject.$defs?.node || {}
@@ -160,7 +169,7 @@ export class BlueprintSerializer {
             await BlueprintSerializer.processNodes([nodeData], registry, overwrite);
         } else if (isNodeArray) {
              // Validate each node in the array against the Node definition.
-             const schemaObject = schema as { definitions?: { node: object }, $defs?: { node: object } };
+             const schemaObject: { definitions?: { node: object }, $defs?: { node: object } } = schema as { definitions?: { node: object }, $defs?: { node: object } };
 
              const nodeValidator: ValidateFunction = jsonValidator.compile(
                  schemaObject.definitions?.node || schemaObject.$defs?.node || {}
@@ -181,7 +190,6 @@ export class BlueprintSerializer {
              }
 
              await BlueprintSerializer.processNodes(nodesList, registry, overwrite);
-
         } else {
             throw new Error('Unknown content type. Clipboard data must be a valid Blueprint, Node List, Single Node, or Enum Dictionary.');
         }

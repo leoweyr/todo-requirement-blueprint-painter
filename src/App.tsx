@@ -1,27 +1,28 @@
 import { Component, type ReactNode, type MouseEvent, type CSSProperties } from 'react';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
+import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
+import { EdgeInteractionManager } from './components/canvas/edge-interaction/EdgeInteractionManager';
+import InfiniteCanvas from './components/canvas/InfiniteCanvas';
+import Legend from './components/canvas/Legend';
+import { TimelineSlider } from './components/canvas/TimelineSlider';
+import NodeRectangle from './components/elements/NodeRectangle';
+import { BlueprintPaster } from './components/menus/blueprint-edit/BlueprintPaster';
+import { EdgeCreator } from './components/menus/edge-edit/EdgeCreator';
+import MenuManager from './components/menus/MenuManager';
+import FileOpenModal from './components/menus/modals/FileOpenModal';
+import { Node } from './domain/Node';
+import { EditorHistoryService } from './features/editor-history/EditorHistoryService';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
 import { type PrerenderNode } from './features/graph/PrerenderNode';
 import { DomainRegistry } from './features/registry/DomainRegistry';
-import { BlueprintPaster } from './components/menus/blueprint-edit/BlueprintPaster';
-import InfiniteCanvas from './components/canvas/InfiniteCanvas';
-import FileOpenModal from './components/menus/modals/FileOpenModal';
-import NodeRectangle from './components/elements/NodeRectangle';
-import Legend from './components/canvas/Legend';
-import { TimelineSlider } from './components/canvas/TimelineSlider';
-import { EdgeCreator } from './components/menus/edge-edit/EdgeCreator';
-import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
-import { EdgeInteractionManager } from './components/canvas/edge-interaction/EdgeInteractionManager';
-import { Node } from './domain/Node';
-import MenuManager from './components/menus/MenuManager';
 
 
 interface AppState {
     isFileLoaded: boolean;
     timelineIndex: number;  // Current index on the timeline (versions).
-    timelineIsTransition: boolean;  // Whether we are in the transition state after the index.
+    timelineIsTransition: boolean;  // Indicates if the timeline is in the transition state after the index.
     timelineRawPosition: number;  // Float value for smooth animation.
 }
 
@@ -30,6 +31,7 @@ class App extends Component<{}, AppState> {
     private readonly _viewport: CanvasViewport;
     private readonly _layoutService: BlueprintPrerenderComb;
     private readonly _registry: DomainRegistry;
+    private readonly _historyService: EditorHistoryService;
 
     private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private _edgeDrawerRef: EdgeDrawer | null = null;
@@ -38,6 +40,15 @@ class App extends Component<{}, AppState> {
     private _handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (
         result: BlueprintPrerenderCombResult
     ): void => {
+        // The snapshot is saved AFTER the change that triggered this update.
+        // _handleLayoutUpdate is called after the change, so the current state is pushed.
+        // NOTE: This might capture the state *after* the layout calculation.
+        // Layout calculation does not significantly change the registry.
+        // _handleLayoutUpdate is called by BlueprintPaster, MenuManager, etc., after modifying the registry.
+        // Therefore, this is the correct place to snapshot the NEW state.
+        
+        this._historyService.pushSnapshot();
+
         this._layoutResult = result;
 
         if (result.contentBounds) {
@@ -46,8 +57,7 @@ class App extends Component<{}, AppState> {
         }
 
         // Reset the timeline to the latest version when the layout updates (e.g. new file or structural change).
-        // If the new result has more history, we default to the latest.
-        // For now, default to the latest version.
+        // If the new result has more history, default to the latest version.
         const maxIndex: number = result.updateTimes ? Math.max(0, result.updateTimes.length - 1) : 0;
         
         this.setState({
@@ -99,6 +109,37 @@ class App extends Component<{}, AppState> {
         }
     };
 
+    private _handleKeyDown: (event: KeyboardEvent) => void = async (event: KeyboardEvent): Promise<void> => {
+        // Undo: Ctrl+Z
+        // Redo: Ctrl+Y or Ctrl+Shift+Z
+        if (event.ctrlKey || event.metaKey) {
+            if (event.key === 'z' || event.key === 'Z') {
+                if (event.shiftKey) {
+                    // Redo.
+                    event.preventDefault();
+
+                    if (await this._historyService.redo()) {
+                         this._refreshLayout();
+                    }
+                } else {
+                    // Undo.
+                    event.preventDefault();
+
+                    if (await this._historyService.undo()) {
+                        this._refreshLayout();
+                    }
+                }
+            } else if (event.key === 'y' || event.key === 'Y') {
+                // Redo.
+                event.preventDefault();
+
+                if (await this._historyService.redo()) {
+                    this._refreshLayout();
+                }
+            }
+        }
+    };
+
     public constructor(properties: {}) {
         super(properties);
 
@@ -113,6 +154,7 @@ class App extends Component<{}, AppState> {
         this._layoutService = new BlueprintPrerenderComb();
         this._registry = DomainRegistry.instance;
         this._registry.clear();
+        this._historyService = new EditorHistoryService(this._registry);
 
         this._layoutResult = this._layoutService.calculateLayout(this._registry);
     }
@@ -120,6 +162,9 @@ class App extends Component<{}, AppState> {
     public async componentDidMount(): Promise<void> {
         await this._registry.fetchLatestTrbVersion();
         
+        // Initialize history with the starting state (empty or default).
+        this._historyService.initialize();
+
         BlueprintPaster.bind(
             window,
             this._registry,
@@ -127,10 +172,13 @@ class App extends Component<{}, AppState> {
             this._viewport,
             this._handleLayoutUpdate
         );
+
+        window.addEventListener('keydown', this._handleKeyDown);
     }
 
     public componentWillUnmount(): void {
         BlueprintPaster.unbind(window);
+        window.removeEventListener('keydown', this._handleKeyDown);
     }
 
     public render(): ReactNode {
@@ -144,6 +192,7 @@ class App extends Component<{}, AppState> {
                     layerGapCenters={layoutResult?.layerGapCenters}
                     onContextMenu={this._handleContextMenu}
                     onClick={(): void => {
+
                         if (this._edgeDrawerRef) {
                             // If reanchoring, cancel it on canvas click (restore original edge).
                             if (this._menuManagerRef && this._menuManagerRef.reanchoringEdge) {
@@ -175,6 +224,7 @@ class App extends Component<{}, AppState> {
                                     sourceId,
                                     targetId,
                                     (sourceNode: Node, targetNode: Node): void => {
+
                                         if (this._menuManagerRef) {
                                             this._menuManagerRef.openEdgeCreateModal(sourceNode, targetNode);
                                         }
@@ -233,7 +283,7 @@ class App extends Component<{}, AppState> {
         // Interpolation Logic.
         const displayedNodes: PrerenderNode[] = [];
         
-        // If we have frames (historical layouts), interpolate.
+        // If frames (historical layouts) exist, interpolate.
         if (frames && frames.size > 0) {
              const startIndex: number = Math.floor(timelineRawPosition);
              const endIndex: number = Math.ceil(timelineRawPosition);
