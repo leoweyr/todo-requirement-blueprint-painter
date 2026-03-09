@@ -4,6 +4,7 @@ import { Edge } from '../../domain/Edge';
 import { type EdgeHistoryRecord } from "../../domain/EdgeHistoryRecord";
 import { EdgeType } from '../../domain/enums/EdgeType';
 import { EdgeStatus } from '../../domain/enums/EdgeStatus';
+import { type PrerenderNode } from '../../features/graph/PrerenderNode';
 
 
 export interface EdgeLineProps {
@@ -12,6 +13,8 @@ export interface EdgeLineProps {
     startY: number;
     endX: number;
     endY: number;
+    sourceNode?: PrerenderNode;
+    targetNode?: PrerenderNode;
     labelPositionDivisions?: number;
     labelPositionIndex?: number;
     curvature?: number;
@@ -53,10 +56,12 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
     public render(): ReactNode {
         const { 
             edge, 
-            startX, 
-            startY, 
-            endX, 
-            endY,
+            startX: propStartX, 
+            startY: propStartY, 
+            endX: propEndX, 
+            endY: propEndY,
+            sourceNode,
+            targetNode,
             labelPositionDivisions = 2,
             labelPositionIndex = 1,
             curvature = 0,
@@ -66,6 +71,14 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
             onCut,
             onReanchor
         } = this.props;
+
+        const NODE_WIDTH = 200;
+        const NODE_HEIGHT = 64;
+
+        const startX = sourceNode ? sourceNode.x : propStartX;
+        const startY = sourceNode ? sourceNode.y + NODE_HEIGHT / 2 : propStartY;
+        const endX = targetNode ? targetNode.x + NODE_WIDTH : propEndX;
+        const endY = targetNode ? targetNode.y + NODE_HEIGHT / 2 : propEndY;
 
         const { isHovered } = this.state;
 

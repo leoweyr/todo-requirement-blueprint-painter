@@ -86,9 +86,6 @@ export class EdgeInteractionManager {
         menuManager: MenuManager | null,
         onLayoutUpdate: () => void
     ): ReactNode {
-        const NODE_WIDTH = 200;
-        const NODE_HEIGHT = 64;
-
         const handleCut = (edge: Edge): void => {
             if (menuManager) {
                 menuManager.startEdgeCut(edge);
@@ -109,6 +106,15 @@ export class EdgeInteractionManager {
             );
         };
 
+        // Pre-calculate edge sources for dynamic positioning.
+        const edgeSourceMap = new Map<string, PrerenderNode>();
+
+        for (const prerenderNode of nodeMap.values()) {
+            for (const edge of prerenderNode.node.edges) {
+                edgeSourceMap.set(edge.id, prerenderNode);
+            }
+        }
+
         return (
             <>
                 {prerenderEdges.map((prerenderEdge: PrerenderEdge): ReactNode => {
@@ -117,13 +123,20 @@ export class EdgeInteractionManager {
                         return null;
                     }
 
+                    const sourceNode = edgeSourceMap.get(prerenderEdge.edge.id);
+
                     // Filter the history based on the timeline.
                     // If updateTimes is missing (empty graph), show everything (default behavior).
                     if (!currentTime) {
+                         const latestHistory = prerenderEdge.edge.history[prerenderEdge.edge.history.length - 1];
+                         const targetNode = latestHistory ? nodeMap.get(latestHistory.targetUpstream.id) : undefined;
+
                          return (
                             <EdgeLine
                                 key={prerenderEdge.edge.id}
                                 {...prerenderEdge}
+                                sourceNode={sourceNode}
+                                targetNode={targetNode}
                                 onCut={(): void => handleCut(prerenderEdge.edge)}
                                 onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
                             />
@@ -155,8 +168,8 @@ export class EdgeInteractionManager {
                                     <EdgeLine
                                         key={`${prerenderEdge.edge.id}-${nextHistoryIndex}-new-born`}
                                         {...prerenderEdge}
-                                        endX={targetNode.x + NODE_WIDTH}
-                                        endY={targetNode.y + NODE_HEIGHT / 2}
+                                        sourceNode={sourceNode}
+                                        targetNode={targetNode}
                                         historyIndex={nextHistoryIndex}
                                         highlightColor={reasonColor}
                                         onCut={(): void => handleCut(prerenderEdge.edge)}
@@ -175,17 +188,12 @@ export class EdgeInteractionManager {
                         const record = relevantHistory[historyIndex];
                         const targetNode = nodeMap.get(record.targetUpstream.id);
                         
-                        // If the target node is missing (which should not happen), fallback to default properties.
-                        const overrideProps = targetNode ? {
-                            endX: targetNode.x + NODE_WIDTH,
-                            endY: targetNode.y + NODE_HEIGHT / 2
-                        } : {};
-
                         return (
                              <EdgeLine
                                 key={`${prerenderEdge.edge.id}-${historyIndex}`}
                                 {...prerenderEdge}
-                                {...overrideProps}
+                                sourceNode={sourceNode}
+                                targetNode={targetNode}
                                 historyIndex={historyIndex}  // Override to show past state.
                                 onCut={(): void => handleCut(prerenderEdge.edge)}
                                 onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
@@ -210,16 +218,13 @@ export class EdgeInteractionManager {
                         if (nextHistoryIndex === currentHistoryIndex) {
                              const record = relevantHistory[currentHistoryIndex];
                              const targetNode = nodeMap.get(record.targetUpstream.id);
-                             const overrideProps = targetNode ? {
-                                endX: targetNode.x + NODE_WIDTH,
-                                endY: targetNode.y + NODE_HEIGHT / 2
-                             } : {};
 
                              return (
                                 <EdgeLine
                                     key={`${prerenderEdge.edge.id}-${currentHistoryIndex}`}
                                     {...prerenderEdge}
-                                    {...overrideProps}
+                                    sourceNode={sourceNode}
+                                    targetNode={targetNode}
                                     historyIndex={currentHistoryIndex}
                                     onCut={(): void => handleCut(prerenderEdge.edge)}
                                     onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
@@ -237,10 +242,6 @@ export class EdgeInteractionManager {
                             // Same Upstream -> Highlight with Reason Color.
                             // Render new version with Reason highlight.
                             const targetNode = nodeMap.get(newRecord.targetUpstream.id);
-                            const overrideProps = targetNode ? {
-                                endX: targetNode.x + NODE_WIDTH,
-                                endY: targetNode.y + NODE_HEIGHT / 2
-                             } : {};
                             
                             const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#FFD700';
 
@@ -248,7 +249,8 @@ export class EdgeInteractionManager {
                                 <EdgeLine
                                     key={`${prerenderEdge.edge.id}-${nextHistoryIndex}-yellow`}
                                     {...prerenderEdge}
-                                    {...overrideProps}
+                                    sourceNode={sourceNode}
+                                    targetNode={targetNode}
                                     historyIndex={nextHistoryIndex}
                                     highlightColor={reasonColor}
                                     onCut={(): void => handleCut(prerenderEdge.edge)}
@@ -268,8 +270,8 @@ export class EdgeInteractionManager {
                                         <EdgeLine
                                             key={`${prerenderEdge.edge.id}-${currentHistoryIndex}-old`}
                                             {...prerenderEdge}
-                                            endX={oldTargetNode.x + NODE_WIDTH}
-                                            endY={oldTargetNode.y + NODE_HEIGHT / 2}
+                                            sourceNode={sourceNode}
+                                            targetNode={oldTargetNode}
                                             historyIndex={currentHistoryIndex}
                                             highlightColor="#FF3B30"  // Red for Old/Cut.
                                             onCut={(): void => handleCut(prerenderEdge.edge)}
@@ -281,8 +283,8 @@ export class EdgeInteractionManager {
                                         <EdgeLine
                                             key={`${prerenderEdge.edge.id}-${nextHistoryIndex}-new`}
                                             {...prerenderEdge}
-                                            endX={newTargetNode.x + NODE_WIDTH}
-                                            endY={newTargetNode.y + NODE_HEIGHT / 2}
+                                            sourceNode={sourceNode}
+                                            targetNode={newTargetNode}
                                             historyIndex={nextHistoryIndex}
                                             highlightColor={reasonColor}
                                             onCut={(): void => handleCut(prerenderEdge.edge)}
