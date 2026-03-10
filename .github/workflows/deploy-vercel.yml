@@ -1,0 +1,46 @@
+name: Deploy App to Vercel
+
+on:
+    push:
+        branches:
+            - master
+            - develop
+    workflow_dispatch:
+
+env:
+    VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+    VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        
+        environment:
+            name: ${{ github.ref == 'refs/heads/master' && 'Production' || 'Preview' }}
+            url: ${{ steps.deploy-step.outputs.url }}
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+
+            - name: Install Dependencies
+              run: npm install --no-package-lock
+
+            - name: Pull Vercel Environment Information
+              run: npx vercel pull --yes --environment=${{ github.ref == 'refs/heads/master' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+            - name: Build Project Artifacts
+              run: npx vercel build ${{ github.ref == 'refs/heads/master' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+              env:
+                  APP_GITHUB_TOKEN: ${{ secrets.APP_GITHUB_TOKEN }}
+
+            - name: Deploy Project Artifacts to Vercel
+              id: deploy-step
+              run: |
+                  DEPLOY_URL=$(npx vercel deploy --prebuilt ${{ github.ref == 'refs/heads/master' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
+                  echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
