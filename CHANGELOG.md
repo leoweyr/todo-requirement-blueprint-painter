@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.1.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v1.0.0...v1.1.0) (2026-03-10)
+### Features
+
+* update app icon to semantic TRB design and refine index.html ([ab4fc22](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/ab4fc225552c3e357868b881d81fdbcfb1320e8f)) [@leoweyr](https://github.com/leoweyr)
+### DevOps
+
+* fix git-cliff change log generation by adding `--latest` flag ([b30ff8b](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/b30ff8b0cb9414d5b3a240643016844dfc4d6591)) [@leoweyr](https://github.com/leoweyr)
+### Documentation
+
+* add project banner ([0cc7073](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/0cc7073c875613e8c816a315cc603892c701cffa)) [@leoweyr](https://github.com/leoweyr)
+
 # [1.0.0] (2026-03-10)
 ### Bug Fixes
 
