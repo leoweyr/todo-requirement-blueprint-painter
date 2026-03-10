@@ -41,14 +41,14 @@ jobs:
 
         with:
           config: cliff.toml
-          args: --verbose --latest --strip header
+          args: --verbose --latest --strip all
 
         env:
           GITHUB_REPO: ${{ github.repository }}
 
       - name: Save PR Body to File
         run: |
-          echo "${{ steps.git_cliff_pr.outputs.content }}" > pr_body_cleaned.md
+          echo "${{ steps.git_cliff_pr.outputs.content }}" | tail -n +2 > pr_body_cleaned.md
 
       - name: Update CHANGELOG.md File
         run: |
