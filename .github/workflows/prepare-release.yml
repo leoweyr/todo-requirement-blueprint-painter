@@ -51,7 +51,7 @@ jobs:
         run: |
           if [ -f "CHANGELOG.md" ]; then
              # File exists: Prepend new changes (git-cliff intelligently handles headers).
-             npx git-cliff --config cliff.toml --verbose --prepend CHANGELOG.md
+             npx git-cliff --config cliff.toml --verbose --latest --prepend CHANGELOG.md
           else
              # File missing: Create new with full history and header.
              npx git-cliff --config cliff.toml --verbose --output CHANGELOG.md
