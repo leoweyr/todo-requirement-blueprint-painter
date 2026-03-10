@@ -25,7 +25,8 @@ body = """
                     {% if commit.breaking %}[**breaking**] {% endif %}\
                     {{ commit.message }} ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}/commit/{{ commit.id }})) \
                     [@{{ commit.author.name }}](https://github.com/{{ commit.author.name }})
-            {% endfor %}\
+            {% endfor %}
+
         {% endif %}\
     {% endfor %}\
 {% endmacro %}\
