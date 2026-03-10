@@ -37,18 +37,15 @@ jobs:
 
       - name: Generate Changelog Content for PR Body
         id: git_cliff_pr
-        uses: orhun/git-cliff-action@v3
-
-        with:
-          config: cliff.toml
-          args: --verbose --latest --strip all
-
         env:
           GITHUB_REPO: ${{ github.repository }}
 
+        run: |
+          npx git-cliff --config cliff.toml --verbose --latest --strip all > pr_body_raw.md
+
       - name: Save PR Body to File
         run: |
-          echo "${{ steps.git_cliff_pr.outputs.content }}" | tail -n +2 > pr_body_cleaned.md
+          cat pr_body_raw.md | tail -n +2 > pr_body_cleaned.md
 
       - name: Update CHANGELOG.md File
         run: |
