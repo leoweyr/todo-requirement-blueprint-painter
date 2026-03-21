@@ -156,10 +156,15 @@ export class DomainRegistry {
         }
 
         const text: string = await response.text();
-        const match: RegExpMatchArray | null = text.match(/https:\/\/img\.shields\.io\/badge\/version-([\d.]+)-blue\.svg/);
+        const match: RegExpMatchArray | null = text.match(/https:\/\/img\.shields\.io\/badge\/version-(v?[\d.]+)-blue\.svg/);
 
         if (match && match[1]) {
-            const latestVersion: string = match[1];
+            let latestVersion: string = match[1];
+            
+            // Normalize to include 'v' prefix.
+            if (!latestVersion.startsWith('v')) {
+                latestVersion = `v${latestVersion}`;
+            }
             
             // If the current version is still empty, update it too.
             if (this._trbVersion === '') {
