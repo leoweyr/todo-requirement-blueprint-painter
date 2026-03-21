@@ -79,6 +79,20 @@ class App extends Component<{}, AppState> {
         } as unknown as Pick<AppState, keyof AppState>);
     };
 
+    private _handleModalStateChange: (isOpen: boolean) => void = (isOpen: boolean): void => {
+        if (isOpen) {
+            BlueprintPaster.unbind(window);
+        } else if (this.state.isFileLoaded) {
+            BlueprintPaster.bind(
+                window,
+                this._registry,
+                this._layoutService,
+                this._viewport,
+                this._handleLayoutUpdate
+            );
+        }
+    };
+
 
 
     private _handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
@@ -258,6 +272,7 @@ class App extends Component<{}, AppState> {
                     viewport={this._viewport}
                     onLayoutRefresh={this._handleLayoutRefresh}
                     onLayoutUpdate={this._handleLayoutUpdate}
+                    onModalStateChange={this._handleModalStateChange}
                 />
 
                 {!isFileLoaded && (

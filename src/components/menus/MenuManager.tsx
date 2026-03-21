@@ -30,6 +30,7 @@ export interface MenuManagerProps {
     viewport: CanvasViewport;
     onLayoutRefresh: () => void;
     onLayoutUpdate: (result: BlueprintPrerenderCombResult) => void;
+    onModalStateChange: (isOpen: boolean) => void;
 }
 
 
@@ -226,6 +227,15 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
                 itemName: null
             }
         };
+    }
+
+    public componentDidUpdate(_prevProps: MenuManagerProps, prevState: MenuManagerState): void {
+        const wasOpen: boolean = this._checkIsAnyModalOpen(prevState);
+        const isOpen: boolean = this._checkIsAnyModalOpen(this.state);
+
+        if (wasOpen !== isOpen) {
+            this.props.onModalStateChange(isOpen);
+        }
     }
 
     public render(): ReactNode {
@@ -459,6 +469,34 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
 
     public setReanchoringEdge(edge: Edge | null): void {
         this.setState({ reanchoringEdge: edge });
+    }
+
+    public isAnyModalOpen(): boolean {
+        return this._checkIsAnyModalOpen(this.state);
+    }
+
+    private _checkIsAnyModalOpen(state: MenuManagerState): boolean {
+        const {
+            isNodeCreateModalOpen,
+            isNodeStatusCreateModalOpen,
+            isEdgeEvolutionReasonCreateModalOpen,
+            isNodeStatusEditModalOpen,
+            isEdgeEvolutionReasonEditModalOpen,
+            isNodeEditModalOpen,
+            isEdgeCreateModalOpen,
+            isEdgeEvolutionModalOpen
+        } = state;
+
+        return (
+            isNodeCreateModalOpen ||
+            isNodeStatusCreateModalOpen ||
+            isEdgeEvolutionReasonCreateModalOpen ||
+            isNodeStatusEditModalOpen ||
+            isEdgeEvolutionReasonEditModalOpen ||
+            isNodeEditModalOpen ||
+            isEdgeCreateModalOpen ||
+            isEdgeEvolutionModalOpen
+        );
     }
 }
 
