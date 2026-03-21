@@ -421,7 +421,7 @@ export class BlueprintSerializer {
              throw new Error('TRB Schema version is not set in registry. Cannot serialize blueprint.');
         }
 
-        const schemaUrl = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${registry.trbVersion}/trb.schema.json`;
+        const schemaUrl = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/v${registry.trbVersion}/trb.schema.json`;
         const header = `# yaml-language-server: $schema=${schemaUrl}\n\n`;
 
         return header + yamlOutput;
