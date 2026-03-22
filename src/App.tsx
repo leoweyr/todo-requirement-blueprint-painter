@@ -64,7 +64,7 @@ class App extends Component<{}, AppState> {
             timelineIndex: maxIndex,
             timelineIsTransition: false,
             timelineRawPosition: maxIndex
-        });
+        } as unknown as Pick<AppState, keyof AppState>);
     };
 
     private _handleLayoutRefresh: () => void = (): void => {
@@ -76,7 +76,21 @@ class App extends Component<{}, AppState> {
             timelineIndex: index,
             timelineIsTransition: isTransition,
             timelineRawPosition: rawPosition
-        });
+        } as unknown as Pick<AppState, keyof AppState>);
+    };
+
+    private _handleModalStateChange: (isOpen: boolean) => void = (isOpen: boolean): void => {
+        if (isOpen) {
+            BlueprintPaster.unbind(window);
+        } else if (this.state.isFileLoaded) {
+            BlueprintPaster.bind(
+                window,
+                this._registry,
+                this._layoutService,
+                this._viewport,
+                this._handleLayoutUpdate
+            );
+        }
     };
 
 
@@ -165,15 +179,24 @@ class App extends Component<{}, AppState> {
         // Initialize history with the starting state (empty or default).
         this._historyService.initialize();
 
-        BlueprintPaster.bind(
-            window,
-            this._registry,
-            this._layoutService,
-            this._viewport,
-            this._handleLayoutUpdate
-        );
-
         window.addEventListener('keydown', this._handleKeyDown);
+    }
+
+    public componentDidUpdate(_prevProps: {}, prevState: AppState): void {
+        const { isFileLoaded } = this.state;
+        const { isFileLoaded: wasFileLoaded } = prevState;
+
+        if (isFileLoaded && !wasFileLoaded) {
+            BlueprintPaster.bind(
+                window,
+                this._registry,
+                this._layoutService,
+                this._viewport,
+                this._handleLayoutUpdate
+            );
+        } else if (!isFileLoaded && wasFileLoaded) {
+            BlueprintPaster.unbind(window);
+        }
     }
 
     public componentWillUnmount(): void {
@@ -242,19 +265,20 @@ class App extends Component<{}, AppState> {
                     />
                 )}
 
-                <MenuManager 
-                    ref={(ref: MenuManager | null): void => { this._menuManagerRef = ref; }}
-                    registry={this._registry}
+                    <MenuManager 
+                        ref={(ref: MenuManager | null): void => { this._menuManagerRef = ref; }}
+                        registry={this._registry}
                     layoutService={this._layoutService}
                     viewport={this._viewport}
                     onLayoutRefresh={this._handleLayoutRefresh}
                     onLayoutUpdate={this._handleLayoutUpdate}
+                    onModalStateChange={this._handleModalStateChange}
                 />
 
                 {!isFileLoaded && (
                     <div style={this._getModalOverlayStyle()}>
                         <FileOpenModal 
-                            onFileLoaded={(): void => this.setState({ isFileLoaded: true })}
+                            onFileLoaded={(): void => this.setState({ isFileLoaded: true } as unknown as Pick<AppState, keyof AppState>)}
                             registry={this._registry}
                             layoutService={this._layoutService}
                             viewport={this._viewport}
@@ -359,7 +383,7 @@ class App extends Component<{}, AppState> {
                 {/* Render the nodes on top of the edges. */}
                 {displayedNodes.map((prerenderNode: PrerenderNode): ReactNode => (
                     <NodeRectangle
-                        key={prerenderNode.node.id}
+                        key={prerenderNode.node.id as string}
                         node={prerenderNode.node}
                         x={prerenderNode.x}
                         y={prerenderNode.y}

@@ -2,18 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.1.1](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v1.1.0...v1.1.1) (2026-03-21)
+### Bug Fixes
+
+* disable paste shortcut listener until blueprint is loaded ([e8728a3](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/e8728a3f8da3ba91208dbbfad387b3e66ea1e0bd)) [@leoweyr](https://github.com/leoweyr)
+* prevent blueprint paste when modals open ([2f6ff62](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/2f6ff6271f64b6fb11d66ca4e28fbd7fac370948)) [@leoweyr](https://github.com/leoweyr)
+* **serializer:** correct 'v' prefix for TRB schema version in exported file ([0d9c1b1](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/0d9c1b1378d3cc94e40ed92ccd689a44b5eafc42)) [@leoweyr](https://github.com/leoweyr)
+
+
+### DevOps
+
+* use leoweyr/github-release-workflow for release automation ([2e44aff](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/2e44aff420e97d1a674c1f546fd5d1cc7590ce3a)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Revert
+
+* **fix:serializer:** correct TRB protocol schema URL in exported blueprint ([3a9654a](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/3a9654a1544b91215b47704135cb006de21b9596)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Miscellaneous Tasks
+
+* add blank line separation between changelog sections ([bacb350](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/bacb35000d7fedd608d9eb4d085cc560c7f035b4)) [@leoweyr](https://github.com/leoweyr)
+
+
+
+
 # [1.1.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v1.0.0...v1.1.0) (2026-03-10)
+
 ### Features
 
 * update app icon to semantic TRB design and refine index.html ([ab4fc22](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/ab4fc225552c3e357868b881d81fdbcfb1320e8f)) [@leoweyr](https://github.com/leoweyr)
+
 ### DevOps
 
 * fix git-cliff change log generation by adding `--latest` flag ([b30ff8b](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/b30ff8b0cb9414d5b3a240643016844dfc4d6591)) [@leoweyr](https://github.com/leoweyr)
+
 ### Documentation
 
 * add project banner ([0cc7073](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/0cc7073c875613e8c816a315cc603892c701cffa)) [@leoweyr](https://github.com/leoweyr)
 
+
 # [1.0.0] (2026-03-10)
+
 ### Bug Fixes
 
 * **graph:** prevent edge labels from being obscured by nodes in cross-layer layouts ([ef122dc](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/ef122dc9883fc52b74abfa64826661cdbd8666a7)) [@leoweyr](https://github.com/leoweyr)
@@ -26,6 +56,7 @@ All notable changes to this project will be documented in this file.
 * **domain:** allow optional 'v' prefix in semantic version validation ([8cd04ad](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/8cd04ad34afcffa6c85a0217025e967023998deb)) [@leoweyr](https://github.com/leoweyr)
 * ensure modal input placeholders reflect TRB schema descriptions ([98a2b96](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/98a2b96dcdc21e49102b288802fa29adf528f49b)) [@leoweyr](https://github.com/leoweyr)
 * **canvas:** disable editing of system `CUT` status ([9371a46](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/9371a467b77ada0d38c652b84ee30df74cde5632)) [@leoweyr](https://github.com/leoweyr)
+
 ### Features
 
 * implement TRB specification domain model ([b14d334](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/b14d334e2da47634a7ad5bc972a1ceaed05f5205)) [@leoweyr](https://github.com/leoweyr)
@@ -75,6 +106,7 @@ All notable changes to this project will be documented in this file.
 * **canvas:** add smooth node interpolation during timeline scrubbing ([e2a5770](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/e2a577081eb2f15b07aab6967f1ed55230291cdf)) [@leoweyr](https://github.com/leoweyr)
 * **menus:** add color picker for node status and edge evolution setting ([ce2a99b](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/ce2a99b8563f18580005bb78c242cdef4519ff41)) [@leoweyr](https://github.com/leoweyr)
 * **editor-history:** add undo/redo system with state snapshotting ([2850b68](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/2850b680af692021e9f7864a82f3bbb390b51101)) [@leoweyr](https://github.com/leoweyr)
+
 ### Refactor
 
 * **domain:** remove edges from Node constructor to enforce explicit addition via method ([5f35416](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/5f3541659d034de439b29a4b2d5a700d3e21b47b)) [@leoweyr](https://github.com/leoweyr)
@@ -90,6 +122,7 @@ All notable changes to this project will be documented in this file.
 * **menus:** extract menu and modal management to menu manager ([426ad16](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/426ad166dffc3471ad5601c4d1eaee6507bb8126)) [@leoweyr](https://github.com/leoweyr)
 * **menus:** restructure components ([409de47](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/409de47dc7bb0f40c66f88e3c1e7ddbb672099af)) [@leoweyr](https://github.com/leoweyr)
 * **edge-interaction:** consolidate edge evolution editing logic ([a68bc9b](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/a68bc9ba4148928bae6ac732a0bd00196485fa85)) [@leoweyr](https://github.com/leoweyr)
+
 ### DevOps
 
 * add Vercel deployment workflow ([ad747cf](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/ad747cf729b3ba79617df2f18f481e2c55a4a958)) [@leoweyr](https://github.com/leoweyr)
@@ -101,9 +134,11 @@ All notable changes to this project will be documented in this file.
 * add workflow to automate GitHub Release creation using PR content ([ebc2a02](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/ebc2a0275c288aec27696391c7bd9b6fefe8a317)) [@leoweyr](https://github.com/leoweyr)
 * strip header, footer and version title from release PR body ([96802db](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/96802db0a45251dfdc5b45e6136e7b6c3a154874)) [@leoweyr](https://github.com/leoweyr)
 * replace failing git-cliff-action with `npx git-cliff` to resolve docker build errors ([95cf876](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/95cf8766f8d8fa3be44cd6fdb15e1fa4cca3f8f8)) [@leoweyr](https://github.com/leoweyr)
+
 ### Documentation
 
 * add MIT License ([74755bd](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/74755bd76d8b65c1eac882bfc916e22e3c945316)) [@leoweyr](https://github.com/leoweyr)
+
 ### Miscellaneous Tasks
 
 * add git-cliff for change log ([d4b61f5](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/d4b61f56d5dea1a0ff37c86cd6d7a444d5a2f6c0)) [@leoweyr](https://github.com/leoweyr)
