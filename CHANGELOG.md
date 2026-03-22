@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.1.1](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v1.1.0...v1.1.1) (2026-03-21)
+### Bug Fixes
+
+* disable paste shortcut listener until blueprint is loaded ([e8728a3](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/e8728a3f8da3ba91208dbbfad387b3e66ea1e0bd)) [@leoweyr](https://github.com/leoweyr)
+* prevent blueprint paste when modals open ([2f6ff62](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/2f6ff6271f64b6fb11d66ca4e28fbd7fac370948)) [@leoweyr](https://github.com/leoweyr)
+* **serializer:** correct 'v' prefix for TRB schema version in exported file ([0d9c1b1](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/0d9c1b1378d3cc94e40ed92ccd689a44b5eafc42)) [@leoweyr](https://github.com/leoweyr)
+
+
+### DevOps
+
+* use leoweyr/github-release-workflow for release automation ([2e44aff](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/2e44aff420e97d1a674c1f546fd5d1cc7590ce3a)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Revert
+
+* **fix:serializer:** correct TRB protocol schema URL in exported blueprint ([3a9654a](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/3a9654a1544b91215b47704135cb006de21b9596)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Miscellaneous Tasks
+
+* add blank line separation between changelog sections ([bacb350](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/bacb35000d7fedd608d9eb4d085cc560c7f035b4)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 
 # [1.1.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v1.0.0...v1.1.0) (2026-03-10)
 
