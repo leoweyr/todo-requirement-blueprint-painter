@@ -27,13 +27,13 @@ interface EdgeCreateModalState {
 
 
 class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalState> {
-    private handleDescriptionChange: (event: ChangeEvent<HTMLInputElement>) => void = (
+    private _handleDescriptionChange: (event: ChangeEvent<HTMLInputElement>) => void = (
         event: ChangeEvent<HTMLInputElement>
     ): void => {
         this.setState({ demandDescription: event.target.value });
     };
 
-    private handleTypeChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
+    private _handleTypeChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
         event: ChangeEvent<HTMLSelectElement>
     ): void => {
         const value: string = event.target.value;
@@ -44,7 +44,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         }
     };
 
-    private handleStatusChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
+    private _handleStatusChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
         event: ChangeEvent<HTMLSelectElement>
     ): void => {
         const value: string = event.target.value;
@@ -54,7 +54,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         }
     };
 
-    private handleConfirmClick: () => void = (): void => {
+    private _handleConfirmClick: () => void = (): void => {
         const { demandDescription, selectedType, selectedStatus }: EdgeCreateModalState = this.state;
         const { registry, layoutService, sourceNode, targetNode, onClose, onLayoutUpdate }: EdgeCreateModalProps = this.props;
 
@@ -92,26 +92,26 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         const { onClose }: EdgeCreateModalProps = this.props;
 
         return (
-            <div style={this.getContainerStyle()}>
-                <h2 style={this.getTitleStyle()}>Create New Edge</h2>
+            <div style={this._getContainerStyle()}>
+                <h2 style={this._getTitleStyle()}>Create New Edge</h2>
 
-                <div style={this.getFieldGroupStyle()}>
-                    <label style={this.getLabelStyle()}>Demand Description</label>
+                <div style={this._getFieldGroupStyle()}>
+                    <label style={this._getLabelStyle()}>Demand Description</label>
                     <input
                         type="text"
                         value={demandDescription}
-                        onChange={this.handleDescriptionChange}
-                        style={this.getInputStyle()}
-                        placeholder={this.getPlaceholder('Edge', 'demand_description', 'Describe the demand...')}
+                        onChange={this._handleDescriptionChange}
+                        style={this._getInputStyle()}
+                        placeholder={this._getPlaceholder('Edge', 'demand_description', 'Describe the demand...')}
                     />
                 </div>
 
-                <div style={this.getFieldGroupStyle()}>
-                    <label style={this.getLabelStyle()}>Type</label>
+                <div style={this._getFieldGroupStyle()}>
+                    <label style={this._getLabelStyle()}>Type</label>
                     <select
                         value={selectedType}
-                        onChange={this.handleTypeChange}
-                        style={this.getInputStyle()}
+                        onChange={this._handleTypeChange}
+                        style={this._getInputStyle()}
                     >
                         {Object.values(EdgeType).map((type: string): ReactNode => (
                             <option key={type} value={type}>
@@ -121,12 +121,12 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
                     </select>
                 </div>
 
-                <div style={this.getFieldGroupStyle()}>
-                    <label style={this.getLabelStyle()}>Status</label>
+                <div style={this._getFieldGroupStyle()}>
+                    <label style={this._getLabelStyle()}>Status</label>
                     <select
                         value={selectedStatus}
-                        onChange={this.handleStatusChange}
-                        style={this.getInputStyle()}
+                        onChange={this._handleStatusChange}
+                        style={this._getInputStyle()}
                     >
                         {Object.values(EdgeStatus).map((status: string): ReactNode => (
                             <option key={status} value={status}>
@@ -136,16 +136,16 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
                     </select>
                 </div>
 
-                <div style={this.getButtonGroupStyle()}>
+                <div style={this._getButtonGroupStyle()}>
                     <button
-                        style={{ ...this.getButtonStyle(), backgroundColor: '#8E8E93' }}
+                        style={{ ...this._getButtonStyle(), backgroundColor: '#8E8E93' }}
                         onClick={onClose}
                     >
                         Cancel
                     </button>
                     <button
-                        style={this.getButtonStyle()}
-                        onClick={this.handleConfirmClick}
+                        style={this._getButtonStyle()}
+                        onClick={this._handleConfirmClick}
                         disabled={!demandDescription}
                     >
                         Create
@@ -155,7 +155,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         );
     }
 
-    private getContainerStyle(): CSSProperties {
+    private _getContainerStyle(): CSSProperties {
         return {
             backgroundColor: '#ffffff',
             padding: '30px',
@@ -169,7 +169,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getTitleStyle(): CSSProperties {
+    private _getTitleStyle(): CSSProperties {
         return {
             margin: '0 0 10px 0',
             fontSize: '20px',
@@ -179,7 +179,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getFieldGroupStyle(): CSSProperties {
+    private _getFieldGroupStyle(): CSSProperties {
         return {
             display: 'flex',
             flexDirection: 'column',
@@ -187,7 +187,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getLabelStyle(): CSSProperties {
+    private _getLabelStyle(): CSSProperties {
         return {
             fontSize: '14px',
             fontWeight: 600,
@@ -195,7 +195,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getInputStyle(): CSSProperties {
+    private _getInputStyle(): CSSProperties {
         return {
             padding: '8px 12px',
             borderRadius: '6px',
@@ -206,7 +206,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getButtonGroupStyle(): CSSProperties {
+    private _getButtonGroupStyle(): CSSProperties {
         return {
             marginTop: '10px',
             display: 'flex',
@@ -215,7 +215,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getButtonStyle(): CSSProperties {
+    private _getButtonStyle(): CSSProperties {
         return {
             padding: '10px 0',
             backgroundColor: '#007AFF',
@@ -230,7 +230,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+    private _getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
         const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
 
         if (definition && definition.properties && definition.properties[propertyName]) {

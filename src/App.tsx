@@ -52,7 +52,7 @@ class App extends Component<{}, AppState> {
         this._layoutResult = result;
 
         if (result.contentBounds) {
-            const { minimumX, minimumY, maximumX, maximumY } = result.contentBounds;
+            const { minimumX, minimumY, maximumX, maximumY }: { minimumX: number; minimumY: number; maximumX: number; maximumY: number } = result.contentBounds;
             this._viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY);
         }
 
@@ -192,7 +192,7 @@ class App extends Component<{}, AppState> {
                 this._registry,
                 this._layoutService,
                 this._viewport,
-                this._handleLayoutUpdate
+                (result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)
             );
         } else if (!isFileLoaded && wasFileLoaded) {
             BlueprintPaster.unbind(window);
@@ -213,7 +213,7 @@ class App extends Component<{}, AppState> {
                 <InfiniteCanvas 
                     viewport={this._viewport}
                     layerGapCenters={layoutResult?.layerGapCenters}
-                    onContextMenu={this._handleContextMenu}
+                    onContextMenu={(event: MouseEvent): void => this._handleContextMenu(event)}
                     onClick={(): void => {
 
                         if (this._edgeDrawerRef) {
@@ -261,7 +261,7 @@ class App extends Component<{}, AppState> {
                 {isFileLoaded && layoutResult?.updateTimes && layoutResult.updateTimes.length > 1 && (
                     <TimelineSlider 
                         updateTimes={layoutResult.updateTimes}
-                        onTimeChange={this._handleTimelineChange}
+                        onTimeChange={(index: number, isTransition: boolean, rawPosition: number): void => this._handleTimelineChange(index, isTransition, rawPosition)}
                     />
                 )}
 
@@ -270,9 +270,9 @@ class App extends Component<{}, AppState> {
                         registry={this._registry}
                     layoutService={this._layoutService}
                     viewport={this._viewport}
-                    onLayoutRefresh={this._handleLayoutRefresh}
-                    onLayoutUpdate={this._handleLayoutUpdate}
-                    onModalStateChange={this._handleModalStateChange}
+                    onLayoutRefresh={(): void => this._handleLayoutRefresh()}
+                    onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)}
+                    onModalStateChange={(isOpen: boolean): void => this._handleModalStateChange(isOpen)}
                 />
 
                 {!isFileLoaded && (
@@ -282,12 +282,12 @@ class App extends Component<{}, AppState> {
                             registry={this._registry}
                             layoutService={this._layoutService}
                             viewport={this._viewport}
-                            onLayoutUpdate={this._handleLayoutUpdate}
+                            onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)}
                         />
                     </div>
                 )}
                 
-                {isFileLoaded && <Legend registry={this._registry} onContextMenu={this._handleLegendContextMenu} />}
+                {isFileLoaded && <Legend registry={this._registry} onContextMenu={(event: MouseEvent, type: 'node-status' | 'edge-evolution-reason', name: string): void => this._handleLegendContextMenu(event, type, name)} />}
             </>
         );
     }
@@ -397,7 +397,7 @@ class App extends Component<{}, AppState> {
                                 this._edgeDrawerRef.handleCompleteEdge(nodeId);
                             }
                         }}
-                        onContextMenu={this._handleNodeContextMenu}
+                        onContextMenu={(event: MouseEvent): void => this._handleNodeContextMenu(event, prerenderNode.node.id as string)}
                     />
                 ))}
             </>
