@@ -460,7 +460,10 @@ export class BlueprintSerializer {
         const yamlOutput: string = yaml.dump(serializedBlueprint, { noRefs: false });
         
         // Phase 4: Post-process YAML to use meaningful anchor names.
-        const processedYamlOutput: string = BlueprintSerializer.postProcessYaml(yamlOutput, statusAnchorMap, reasonAnchorMap);
+        const anchorProcessedYaml: string = BlueprintSerializer.postProcessYamlAnchors(yamlOutput, statusAnchorMap, reasonAnchorMap);
+
+        // Phase 5: Format YAML with proper spacing between sections and items.
+        const formattedYaml: string = BlueprintSerializer.formatYamlSpacing(anchorProcessedYaml);
 
         if (!registry.trbVersion) {
              throw new Error('TRB Schema version is not set in registry. Cannot serialize blueprint.');
@@ -468,12 +471,12 @@ export class BlueprintSerializer {
 
         const versionPath: string = registry.trbVersion.startsWith('v') ? registry.trbVersion : `v${registry.trbVersion}`;
         const schemaUrl = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${versionPath}/trb.schema.json`;
-        const header = `# yaml-language-server: $schema=${schemaUrl}\n\n`;
+        const header: string = `# yaml-language-server: $schema=${schemaUrl}\n\n\n`;
 
-        return header + processedYamlOutput;
+        return header + formattedYaml;
     }
 
-    private static postProcessYaml(
+    private static postProcessYamlAnchors(
         yamlString: string,
         statusAnchorMap: Map<string, string>,
         reasonAnchorMap: Map<string, string>
@@ -561,5 +564,90 @@ export class BlueprintSerializer {
         }
         
         return anchorMap;
+    }
+
+    private static formatYamlSpacing(yamlString: string): string {
+        const lines: string[] = yamlString.split('\n');
+        const result: string[] = [];
+        
+        let currentSection: string | null = null;
+        let previousLineWasContent: boolean = false;
+
+        for (let index: number = 0; index < lines.length; index++) {
+            const line: string = lines[index];
+            
+            // Detect top-level section headers.
+            if (line.match(/^node_statuses:\s*$/)) {
+                // Add two blank lines before top-level sections (except if at start).
+                if (result.length > 0) {
+                    result.push('');
+                    result.push('');
+                }
+
+                result.push(line);
+                currentSection = 'node_statuses';
+                previousLineWasContent = false;
+
+                continue;
+            } else if (line.match(/^edge_evolution_reasons:\s*$/)) {
+                if (result.length > 0) {
+                    result.push('');
+                    result.push('');
+                }
+
+                result.push(line);
+                currentSection = 'edge_evolution_reasons';
+                previousLineWasContent = false;
+
+                continue;
+            } else if (line.match(/^nodes:\s*$/)) {
+                if (result.length > 0) {
+                    result.push('');
+                    result.push('');
+                }
+
+                result.push(line);
+                currentSection = 'nodes';
+                previousLineWasContent = false;
+
+                continue;
+            }
+            
+            // Handle items within sections.
+            if (currentSection === 'node_statuses' || currentSection === 'edge_evolution_reasons') {
+                // Detect start of a new enum item (2-space indented key with UPPER_SNAKE_CASE).
+                if (line.match(/^  [A-Z0-9_]+:/)) {
+                    if (previousLineWasContent) {
+                        result.push('');
+                    }
+
+                    result.push(line);
+                    previousLineWasContent = true;
+
+                    continue;
+                }
+            } else if (currentSection === 'nodes') {
+                // Detect start of a new node (list item with "- id:").
+                if (line.match(/^  - id:/)) {
+                    if (previousLineWasContent) {
+                        result.push('');
+                    }
+
+                    result.push(line);
+                    previousLineWasContent = true;
+
+                    continue;
+                }
+            }
+            
+            // Regular content line.
+            if (line.trim() !== '') {
+                previousLineWasContent = true;
+            }
+
+            result.push(line);
+        }
+        
+        return result.join('\n');
     }
 }
