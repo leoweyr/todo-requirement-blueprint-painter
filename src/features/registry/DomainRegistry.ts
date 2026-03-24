@@ -22,11 +22,13 @@ export class DomainRegistry {
     private readonly _nodes: Map<string, Node>;
     private readonly _nodeStatuses: Map<string, NodeStatus>;
     private readonly _edgeEvolutionReasons: Map<string, EdgeEvolutionReason>;
+    private readonly _yamlComments: Map<string, string>;
 
     private constructor() {
         this._nodes = new Map<string, Node>();
         this._nodeStatuses = new Map<string, NodeStatus>();
         this._edgeEvolutionReasons = new Map<string, EdgeEvolutionReason>();
+        this._yamlComments = new Map<string, string>();
     }
 
     public get blueprintName(): string {
@@ -139,6 +141,7 @@ export class DomainRegistry {
         this._nodes.clear();
         this._nodeStatuses.clear();
         this._edgeEvolutionReasons.clear();
+        this._yamlComments.clear();
         this._blueprintName = 'Untitled Blueprint';
         this._trbVersion = '';
         this._schema = null;
@@ -268,5 +271,17 @@ export class DomainRegistry {
             this._edgeEvolutionReasons.delete(oldName);
             this._edgeEvolutionReasons.set(newReason.name, existingReason);
         }
+    }
+
+    public setYamlComment(key: string, comment: string): void {
+        this._yamlComments.set(key, comment);
+    }
+
+    public getYamlComment(key: string): string | undefined {
+        return this._yamlComments.get(key);
+    }
+
+    public get allYamlComments(): Map<string, string> {
+        return this._yamlComments;
     }
 }

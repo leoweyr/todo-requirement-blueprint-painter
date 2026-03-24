@@ -32,6 +32,9 @@ export class BlueprintSerializer {
         // Extract anchor names from the raw YAML before parsing.
         const anchorMap: Map<string, string> = BlueprintSerializer.extractAnchorNames(yamlString);
 
+        // Extract inline comments from the raw YAML before parsing.
+        BlueprintSerializer.extractInlineComments(yamlString, registry);
+
         try {
             data = yaml.load(yamlString, { schema: yaml.JSON_SCHEMA });
         } catch (error) {
@@ -465,6 +468,9 @@ export class BlueprintSerializer {
         // Phase 5: Format YAML with proper spacing between sections and items.
         const formattedYaml: string = BlueprintSerializer.formatYamlSpacing(anchorProcessedYaml);
 
+        // Phase 6: Restore inline comments from registry.
+        const commentedYaml: string = BlueprintSerializer.restoreInlineComments(formattedYaml, registry);
+
         if (!registry.trbVersion) {
              throw new Error('TRB Schema version is not set in registry. Cannot serialize blueprint.');
         }
@@ -473,7 +479,7 @@ export class BlueprintSerializer {
         const schemaUrl = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${versionPath}/trb.schema.json`;
         const header: string = `# yaml-language-server: $schema=${schemaUrl}\n\n\n`;
 
-        return header + formattedYaml;
+        return header + commentedYaml;
     }
 
     private static postProcessYamlAnchors(
@@ -615,8 +621,8 @@ export class BlueprintSerializer {
             
             // Handle items within sections.
             if (currentSection === 'node_statuses' || currentSection === 'edge_evolution_reasons') {
-                // Detect start of a new enum item (2-space indented key with UPPER_SNAKE_CASE).
-                if (line.match(/^  [A-Z0-9_]+:/)) {
+                // Detect start of a new enum item (2-space indented key).
+                if (line.match(/^  [a-zA-Z0-9_-]+:/)) {
                     if (previousLineWasContent) {
                         result.push('');
                     }
@@ -649,5 +655,330 @@ export class BlueprintSerializer {
         }
         
         return result.join('\n');
+    }
+
+    private static extractInlineComments(yamlString: string, registry: DomainRegistry): void {
+        const lines: string[] = yamlString.split('\n');
+        let currentSection: string | null = null;
+        let currentEnumKey: string | null = null;
+        let currentNodeId: string | null = null;
+        let currentEdgeId: string | null = null;
+
+        for (const line of lines) {
+            const comment: string | null = BlueprintSerializer.extractCommentFromLine(line);
+
+            // Detect top-level section headers.
+            if (line.match(/^node_statuses:/)) {
+                currentSection = 'node_statuses';
+                currentEnumKey = null;
+
+                if (comment) {
+                    registry.setYamlComment('node_statuses', comment);
+                }
+
+                continue;
+            } else if (line.match(/^edge_evolution_reasons:/)) {
+                currentSection = 'edge_evolution_reasons';
+                currentEnumKey = null;
+
+                if (comment) {
+                    registry.setYamlComment('edge_evolution_reasons', comment);
+                }
+
+                continue;
+            } else if (line.match(/^nodes:/)) {
+                currentSection = 'nodes';
+                currentNodeId = null;
+                currentEdgeId = null;
+
+                if (comment) {
+                    registry.setYamlComment('nodes', comment);
+                }
+
+                continue;
+            }
+
+            // Handle items within node_statuses or edge_evolution_reasons.
+            if (currentSection === 'node_statuses' || currentSection === 'edge_evolution_reasons') {
+                // Match enum key line (2-space indent).
+                const enumKeyMatch: RegExpMatchArray | null = line.match(/^  ([a-zA-Z0-9_-]+):/);
+
+                if (enumKeyMatch) {
+                    currentEnumKey = enumKeyMatch[1];
+
+                    if (comment) {
+                        registry.setYamlComment(`${currentSection}.${currentEnumKey}`, comment);
+                    }
+
+                    continue;
+                }
+
+                // Match property lines within enum (4-space indent).
+                if (currentEnumKey) {
+                    const propMatch: RegExpMatchArray | null = line.match(/^    ([a-zA-Z0-9_-]+):/);
+
+                    if (propMatch && comment) {
+                        registry.setYamlComment(`${currentSection}.${currentEnumKey}.${propMatch[1]}`, comment);
+                    }
+                }
+            } else if (currentSection === 'nodes') {
+                // Match node id line (2-space indent with list marker).
+                const nodeIdMatch: RegExpMatchArray | null = line.match(/^  - id:\s*(\S+)/);
+
+                if (nodeIdMatch) {
+                    currentNodeId = nodeIdMatch[1];
+                    currentEdgeId = null;
+
+                    if (comment) {
+                        registry.setYamlComment(`nodes.${currentNodeId}`, comment);
+                    }
+
+                    continue;
+                }
+
+                if (currentNodeId) {
+                    // Match node property lines (4-space indent).
+                    const nodePropMatch: RegExpMatchArray | null = line.match(/^    ([a-zA-Z0-9_-]+):/);
+
+                    if (nodePropMatch) {
+                        const propName: string = nodePropMatch[1];
+
+                        if (propName === 'edges') {
+                            currentEdgeId = null;
+                        }
+
+                        if (comment) {
+                            registry.setYamlComment(`nodes.${currentNodeId}.${propName}`, comment);
+                        }
+
+                        continue;
+                    }
+
+                    // Match edge id line (6-space indent with list marker).
+                    const edgeIdMatch: RegExpMatchArray | null = line.match(/^      - id:\s*(\S+)/);
+
+                    if (edgeIdMatch) {
+                        currentEdgeId = edgeIdMatch[1];
+
+                        if (comment) {
+                            registry.setYamlComment(`nodes.${currentNodeId}.edges.${currentEdgeId}`, comment);
+                        }
+
+                        continue;
+                    }
+
+                    if (currentEdgeId) {
+                        // Match edge property lines (8-space indent).
+                        const edgePropMatch: RegExpMatchArray | null = line.match(/^        ([a-zA-Z0-9_-]+):/);
+
+                        if (edgePropMatch) {
+                            const propName: string = edgePropMatch[1];
+
+                            if (comment) {
+                                registry.setYamlComment(`nodes.${currentNodeId}.edges.${currentEdgeId}.${propName}`, comment);
+                            }
+
+                            continue;
+                        }
+
+                        // Match history record start (10-space indent with list marker).
+                        const historyMatch: RegExpMatchArray | null = line.match(/^          - version:\s*(\S+)/);
+
+                        if (historyMatch) {
+                            if (comment) {
+                                registry.setYamlComment(
+                                    `nodes.${currentNodeId}.edges.${currentEdgeId}.history.${historyMatch[1]}`,
+                                    comment
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static extractCommentFromLine(line: string): string | null {
+        // Match inline comment (not starting at beginning of line, not inside quotes).
+        // Look for # that is not inside a quoted string.
+        // Simple approach: find # that is preceded by whitespace and not inside quotes.
+        const commentMatch: RegExpMatchArray | null = line.match(/\s+#\s*(.*)$/);
+
+        if (commentMatch) {
+            // Exclude yaml-language-server directive.
+            if (commentMatch[1].startsWith('yaml-language-server:')) {
+                return null;
+            }
+
+            return commentMatch[1].trim();
+        }
+
+        return null;
+    }
+
+    private static restoreInlineComments(yamlString: string, registry: DomainRegistry): string {
+        const lines: string[] = yamlString.split('\n');
+        const result: string[] = [];
+        let currentSection: string | null = null;
+        let currentEnumKey: string | null = null;
+        let currentNodeId: string | null = null;
+        let currentEdgeId: string | null = null;
+
+        for (const line of lines) {
+            let outputLine: string = line;
+
+            // Detect top-level section headers.
+            if (line.match(/^node_statuses:\s*$/)) {
+                currentSection = 'node_statuses';
+                currentEnumKey = null;
+                const comment: string | undefined = registry.getYamlComment('node_statuses');
+
+                if (comment) {
+                    outputLine = BlueprintSerializer.appendComment(line, comment);
+                }
+
+                result.push(outputLine);
+
+                continue;
+            } else if (line.match(/^edge_evolution_reasons:\s*$/)) {
+                currentSection = 'edge_evolution_reasons';
+                currentEnumKey = null;
+                const comment: string | undefined = registry.getYamlComment('edge_evolution_reasons');
+
+                if (comment) {
+                    outputLine = BlueprintSerializer.appendComment(line, comment);
+                }
+
+                result.push(outputLine);
+                continue;
+            } else if (line.match(/^nodes:\s*$/)) {
+                currentSection = 'nodes';
+                currentNodeId = null;
+                currentEdgeId = null;
+                const comment: string | undefined = registry.getYamlComment('nodes');
+
+                if (comment) {
+                    outputLine = BlueprintSerializer.appendComment(line, comment);
+                }
+
+                result.push(outputLine);
+                continue;
+            }
+
+            // Handle items within node_statuses or edge_evolution_reasons.
+            if (currentSection === 'node_statuses' || currentSection === 'edge_evolution_reasons') {
+                // Match enum key line (2-space indent).
+                const enumKeyMatch: RegExpMatchArray | null = line.match(/^  ([a-zA-Z0-9_-]+):/);
+
+                if (enumKeyMatch) {
+                    currentEnumKey = enumKeyMatch[1];
+                    const comment: string | undefined = registry.getYamlComment(`${currentSection}.${currentEnumKey}`);
+
+                    if (comment) {
+                        outputLine = BlueprintSerializer.appendComment(line, comment);
+                    }
+
+                    result.push(outputLine);
+                    continue;
+                }
+
+                // Match property lines within enum (4-space indent).
+                if (currentEnumKey) {
+                    const propMatch: RegExpMatchArray | null = line.match(/^    ([a-zA-Z0-9_-]+):/);
+
+                    if (propMatch) {
+                        const comment: string | undefined = registry.getYamlComment(
+                            `${currentSection}.${currentEnumKey}.${propMatch[1]}`
+                        );
+
+                        if (comment) {
+                            outputLine = BlueprintSerializer.appendComment(line, comment);
+                        }
+                    }
+                }
+            } else if (currentSection === 'nodes') {
+                // Match node id line (2-space indent with list marker).
+                const nodeIdMatch: RegExpMatchArray | null = line.match(/^  - id:\s*(\S+)/);
+
+                if (nodeIdMatch) {
+                    currentNodeId = nodeIdMatch[1];
+                    currentEdgeId = null;
+                    const comment: string | undefined = registry.getYamlComment(`nodes.${currentNodeId}`);
+
+                    if (comment) {
+                        outputLine = BlueprintSerializer.appendComment(line, comment);
+                    }
+
+                    result.push(outputLine);
+                    continue;
+                }
+
+                if (currentNodeId) {
+                    // Match node property lines (4-space indent).
+                    const nodePropMatch: RegExpMatchArray | null = line.match(/^    ([a-zA-Z0-9_-]+):/);
+
+                    if (nodePropMatch) {
+                        const propName: string = nodePropMatch[1];
+
+                        if (propName === 'edges') {
+                            currentEdgeId = null;
+                        }
+
+                        const comment: string | undefined = registry.getYamlComment(`nodes.${currentNodeId}.${propName}`);
+
+                        if (comment) {
+                            outputLine = BlueprintSerializer.appendComment(line, comment);
+                        }
+
+                        result.push(outputLine);
+                        continue;
+                    }
+
+                    // Match edge id line (6-space indent with list marker).
+                    const edgeIdMatch: RegExpMatchArray | null = line.match(/^      - id:\s*(\S+)/);
+
+                    if (edgeIdMatch) {
+                        currentEdgeId = edgeIdMatch[1];
+
+                        const comment: string | undefined = registry.getYamlComment(
+                            `nodes.${currentNodeId}.edges.${currentEdgeId}`
+                        );
+
+                        if (comment) {
+                            outputLine = BlueprintSerializer.appendComment(line, comment);
+                        }
+
+                        result.push(outputLine);
+                        continue;
+                    }
+
+                    if (currentEdgeId) {
+                        // Match edge property lines (8-space indent).
+                        const edgePropMatch: RegExpMatchArray | null = line.match(/^        ([a-zA-Z0-9_-]+):/);
+
+                        if (edgePropMatch) {
+                            const comment: string | undefined = registry.getYamlComment(
+                                `nodes.${currentNodeId}.edges.${currentEdgeId}.${edgePropMatch[1]}`
+                            );
+
+                            if (comment) {
+                                outputLine = BlueprintSerializer.appendComment(line, comment);
+                            }
+                        }
+                    }
+                }
+            }
+
+            result.push(outputLine);
+        }
+
+        return result.join('\n');
+    }
+
+    private static appendComment(line: string, comment: string): string {
+        // Remove trailing whitespace from line, then add "  # comment".
+        const trimmedLine: string = line.trimEnd();
+
+        return `${trimmedLine}  # ${comment}`;
     }
 }
