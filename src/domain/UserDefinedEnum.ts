@@ -5,13 +5,15 @@ export class UserDefinedEnum {
     private _name: string;
     private _description: string;
     private _metadata?: Record<string, unknown>;
+    private _anchorName?: string;
 
-    constructor(name: string, description: string, metadata?: Record<string, unknown>) {
+    constructor(name: string, description: string, metadata?: Record<string, unknown>, anchorName?: string) {
         this.validateName(name);
 
         this._name = name;
         this._description = description;
         this._metadata = metadata;
+        this._anchorName = anchorName;
     }
 
     public get name(): string {
@@ -24,6 +26,14 @@ export class UserDefinedEnum {
 
     public get metadata(): Record<string, unknown> | undefined {
         return this._metadata;
+    }
+
+    public get anchorName(): string | undefined {
+        return this._anchorName;
+    }
+
+    public set anchorName(value: string | undefined) {
+        this._anchorName = value;
     }
 
     public update(name: string, description: string, metadata?: Record<string, unknown>): void {

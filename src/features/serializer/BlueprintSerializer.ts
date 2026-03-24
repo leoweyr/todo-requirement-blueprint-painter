@@ -29,6 +29,9 @@ export class BlueprintSerializer {
             registry.blueprintName = blueprintName;
         }
 
+        // Extract anchor names from the raw YAML before parsing.
+        const anchorMap: Map<string, string> = BlueprintSerializer.extractAnchorNames(yamlString);
+
         try {
             data = yaml.load(yamlString, { schema: yaml.JSON_SCHEMA });
         } catch (error) {
@@ -131,7 +134,7 @@ export class BlueprintSerializer {
             }
 
             const blueprintData: SerializedBlueprint = data as SerializedBlueprint;
-            await BlueprintSerializer.processBlueprint(blueprintData, registry, overwrite);
+            await BlueprintSerializer.processBlueprint(blueprintData, registry, overwrite, anchorMap);
         } else if (isPartialDictionaries) {
             const fakeBlueprint: unknown = { ...data as object, nodes: [] };
             
@@ -146,7 +149,7 @@ export class BlueprintSerializer {
             }
             
             const partialData: SerializedBlueprint = data as SerializedBlueprint; 
-            await BlueprintSerializer.processBlueprint({ ...partialData, nodes: [] }, registry, overwrite);
+            await BlueprintSerializer.processBlueprint({ ...partialData, nodes: [] }, registry, overwrite, anchorMap);
         } else if (isNode) {
             // Validate against the Node definition in the schema.
             const schemaObject: { definitions?: { node: object }, $defs?: { node: object } } = schema as { definitions?: { node: object }, $defs?: { node: object } };
@@ -195,33 +198,60 @@ export class BlueprintSerializer {
         }
     }
 
-    private static async processBlueprint(blueprintData: SerializedBlueprint, registry: DomainRegistry, overwrite: boolean): Promise<void> {
+    private static async processBlueprint(
+        blueprintData: SerializedBlueprint,
+        registry: DomainRegistry,
+        overwrite: boolean,
+        anchorMap: Map<string, string>
+    ): Promise<void> {
         // Phase 1: Parse and register global dictionaries (NodeStatus and EdgeEvolutionReason).
         // This ensures that shared definitions are available before individual nodes referencing them are processed.
         if (blueprintData.node_statuses) {
-            for (const value of Object.values(blueprintData.node_statuses)) {
+            for (const [key, value] of Object.entries(blueprintData.node_statuses)) {
                 const statusName: string = value.name;
                 const statusDescription: string = value.description;
                 const statusMetadata: Record<string, unknown> | undefined = value.metadata;
 
+                // Look up original anchor name from the map.
+                const anchorKey: string = `node_statuses.${key}`;
+                const originalAnchor: string | undefined = anchorMap.get(anchorKey);
+
                 if (overwrite || !registry.getNodeStatus(statusName)) {
-                    const status: NodeStatus = new NodeStatus(statusName, statusDescription, statusMetadata);
+                    const status: NodeStatus = new NodeStatus(statusName, statusDescription, statusMetadata, originalAnchor);
 
                     registry.registerNodeStatus(status, overwrite);
+                } else {
+                    // If status exists and has no anchor, update anchor from import.
+                    const existingStatus: NodeStatus | undefined = registry.getNodeStatus(statusName);
+
+                    if (existingStatus && !existingStatus.anchorName && originalAnchor) {
+                        existingStatus.anchorName = originalAnchor;
+                    }
                 }
             }
         }
 
         if (blueprintData.edge_evolution_reasons) {
-            for (const value of Object.values(blueprintData.edge_evolution_reasons)) {
+            for (const [key, value] of Object.entries(blueprintData.edge_evolution_reasons)) {
                 const reasonName: string = value.name;
                 const reasonDescription: string = value.description;
                 const reasonMetadata: Record<string, unknown> | undefined = value.metadata;
 
+                // Look up original anchor name from the map.
+                const anchorKey: string = `edge_evolution_reasons.${key}`;
+                const originalAnchor: string | undefined = anchorMap.get(anchorKey);
+
                 if (overwrite || !registry.getEdgeEvolutionReason(reasonName)) {
-                    const reason: EdgeEvolutionReason = new EdgeEvolutionReason(reasonName, reasonDescription, reasonMetadata);
+                    const reason: EdgeEvolutionReason = new EdgeEvolutionReason(reasonName, reasonDescription, reasonMetadata, originalAnchor);
 
                     registry.registerEdgeEvolutionReason(reason, overwrite);
+                } else {
+                    // If reason exists and has no anchor, update anchor from import.
+                    const existingReason: EdgeEvolutionReason | undefined = registry.getEdgeEvolutionReason(reasonName);
+
+                    if (existingReason && !existingReason.anchorName && originalAnchor) {
+                        existingReason.anchorName = originalAnchor;
+                    }
                 }
             }
         }
@@ -340,10 +370,14 @@ export class BlueprintSerializer {
         
         const supportsEnumMetadata: boolean = (major > 1) || (major === 1 && minor >= 1);
 
-        // Phase 1: Prepare dictionaries.
+        // Phase 1: Prepare dictionaries and build anchor name mappings.
         // Collect all unique NodeStatus and EdgeEvolutionReason objects to create shared definitions.
         const plainDefinitionsStatus: Record<string, { name: string; description: string; metadata?: Record<string, unknown> }> = {};
         const plainDefinitionsReason: Record<string, { name: string; description: string; metadata?: Record<string, unknown> }> = {};
+
+        // Maps dictionary key to desired anchor name.
+        const statusAnchorMap: Map<string, string> = new Map<string, string>();
+        const reasonAnchorMap: Map<string, string> = new Map<string, string>();
 
         const getStatusDef = (item: NodeStatus): { name: string; description: string; metadata?: Record<string, unknown> } => {
             if (!plainDefinitionsStatus[item.name]) {
@@ -353,6 +387,10 @@ export class BlueprintSerializer {
                     delete obj.metadata;
                 }
                 plainDefinitionsStatus[item.name] = obj;
+
+                // Determine anchor name: use stored anchor or generate new one.
+                const anchorName: string = item.anchorName || `ref_node_status_${item.name.toLowerCase()}`;
+                statusAnchorMap.set(item.name, anchorName);
             }
 
             return plainDefinitionsStatus[item.name];
@@ -366,6 +404,10 @@ export class BlueprintSerializer {
                     delete obj.metadata;
                 }
                 plainDefinitionsReason[item.name] = obj;
+
+                // Determine anchor name: use stored anchor or generate new one.
+                const anchorName: string = item.anchorName || `ref_edge_evolution_reason_${item.name.toLowerCase()}`;
+                reasonAnchorMap.set(item.name, anchorName);
             }
 
             return plainDefinitionsReason[item.name];
@@ -415,8 +457,11 @@ export class BlueprintSerializer {
 
         // Phase 3: Generate YAML string.
         // Use noRefs: false (default) to allow aliases which makes the blueprint more compact and maintainable.
-        const yamlOutput = yaml.dump(serializedBlueprint, { noRefs: false });
+        const yamlOutput: string = yaml.dump(serializedBlueprint, { noRefs: false });
         
+        // Phase 4: Post-process YAML to use meaningful anchor names.
+        const processedYamlOutput: string = BlueprintSerializer.postProcessYaml(yamlOutput, statusAnchorMap, reasonAnchorMap);
+
         if (!registry.trbVersion) {
              throw new Error('TRB Schema version is not set in registry. Cannot serialize blueprint.');
         }
@@ -425,6 +470,96 @@ export class BlueprintSerializer {
         const schemaUrl = `https://raw.githubusercontent.com/leoweyr/todo-requirement-blueprint-spec/master/schemas/${versionPath}/trb.schema.json`;
         const header = `# yaml-language-server: $schema=${schemaUrl}\n\n`;
 
-        return header + yamlOutput;
+        return header + processedYamlOutput;
+    }
+
+    private static postProcessYaml(
+        yamlString: string,
+        statusAnchorMap: Map<string, string>,
+        reasonAnchorMap: Map<string, string>
+    ): string {
+        // Regex to find anchor definitions in dictionary keys.
+        // Matches "  Key: &ref_N" (2 spaces indentation for top-level dictionary keys).
+        const anchorDefinitionRegex = /^  ([a-zA-Z0-9_-]+):\s*&(ref_\d+)/gm;
+        
+        let match: RegExpExecArray | null;
+        const replacements: Map<string, string> = new Map<string, string>();
+        
+        while ((match = anchorDefinitionRegex.exec(yamlString)) !== null) {
+            const key: string = match[1];
+            const ref: string = match[2];
+            
+            // Look up the desired anchor name from our maps.
+            let targetAnchor: string | undefined = statusAnchorMap.get(key);
+
+            if (!targetAnchor) {
+                targetAnchor = reasonAnchorMap.get(key);
+            }
+            
+            if (targetAnchor) {
+                replacements.set(ref, targetAnchor);
+            }
+        }
+        
+        let result: string = yamlString;
+        
+        // Apply replacements sorted by ref length (longest first to avoid partial replacements).
+        const sortedRefs: string[] = Array.from(replacements.keys()).sort(
+            (refA: string, refB: string): number => refB.length - refA.length
+        );
+        
+        for (const ref of sortedRefs) {
+            const newName: string = replacements.get(ref)!;
+            
+            // Replace Definition: &ref_N -> &newName (with word boundary).
+            result = result.replace(new RegExp(`&${ref}\\b`, 'g'), `&${newName}`);
+            
+            // Replace Reference: *ref_N -> *newName (with word boundary).
+            result = result.replace(new RegExp(`\\*${ref}\\b`, 'g'), `*${newName}`);
+        }
+        
+        return result;
+    }
+
+    private static extractAnchorNames(yamlString: string): Map<string, string> {
+        const anchorMap: Map<string, string> = new Map<string, string>();
+        
+        // Parse YAML to detect which section we are in (node_statuses or edge_evolution_reasons).
+        // Then capture anchor definitions like "KEY: &anchor_name".
+        const lines: string[] = yamlString.split('\n');
+        let currentSection: string | null = null;
+        
+        for (const line of lines) {
+            // Detect section headers (top-level keys ending with colon).
+            if (line.match(/^node_statuses:\s*$/)) {
+                currentSection = 'node_statuses';
+                continue;
+            } else if (line.match(/^edge_evolution_reasons:\s*$/)) {
+                currentSection = 'edge_evolution_reasons';
+                continue;
+            } else if (line.match(/^nodes:\s*$/)) {
+                currentSection = 'nodes';
+                continue;
+            } else if (line.match(/^[a-z_]+:\s*$/)) {
+                // Any other top-level key exits our tracked sections.
+                currentSection = null;
+                continue;
+            }
+            
+            // Look for anchor definitions within tracked sections.
+            if (currentSection === 'node_statuses' || currentSection === 'edge_evolution_reasons') {
+                // Match lines like "  KEY: &anchor_name" or "  KEY: &anchor_name {...}"
+                const anchorMatch: RegExpMatchArray | null = line.match(/^  ([A-Z0-9_]+):\s*&(\S+)/);
+
+                if (anchorMatch) {
+                    const key: string = anchorMatch[1];
+                    const anchor: string = anchorMatch[2];
+                    const mapKey: string = `${currentSection}.${key}`;
+                    anchorMap.set(mapKey, anchor);
+                }
+            }
+        }
+        
+        return anchorMap;
     }
 }
