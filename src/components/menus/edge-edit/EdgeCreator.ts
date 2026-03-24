@@ -23,21 +23,13 @@ export class EdgeCreator {
     }
 
     public static create(
-        registry: DomainRegistry,
         sourceNode: Node,
         targetNode: Node,
         demandDescription: string,
         type: EdgeType,
-        status: EdgeStatus
+        status: EdgeStatus,
+        evolutionReason: EdgeEvolutionReason
     ): void {
-        const evolutionReasonName: string = 'INITIAL_MVP';
-        let evolutionReason: EdgeEvolutionReason | undefined = registry.getEdgeEvolutionReason(evolutionReasonName);
-
-        if (!evolutionReason) {
-            evolutionReason = new EdgeEvolutionReason(evolutionReasonName, 'Initial minimum viable product.');
-            registry.registerEdgeEvolutionReason(evolutionReason, true);
-        }
-
         const id: string = crypto.randomUUID();
         const version: string = '1.0.0';
         const updatedAt: string = new Date().toISOString();

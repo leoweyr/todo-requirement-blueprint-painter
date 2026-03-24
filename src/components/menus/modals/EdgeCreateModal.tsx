@@ -6,6 +6,7 @@ import { type BlueprintPrerenderCombResult } from '../../../features/graph/Bluep
 import { Node } from '../../../domain/Node';
 import { EdgeType } from '../../../domain/enums/EdgeType';
 import { EdgeStatus } from '../../../domain/enums/EdgeStatus';
+import { EdgeEvolutionReason } from '../../../domain/EdgeEvolutionReason';
 import { EdgeCreator } from '../edge-edit/EdgeCreator';
 
 
@@ -23,10 +24,14 @@ interface EdgeCreateModalState {
     demandDescription: string;
     selectedType: EdgeType;
     selectedStatus: EdgeStatus;
+    selectedReasonName: string;
 }
 
 
 class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalState> {
+    private static readonly DEFAULT_REASON_NAME: string = 'INITIAL_MVP';
+    private static readonly DEFAULT_REASON_DESC: string = 'Initial minimum viable product.';
+
     private _handleDescriptionChange: (event: ChangeEvent<HTMLInputElement>) => void = (
         event: ChangeEvent<HTMLInputElement>
     ): void => {
@@ -54,26 +59,48 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         }
     };
 
+    private _handleReasonChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
+        event: ChangeEvent<HTMLSelectElement>
+    ): void => {
+        this.setState({ selectedReasonName: event.target.value });
+    };
+
     private _handleConfirmClick: () => void = (): void => {
-        const { demandDescription, selectedType, selectedStatus }: EdgeCreateModalState = this.state;
+        const { demandDescription, selectedType, selectedStatus, selectedReasonName }: EdgeCreateModalState = this.state;
         const { registry, layoutService, sourceNode, targetNode, onClose, onLayoutUpdate }: EdgeCreateModalProps = this.props;
 
-        if (demandDescription && selectedType && selectedStatus) {
-            EdgeCreator.create(
-                registry,
-                sourceNode,
-                targetNode,
-                demandDescription,
-                selectedType,
-                selectedStatus
-            );
-            
-            // The EdgeCreator.create method modifies the sourceNode's edges in place.
-            // The registry contains the node references, so it reflects these changes immediately.
-            const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
-            onLayoutUpdate(result);
-            
-            onClose();
+        if (demandDescription && selectedType && selectedStatus && selectedReasonName) {
+            let evolutionReason: EdgeEvolutionReason | undefined = registry.getEdgeEvolutionReason(selectedReasonName);
+
+            // If selected reason is the default one and not yet in registry, create and register it.
+            if (!evolutionReason && selectedReasonName === EdgeCreateModal.DEFAULT_REASON_NAME) {
+                evolutionReason = new EdgeEvolutionReason(
+                    EdgeCreateModal.DEFAULT_REASON_NAME, 
+                    EdgeCreateModal.DEFAULT_REASON_DESC
+                );
+
+                registry.registerEdgeEvolutionReason(evolutionReason, true);
+            }
+
+            if (evolutionReason) {
+                EdgeCreator.create(
+                    sourceNode,
+                    targetNode,
+                    demandDescription,
+                    selectedType,
+                    selectedStatus,
+                    evolutionReason
+                );
+                
+                // The EdgeCreator.create method modifies the sourceNode's edges in place.
+                // The registry contains the node references, so it reflects these changes immediately.
+                const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
+                onLayoutUpdate(result);
+                
+                onClose();
+            } else {
+                console.error(`Evolution reason '${selectedReasonName}' not found.`);
+            }
         }
     };
 
@@ -83,13 +110,15 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         this.state = {
             demandDescription: '',
             selectedType: EdgeType.REQUIRES,
-            selectedStatus: EdgeStatus.ACTIVE
+            selectedStatus: EdgeStatus.ACTIVE,
+            selectedReasonName: EdgeCreateModal.DEFAULT_REASON_NAME
         };
     }
 
     public render(): ReactNode {
-        const { demandDescription, selectedType, selectedStatus }: EdgeCreateModalState = this.state;
+        const { demandDescription, selectedType, selectedStatus, selectedReasonName }: EdgeCreateModalState = this.state;
         const { onClose }: EdgeCreateModalProps = this.props;
+        const availableReasons: EdgeEvolutionReason[] = this._getAvailableReasons();
 
         return (
             <div style={this._getContainerStyle()}>
@@ -136,6 +165,21 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
                     </select>
                 </div>
 
+                <div style={this._getFieldGroupStyle()}>
+                    <label style={this._getLabelStyle()}>Evolution Reason</label>
+                    <select
+                        value={selectedReasonName}
+                        onChange={this._handleReasonChange}
+                        style={this._getInputStyle()}
+                    >
+                        {availableReasons.map((reason: EdgeEvolutionReason): ReactNode => (
+                            <option key={reason.name} value={reason.name}>
+                                {reason.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
                 <div style={this._getButtonGroupStyle()}>
                     <button
                         style={{ ...this._getButtonStyle(), backgroundColor: '#8E8E93' }}
@@ -154,6 +198,24 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
             </div>
         );
     }
+
+    private _getAvailableReasons(): EdgeEvolutionReason[] {
+        const reasons: EdgeEvolutionReason[] = this.props.registry.allEdgeEvolutionReasons;
+        const hasDefault: boolean = reasons.some((r: EdgeEvolutionReason) => r.name === EdgeCreateModal.DEFAULT_REASON_NAME);
+
+        if (!hasDefault) {
+            // Add default reason as a temporary option (not registered yet).
+            const defaultReason = new EdgeEvolutionReason(
+                EdgeCreateModal.DEFAULT_REASON_NAME,
+                EdgeCreateModal.DEFAULT_REASON_DESC
+            );
+
+            return [...reasons, defaultReason];
+        }
+
+        return reasons;
+    }
+
 
     private _getContainerStyle(): CSSProperties {
         return {
