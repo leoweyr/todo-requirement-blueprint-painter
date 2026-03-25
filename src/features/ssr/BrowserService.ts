@@ -15,7 +15,9 @@ export class BrowserService {
     private constructor() {}
 
     public async launch(): Promise<Browser> {
-        const isLocal: boolean = process.env.VERCEL_ENV === 'development' || !process.env.AWS_LAMBDA_FUNCTION_VERSION;
+        // Use a more reliable check for local development.
+        // AWS_LAMBDA_FUNCTION_NAME is present in Vercel functions.
+        const isLocal: boolean = !process.env.AWS_LAMBDA_FUNCTION_NAME;
         let executablePath: string = '';
 
         if (isLocal) {
@@ -27,6 +29,10 @@ export class BrowserService {
         } else {
             // Use @sparticuz/chromium for Vercel production environments (AWS Lambda).
             try {
+                // Configure graphics mode for serverless environments.
+                // This is often required for modern chromium versions on Lambda.
+                chromium.setGraphicsMode = false;
+
                 // IMPORTANT: Before calling executablePath(), graphics mode must be configured
                 // if not using the default. Stick to default first but
                 // ensure a valid path string is returned.
@@ -69,6 +75,8 @@ export class BrowserService {
             executablePath,
             headless: chromiumAny.headless,
             ignoreHTTPSErrors: true,
+            // Explicitly set product to 'chrome' to match the binary.
+            product: 'chrome'
         };
 
         return await puppeteerCore.default.launch(launchOptions);
