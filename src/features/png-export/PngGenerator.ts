@@ -1,10 +1,34 @@
+import type { Page } from 'puppeteer-core';
+
 import * as htmlToImage from 'html-to-image';
 import { type CSSProperties } from 'react';
 
 
 export class PngGenerator {
+    // UI elements that should be hidden in exported images.
+    public static readonly HIDDEN_SELECTORS: string[] = [
+        '.timeline-slider',
+        '.menu-manager',
+        '.legend-container',
+        '.file-open-modal-overlay'
+    ];
+
+    // Hide UI elements in a Puppeteer page context.
+    public static async hideUiElements(page: Page): Promise<void> {
+        await page.evaluate((selectors: string[]): void => {
+            selectors.forEach((selector: string): void => {
+                const elements: NodeListOf<Element> = document.querySelectorAll(selector);
+
+                elements.forEach((element: Element): void => {
+                    (element as HTMLElement).style.display = 'none';
+                });
+            });
+        }, PngGenerator.HIDDEN_SELECTORS);
+    }
+
+    // Client-side PNG generation for manual export.
     public static async generate(
-        hiddenSelectors: string[] = ['.timeline-slider', '.menu-manager', '.legend-container', '.file-open-modal-overlay']
+        hiddenSelectors: string[] = PngGenerator.HIDDEN_SELECTORS
     ): Promise<void> {
         // 1. Hide UI elements temporarily.
         const elementsToRestore: { element: HTMLElement; originalDisplay: string }[] = [];
@@ -24,20 +48,21 @@ export class PngGenerator {
             // 2. Capture the DOM using html-to-image.
             const imgData: string = await htmlToImage.toPng(document.body, {
                 filter: (node: Node): boolean => {
-                     // Check if node is an Element before calling matches.
+                    // Check if node is an Element before calling matches.
                     if (node.nodeType === 1) {  // Node.ELEMENT_NODE.
-                         const element: Element = node as Element;
-                         
-                         // Filter out noscript elements (shows "You need to enable JavaScript" message).
-                         if (element.tagName === 'NOSCRIPT') {
-                             return false;
-                         }
-                         
-                         return !hiddenSelectors.some((selector: string): boolean => element.matches(selector));
+                        const element: Element = node as Element;
+                        
+                        // Filter out noscript elements (shows "You need to enable JavaScript" message).
+                        if (element.tagName === 'NOSCRIPT') {
+                            return false;
+                        }
+                        
+                        return !hiddenSelectors.some((selector: string): boolean => element.matches(selector));
                     }
+
                     return true;
                 },
-                backgroundColor: '#f5f5f5',  // Set background color.
+                backgroundColor: '#f5f5f5',
                 style: { margin: '0', padding: '0', overflow: 'hidden' }
             });
             

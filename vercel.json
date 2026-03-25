@@ -1,6 +1,14 @@
 {
     "rewrites": [
-      { "source": "/(.*)", "has": [{ "type": "query", "key": "view", "value": "png" }], "destination": "/api/render" },
-      { "source": "/(.*)", "destination": "/index.html" }
+        {
+            "source": "/",
+            "has": [{ "type": "query", "key": "view", "value": "png" }],
+            "destination": "/api/render"
+        },
+        {
+            "source": "/:path*",
+            "has": [{ "type": "query", "key": "view", "value": "png" }],
+            "destination": "/api/render"
+        }
     ]
 }

@@ -23,8 +23,6 @@ export class RenderController {
 
         try {
             // 1. Determine target URL.
-            // Capture the current deployment's frontend.
-            // X-Forwarded-Host header usually contains the Vercel deployment domain.
             const protocol: string = (req.headers['x-forwarded-proto'] as string) || 'https';
             const host: string | undefined = (req.headers['x-forwarded-host'] as string) || req.headers.host;
 
@@ -34,12 +32,9 @@ export class RenderController {
             }
 
             // Construct the URL to visit.
-            // The 'ssr_bypass=true' parameter must be included to avoid an infinite loop.
-            // The 'view=png' parameter triggers the specific rendering mode on the frontend.
-            // Any other query parameters (like ?github=...) are passed through.
+            // Remove 'view' parameter to avoid triggering the rewrite rule again.
             const queryParams: URLSearchParams = new URLSearchParams(req.query as Record<string, string>);
-            queryParams.set('ssr_bypass', 'true');
-            queryParams.set('view', 'png');
+            queryParams.delete('view');
 
             const targetUrl: string = `${protocol}://${host}/?${queryParams.toString()}`;
             console.log(`Rendering: ${targetUrl}`);
