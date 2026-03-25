@@ -10,5 +10,10 @@
             "has": [{ "type": "query", "key": "view", "value": "png" }],
             "destination": "/api/render"
         }
-    ]
+    ],
+    "functions": {
+        "api/render.ts": {
+            "includeFiles": "src/**"
+        }
+    }
 }
