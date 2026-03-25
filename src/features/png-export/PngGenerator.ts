@@ -1,4 +1,5 @@
 import * as htmlToImage from 'html-to-image';
+import { type CSSProperties } from 'react';
 
 
 export class PngGenerator {
@@ -36,26 +37,34 @@ export class PngGenerator {
                     }
                     return true;
                 },
-                backgroundColor: '#f5f5f5'  // Set background color.
+                backgroundColor: '#f5f5f5',  // Set background color.
+                style: { margin: '0', padding: '0', overflow: 'hidden' }
             });
             
             // 3. Replace the entire app with the image.
             const img: HTMLImageElement = document.createElement('img');
             img.src = imgData;
-            img.style.width = '100%';
-            img.style.height = 'auto';
-            img.style.display = 'block';
+            
+            // Apply full-screen styles for clean capture.
+            Object.assign(img.style, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '100vw',
+                height: '100vh',
+                objectFit: 'contain',
+                backgroundColor: '#f5f5f5',
+                zIndex: '9999'
+            } as CSSProperties);
             
             document.body.innerHTML = '';
             document.body.appendChild(img);
+            document.body.classList.add('render-complete');
         } catch (error) {
             console.error('Failed to generate PNG:', error);
-            alert('Failed to generate PNG image.');
             
-            // 4. Restore UI if generation fails.
-            elementsToRestore.forEach(({ element, originalDisplay }: { element: HTMLElement; originalDisplay: string }): void => {
-                element.style.display = originalDisplay;
-            });
+            // Render error message instead of alert for headless browsers.
+            document.body.innerHTML = '<div style="color:red; padding:20px;">Failed to generate PNG image. Check console for details.</div>';
         }
     }
 }
