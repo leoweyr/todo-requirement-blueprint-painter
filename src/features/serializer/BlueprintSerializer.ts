@@ -498,7 +498,7 @@ export class BlueprintSerializer {
             const key: string = match[1];
             const ref: string = match[2];
             
-            // Look up the desired anchor name from our maps.
+            // Look up the desired anchor name from the maps.
             let targetAnchor: string | undefined = statusAnchorMap.get(key);
 
             if (!targetAnchor) {
@@ -533,7 +533,7 @@ export class BlueprintSerializer {
     private static extractAnchorNames(yamlString: string): Map<string, string> {
         const anchorMap: Map<string, string> = new Map<string, string>();
         
-        // Parse YAML to detect which section we are in (node_statuses or edge_evolution_reasons).
+        // Parse YAML to detect the current section (node_statuses or edge_evolution_reasons).
         // Then capture anchor definitions like "KEY: &anchor_name".
         const lines: string[] = yamlString.split('\n');
         let currentSection: string | null = null;
@@ -550,7 +550,7 @@ export class BlueprintSerializer {
                 currentSection = 'nodes';
                 continue;
             } else if (line.match(/^[a-z_]+:\s*$/)) {
-                // Any other top-level key exits our tracked sections.
+                // Any other top-level key exits the tracked sections.
                 currentSection = null;
                 continue;
             }

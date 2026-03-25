@@ -63,10 +63,10 @@ export class EdgeInteractionManager {
     ): void {
         if (reanchoringEdge) {
             if (evolutionTargetNode) {
-                // Re-anchoring (Evolve).
+                // Re-anchoring (Evolve) is in progress.
                 EdgeCreator.evolve(registry, reanchoringEdge, evolutionTargetNode, reasonName);
             } else {
-                // Cutting (Delete).
+                // Cutting (Delete) is in progress.
                 EdgeCreator.cut(registry, reanchoringEdge, reasonName);
             }
         }
@@ -107,7 +107,7 @@ export class EdgeInteractionManager {
         };
 
         // Pre-calculate edge sources for dynamic positioning.
-        const edgeSourceMap = new Map<string, PrerenderNode>();
+        const edgeSourceMap: Map<string, PrerenderNode> = new Map<string, PrerenderNode>();
 
         for (const prerenderNode of nodeMap.values()) {
             for (const edge of prerenderNode.node.edges) {
@@ -115,32 +115,47 @@ export class EdgeInteractionManager {
             }
         }
 
+        // Deduplicate prerenderEdges by edge.id to prevent rendering the same logical edge multiple times.
+        const seenEdgeIds: Set<string> = new Set<string>();
+        const uniquePrerenderEdges: PrerenderEdge[] = [];
+
+        for (const prerenderEdge of prerenderEdges) {
+            if (!seenEdgeIds.has(prerenderEdge.edge.id)) {
+                seenEdgeIds.add(prerenderEdge.edge.id);
+                uniquePrerenderEdges.push(prerenderEdge);
+            }
+        }
+
         return (
             <>
-                {prerenderEdges.map((prerenderEdge: PrerenderEdge): ReactNode => {
+                {uniquePrerenderEdges.map((prerenderEdge: PrerenderEdge, edgeIndex: number): ReactNode => {
                     // If this edge is currently being re-anchored, hide it.
                     if (reanchoringEdge && prerenderEdge.edge.id === reanchoringEdge.id) {
                         return null;
                     }
 
-                    const sourceNode = edgeSourceMap.get(prerenderEdge.edge.id);
+                    const sourceNode: PrerenderNode | undefined = edgeSourceMap.get(prerenderEdge.edge.id);
 
                     // Filter the history based on the timeline.
                     // If updateTimes is missing (empty graph), show everything (default behavior).
                     if (!currentTime) {
-                         const latestHistory = prerenderEdge.edge.history[prerenderEdge.edge.history.length - 1];
-                         const targetNode = latestHistory ? nodeMap.get(latestHistory.targetUpstream.id) : undefined;
+                         const latestHistory: EdgeHistoryRecord = prerenderEdge.edge.history[prerenderEdge.edge.history.length - 1];
+                         const targetNode: PrerenderNode | undefined = latestHistory ? nodeMap.get(latestHistory.targetUpstream.id) : undefined;
 
-                         return (
-                            <EdgeLine
-                                key={prerenderEdge.edge.id}
-                                {...prerenderEdge}
-                                sourceNode={sourceNode}
-                                targetNode={targetNode}
-                                onCut={(): void => handleCut(prerenderEdge.edge)}
-                                onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
-                            />
-                        );
+                         if (targetNode && latestHistory) {
+                            return (
+                                <EdgeLine
+                                    key={`edge-${prerenderEdge.edge.id}-${edgeIndex}`}
+                                    {...prerenderEdge}
+                                    sourceNode={sourceNode}
+                                    targetNode={targetNode}
+                                    historyIndex={prerenderEdge.edge.history.length - 1}
+                                    onCut={(): void => handleCut(prerenderEdge.edge)}
+                                    onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                />
+                            );
+                         }
+                         return null;
                     }
 
                     // Determine which history record to show.
@@ -166,7 +181,7 @@ export class EdgeInteractionManager {
 
                                 return (
                                     <EdgeLine
-                                        key={`${prerenderEdge.edge.id}-${nextHistoryIndex}-new-born`}
+                                        key={`edge-born-${prerenderEdge.edge.id}-${nextHistoryIndex}-${edgeIndex}`}
                                         {...prerenderEdge}
                                         sourceNode={sourceNode}
                                         targetNode={targetNode}
@@ -184,26 +199,29 @@ export class EdgeInteractionManager {
 
                     // If not in transition, just show the state at currentTime.
                     if (!timelineIsTransition) {
-                        const historyIndex = relevantHistory.length - 1;
-                        const record = relevantHistory[historyIndex];
-                        const targetNode = nodeMap.get(record.targetUpstream.id);
+                        const historyIndex: number = relevantHistory.length - 1;
+                        const record: EdgeHistoryRecord = relevantHistory[historyIndex];
+                        const targetNode: PrerenderNode | undefined = nodeMap.get(record.targetUpstream.id);
                         
-                        return (
-                             <EdgeLine
-                                key={`${prerenderEdge.edge.id}-${historyIndex}`}
-                                {...prerenderEdge}
-                                sourceNode={sourceNode}
-                                targetNode={targetNode}
-                                historyIndex={historyIndex}  // Override to show past state.
-                                onCut={(): void => handleCut(prerenderEdge.edge)}
-                                onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
-                            />
-                        );
+                        if (targetNode) {
+                            return (
+                                 <EdgeLine
+                                    key={`edge-static-${prerenderEdge.edge.id}-${historyIndex}-${edgeIndex}`}
+                                    {...prerenderEdge}
+                                    sourceNode={sourceNode}
+                                    targetNode={targetNode}
+                                    historyIndex={historyIndex}  // Override to show past state.
+                                    onCut={(): void => handleCut(prerenderEdge.edge)}
+                                    onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                />
+                            );
+                        }
+                        return null;
                     } else {
                         // Transition Mode: Show BOTH states if changed between current and next.
-                        const currentHistoryIndex = relevantHistory.length - 1;
+                        const currentHistoryIndex: number = relevantHistory.length - 1;
                         
-                        let nextHistoryIndex = currentHistoryIndex;
+                        let nextHistoryIndex: number = currentHistoryIndex;
 
                         if (nextTime) {
                              // Find the latest record created ON or BEFORE nextTime.
@@ -216,38 +234,41 @@ export class EdgeInteractionManager {
                         
                         // If the indices are the same, there is no change in this transition step.
                         if (nextHistoryIndex === currentHistoryIndex) {
-                             const record = relevantHistory[currentHistoryIndex];
-                             const targetNode = nodeMap.get(record.targetUpstream.id);
+                             const record: EdgeHistoryRecord = relevantHistory[currentHistoryIndex];
+                             const targetNode: PrerenderNode | undefined = nodeMap.get(record.targetUpstream.id);
 
-                             return (
-                                <EdgeLine
-                                    key={`${prerenderEdge.edge.id}-${currentHistoryIndex}`}
-                                    {...prerenderEdge}
-                                    sourceNode={sourceNode}
-                                    targetNode={targetNode}
-                                    historyIndex={currentHistoryIndex}
-                                    onCut={(): void => handleCut(prerenderEdge.edge)}
-                                    onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
-                                />
-                            );
+                             if (targetNode) {
+                                return (
+                                    <EdgeLine
+                                        key={`edge-trans-same-${prerenderEdge.edge.id}-${currentHistoryIndex}-${edgeIndex}`}
+                                        {...prerenderEdge}
+                                        sourceNode={sourceNode}
+                                        targetNode={targetNode}
+                                        historyIndex={currentHistoryIndex}
+                                        onCut={(): void => handleCut(prerenderEdge.edge)}
+                                        onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                    />
+                                );
+                             }
+                             return null;
                         }
                         
                         // Change detected. Compare upstream nodes.
-                        const oldRecord = prerenderEdge.edge.history[currentHistoryIndex];
-                        const newRecord = prerenderEdge.edge.history[nextHistoryIndex];
+                        const oldRecord: EdgeHistoryRecord = prerenderEdge.edge.history[currentHistoryIndex];
+                        const newRecord: EdgeHistoryRecord = prerenderEdge.edge.history[nextHistoryIndex];
                         
-                        const isUpstreamSame = oldRecord.targetUpstream.id === newRecord.targetUpstream.id;
+                        const isUpstreamSame: boolean = oldRecord.targetUpstream.id === newRecord.targetUpstream.id;
                         
                         if (isUpstreamSame) {
                             // Same Upstream -> Highlight with Reason Color.
                             // Render new version with Reason highlight.
-                            const targetNode = nodeMap.get(newRecord.targetUpstream.id);
+                            const targetNode: PrerenderNode | undefined = nodeMap.get(newRecord.targetUpstream.id);
                             
                             const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#FFD700';
 
                             return (
                                 <EdgeLine
-                                    key={`${prerenderEdge.edge.id}-${nextHistoryIndex}-yellow`}
+                                    key={`edge-trans-highlight-${prerenderEdge.edge.id}-${nextHistoryIndex}-${edgeIndex}`}
                                     {...prerenderEdge}
                                     sourceNode={sourceNode}
                                     targetNode={targetNode}
@@ -259,8 +280,8 @@ export class EdgeInteractionManager {
                             );
                         } else {
                             // Different Upstream -> Red (Old) and Reason Color (New).
-                            const oldTargetNode = nodeMap.get(oldRecord.targetUpstream.id);
-                            const newTargetNode = nodeMap.get(newRecord.targetUpstream.id);
+                            const oldTargetNode: PrerenderNode | undefined = nodeMap.get(oldRecord.targetUpstream.id);
+                            const newTargetNode: PrerenderNode | undefined = nodeMap.get(newRecord.targetUpstream.id);
 
                             const reasonColor: string = (newRecord.evolutionReason.metadata?.color as string) || '#4CAF50';
 
@@ -268,7 +289,7 @@ export class EdgeInteractionManager {
                                 <>
                                     {oldTargetNode && (
                                         <EdgeLine
-                                            key={`${prerenderEdge.edge.id}-${currentHistoryIndex}-old`}
+                                            key={`edge-trans-old-${prerenderEdge.edge.id}-${currentHistoryIndex}-${edgeIndex}`}
                                             {...prerenderEdge}
                                             sourceNode={sourceNode}
                                             targetNode={oldTargetNode}
@@ -281,7 +302,7 @@ export class EdgeInteractionManager {
 
                                     {newTargetNode && (
                                         <EdgeLine
-                                            key={`${prerenderEdge.edge.id}-${nextHistoryIndex}-new`}
+                                            key={`edge-trans-new-${prerenderEdge.edge.id}-${nextHistoryIndex}-${edgeIndex}`}
                                             {...prerenderEdge}
                                             sourceNode={sourceNode}
                                             targetNode={newTargetNode}

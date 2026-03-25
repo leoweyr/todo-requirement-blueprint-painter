@@ -1,3 +1,4 @@
+import { type GitHubFileContent } from './GitHubFileContent';
 import { type GitHubRepository } from './GitHubRepository';
 import { type TrbManifest } from './TrbManifest';
 
@@ -54,17 +55,17 @@ export class GitHubClient {
     }
 
     public async getFileContent(owner: string, repository: string, path: string): Promise<string | null> {
-        if (!this._token) {
-            throw new Error('GitHub token is not set.');
+        const url: string = `https://api.github.com/repos/${owner}/${repository}/contents/${path}`;
+
+        const headers: Record<string, string> = {
+            'Accept': 'application/vnd.github.v3+json'
+        };
+
+        if (this._token) {
+            headers['Authorization'] = `token ${this._token}`;
         }
 
-        const url: string = `https://api.github.com/repos/${owner}/${repository}/contents/${path}`;
-        const response: Response = await fetch(url, {
-            headers: {
-                'Authorization': `token ${this._token}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
+        const response: Response = await fetch(url, { headers });
 
         if (response.status === 404) {
             return null;
@@ -74,7 +75,7 @@ export class GitHubClient {
             throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
         }
 
-        const data: any = await response.json();
+        const data: GitHubFileContent = await response.json();
         
         if (data.encoding === 'base64' && data.content) {
             try {

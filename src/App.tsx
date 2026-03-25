@@ -1,6 +1,7 @@
 import { Component, type ReactNode, type MouseEvent, type CSSProperties } from 'react';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
+import { Edge } from './domain/Edge';
 import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
 import { EdgeInteractionManager } from './components/canvas/edge-interaction/EdgeInteractionManager';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
@@ -17,6 +18,8 @@ import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb'
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
 import { type PrerenderNode } from './features/graph/PrerenderNode';
 import { DomainRegistry } from './features/registry/DomainRegistry';
+import { GitHubLoader } from './features/github/GitHubLoader';
+import { PngGenerator } from './features/png-export/PngGenerator';
 
 
 interface AppState {
@@ -93,8 +96,6 @@ class App extends Component<{}, AppState> {
         }
     };
 
-
-
     private _handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         if (this._menuManagerRef) {
             this._menuManagerRef.openGlobalContextMenu(event);
@@ -123,9 +124,9 @@ class App extends Component<{}, AppState> {
         }
     };
 
-    private _handleKeyDown: (event: KeyboardEvent) => void = async (event: KeyboardEvent): Promise<void> => {
-        // Undo: Ctrl+Z
-        // Redo: Ctrl+Y or Ctrl+Shift+Z
+    private _handleKeyDown: (event: KeyboardEvent) => Promise<void> = async (event: KeyboardEvent): Promise<void> => {
+        // Undo: Ctrl+Z.
+        // Redo: Ctrl+Y or Ctrl+Shift+Z.
         if (event.ctrlKey || event.metaKey) {
             if (event.key === 'z' || event.key === 'Z') {
                 if (event.shiftKey) {
@@ -180,11 +181,43 @@ class App extends Component<{}, AppState> {
         this._historyService.initialize();
 
         window.addEventListener('keydown', this._handleKeyDown);
+
+        // Check for ?github=owner/repo
+        const urlParams: URLSearchParams = new URLSearchParams(window.location.search);
+        const repoParam: string | null = urlParams.get('github');
+        const viewMode: string | null = urlParams.get('view');
+
+        if (repoParam) {
+            const [owner, repoName]: string[] = repoParam.split('/');
+
+            if (owner && repoName) {
+                try {
+                    await GitHubLoader.loadFromRepository(
+                        owner,
+                        repoName,
+                        this._registry,
+                        this._layoutService,
+                        this._viewport,
+                        (result) => this._handleLayoutUpdate(result)
+                    );
+                    
+                    this.setState({ isFileLoaded: true } as unknown as Pick<AppState, keyof AppState>);
+
+                    if (viewMode === 'png') {
+                        // Wait for rendering to complete (e.g., fonts, layout).
+                        setTimeout(() => this._generatePng(), 1500);
+                    }
+                } catch (error) {
+                    console.error('Failed to load from GitHub:', error);
+                    alert(`Failed to load from GitHub: ${(error as Error).message}`);
+                }
+            }
+        }
     }
 
     public componentDidUpdate(_prevProps: {}, prevState: AppState): void {
-        const { isFileLoaded } = this.state;
-        const { isFileLoaded: wasFileLoaded } = prevState;
+        const { isFileLoaded }: AppState = this.state;
+        const { isFileLoaded: wasFileLoaded }: AppState = prevState;
 
         if (isFileLoaded && !wasFileLoaded) {
             BlueprintPaster.bind(
@@ -233,10 +266,10 @@ class App extends Component<{}, AppState> {
                         viewport={this._viewport}
                         prerenderNodes={layoutResult?.prerenderNodes || []}
                         onEdgeConnect={(sourceId: string, targetId: string): void => {
-                            const reanchoringEdge = this._menuManagerRef?.reanchoringEdge;
+                            const reanchoringEdge: Edge | null | undefined = this._menuManagerRef?.reanchoringEdge;
 
                             if (reanchoringEdge) {
-                                const targetNode = this._registry.getNode(targetId);
+                                const targetNode: Node | undefined = this._registry.getNode(targetId);
 
                                 if (targetNode && this._menuManagerRef) {
                                     this._menuManagerRef.openEdgeEvolutionModal(reanchoringEdge, targetNode);
@@ -259,24 +292,28 @@ class App extends Component<{}, AppState> {
                 </InfiniteCanvas>
 
                 {isFileLoaded && layoutResult?.updateTimes && layoutResult.updateTimes.length > 1 && (
-                    <TimelineSlider 
-                        updateTimes={layoutResult.updateTimes}
-                        onTimeChange={(index: number, isTransition: boolean, rawPosition: number): void => this._handleTimelineChange(index, isTransition, rawPosition)}
-                    />
+                    <div className="timeline-slider">
+                        <TimelineSlider 
+                            updateTimes={layoutResult.updateTimes}
+                            onTimeChange={(index: number, isTransition: boolean, rawPosition: number): void => this._handleTimelineChange(index, isTransition, rawPosition)}
+                        />
+                    </div>
                 )}
 
-                    <MenuManager 
-                        ref={(ref: MenuManager | null): void => { this._menuManagerRef = ref; }}
-                        registry={this._registry}
-                    layoutService={this._layoutService}
-                    viewport={this._viewport}
-                    onLayoutRefresh={(): void => this._handleLayoutRefresh()}
-                    onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)}
-                    onModalStateChange={(isOpen: boolean): void => this._handleModalStateChange(isOpen)}
-                />
+                    <div className="menu-manager">
+                        <MenuManager 
+                            ref={(ref: MenuManager | null): void => { this._menuManagerRef = ref; }}
+                            registry={this._registry}
+                            layoutService={this._layoutService}
+                            viewport={this._viewport}
+                            onLayoutRefresh={(): void => this._handleLayoutRefresh()}
+                            onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)}
+                            onModalStateChange={(isOpen: boolean): void => this._handleModalStateChange(isOpen)}
+                        />
+                    </div>
 
                 {!isFileLoaded && (
-                    <div style={this._getModalOverlayStyle()}>
+                    <div className="file-open-modal-overlay" style={this._getModalOverlayStyle()}>
                         <FileOpenModal 
                             onFileLoaded={(): void => this.setState({ isFileLoaded: true } as unknown as Pick<AppState, keyof AppState>)}
                             registry={this._registry}
@@ -301,7 +338,7 @@ class App extends Component<{}, AppState> {
         if (!this._layoutResult) return null;
 
         const { prerenderNodes: latestNodes, prerenderEdges, updateTimes, frames }: BlueprintPrerenderCombResult = this._layoutResult;
-        const reanchoringEdge = this._menuManagerRef?.reanchoringEdge;
+        const reanchoringEdge: Edge | null = this._menuManagerRef?.reanchoringEdge || null;
         const { timelineIndex, timelineIsTransition, timelineRawPosition }: AppState = this.state;
 
         // Interpolation Logic.
@@ -344,6 +381,7 @@ class App extends Component<{}, AppState> {
              
              // Handle Nodes that appear ONLY in End Frame.
              endFrame.forEach((endNode: PrerenderNode): void => {
+
                  if (!processedIds.has(endNode.node.id)) {
                      // New Node: Use End Position.
                      displayedNodes.push(endNode);
@@ -359,17 +397,17 @@ class App extends Component<{}, AppState> {
         displayedNodes.forEach((node: PrerenderNode): void => { nodeMap.set(node.node.id, node); });
 
         // Represents the current time point.
-        const currentTime = updateTimes && updateTimes[timelineIndex];
+        const currentTime: string | undefined = updateTimes && updateTimes[timelineIndex];
 
         // Represents the next time point (if in transition).
-        const nextTime = updateTimes && updateTimes[timelineIndex + 1];
+        const nextTime: string | undefined = updateTimes && updateTimes[timelineIndex + 1];
 
         return (
             <>
                 {/* Render the edges behind the nodes. */}
                 {EdgeInteractionManager.renderEdges(
                     prerenderEdges,
-                    reanchoringEdge || null,
+                    reanchoringEdge,
                     currentTime,
                     nextTime,
                     timelineIsTransition,
@@ -402,6 +440,14 @@ class App extends Component<{}, AppState> {
                 ))}
             </>
         );
+    }
+
+    private async _generatePng(): Promise<void> {
+        await PngGenerator.generate([
+            '.timeline-slider',
+            '.menu-manager',
+            '.file-open-modal-overlay'
+        ]);
     }
 
     private _getModalOverlayStyle(): CSSProperties {
