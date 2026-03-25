@@ -1,5 +1,5 @@
-import { EdgeType } from '../../domain/enums/EdgeType.ts';
-import { EdgeStatus } from '../../domain/enums/EdgeStatus.ts';
+import { EdgeType } from '../../domain/enums/EdgeType';
+import { EdgeStatus } from '../../domain/enums/EdgeStatus';
 
 
 export interface SerializedEdgeHistory {

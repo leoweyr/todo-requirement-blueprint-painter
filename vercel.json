@@ -12,8 +12,9 @@
         }
     ],
     "functions": {
-        "api/render.ts": {
-            "includeFiles": "src/**"
+        "api/render.js": {
+            "maxDuration": 30,
+            "memory": 1024
         }
     }
 }

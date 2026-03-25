@@ -1,6 +1,9 @@
+// SSR entry point for Vercel Serverless Functions.
+// This file is bundled by esbuild into api/render.js.
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-import { RenderController } from '../src/api/controllers/RenderController';
+import { RenderController } from './controllers/RenderController';
 
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {

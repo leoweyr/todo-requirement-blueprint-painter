@@ -1,4 +1,4 @@
-import { type SerializedEdge } from './SerializedEdge.ts';
+import { type SerializedEdge } from './SerializedEdge';
 
 
 export interface SerializedNode {

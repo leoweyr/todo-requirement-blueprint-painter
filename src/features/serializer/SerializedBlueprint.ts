@@ -1,4 +1,4 @@
-import { type SerializedNode } from './SerializedNode.ts';
+import { type SerializedNode } from './SerializedNode';
 
 
 export interface SerializedBlueprint {
