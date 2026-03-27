@@ -14,7 +14,8 @@
     "functions": {
         "api/render.js": {
             "maxDuration": 30,
-            "memory": 1024
+            "memory": 1024,
+            "includeFiles": "node_modules/@sparticuz/chromium-min/**,node_modules/puppeteer-core/**"
         }
     }
 }
