@@ -28,23 +28,25 @@ export class BrowserService {
             console.log('Using local Puppeteer Chromium:', executablePath);
         } else {
             // Use @sparticuz/chromium for Vercel production environments (AWS Lambda).
+            console.log('Environment check - Running in Lambda/Vercel');
+            console.log('AWS_LAMBDA_FUNCTION_NAME:', process.env.AWS_LAMBDA_FUNCTION_NAME);
+            
             try {
-                // Configure graphics mode for serverless environments.
-                // This is often required for modern chromium versions on Lambda.
+                // CRITICAL: Must set graphics mode BEFORE calling executablePath().
+                // This ensures the correct binary variant is selected.
                 chromium.setGraphicsMode = false;
 
-                // IMPORTANT: Before calling executablePath(), graphics mode must be configured
-                // if not using the default. Stick to default first but
-                // ensure a valid path string is returned.
-                // Note: @sparticuz/chromium sometimes downloads to /tmp.
+                // Call executablePath without arguments to use default extraction logic.
+                // @sparticuz/chromium will extract to /tmp and return the correct path.
                 executablePath = await chromium.executablePath();
 
-                // If executablePath returns undefined or empty, it might be that the
-                // package is not correctly detecting the environment or the binary is missing.
-                if (!executablePath) {
-                    throw new Error('Chromium executable path is empty.');
-                }
+                console.log('Chromium executablePath returned:', executablePath);
                 
+                // Verify the path is valid and not from Puppeteer's cache.
+                if (!executablePath || executablePath.includes('.cache/puppeteer')) {
+                    throw new Error(`Invalid chromium path: ${executablePath}. Expected @sparticuz/chromium path, got Puppeteer cache path.`);
+                }
+
                 console.log('Using Vercel Chromium:', executablePath);
             } catch (error) {
                  // Fallback or detailed error logging.
@@ -57,27 +59,35 @@ export class BrowserService {
     }
 
     private async _launchBrowser(isLocal: boolean, executablePath: string): Promise<Browser> {
-        // Dynamically import puppeteer-core to avoid bundling issues. 
-        // Standard import is typically acceptable for serverless environments.
+        // Import puppeteer-core statically at the top level.
         const puppeteerCore: any = await import('puppeteer-core');
         
         // Cast to any to bypass type mismatch between @sparticuz/chromium and puppeteer-core.
-        // This also handles missing properties in @sparticuz/chromium type definitions.
         const chromiumAny: any = chromium as any;
         
         // For Vercel/AWS Lambda, specific args are required.
         // @sparticuz/chromium provides these via chromium.args.
-        const args = isLocal ? [] : [...chromium.args, '--disable-gpu', '--disable-dev-shm-usage', '--disable-setuid-sandbox', '--no-sandbox'];
+        const args: string[] = isLocal 
+            ? [] 
+            : [
+                ...chromium.args,
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--disable-setuid-sandbox',
+                '--no-sandbox',
+                '--single-process',
+                '--no-zygote'
+            ];
 
         const launchOptions: any = {
             args,
-            defaultViewport: chromiumAny.defaultViewport,
+            defaultViewport: chromiumAny.defaultViewport || { width: 1920, height: 1080 },
             executablePath,
-            headless: chromiumAny.headless,
-            ignoreHTTPSErrors: true,
-            // Explicitly set product to 'chrome' to match the binary.
-            product: 'chrome'
+            headless: chromiumAny.headless !== false ? true : chromiumAny.headless,
+            ignoreHTTPSErrors: true
         };
+
+        console.log('Launch options:', JSON.stringify(launchOptions, null, 2));
 
         return await puppeteerCore.default.launch(launchOptions);
     }
