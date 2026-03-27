@@ -1,6 +1,6 @@
 import type { Page } from 'puppeteer-core';
 
-import { PngGenerator } from '../png-export/PngGenerator';
+import { PagePreparer } from './PagePreparer';
 
 
 export class ScreenshotService {
@@ -23,7 +23,7 @@ export class ScreenshotService {
         }
 
         // 3. Prepare the page for PNG export.
-        await PngGenerator.hideUiElements(page);
+        await PagePreparer.hideUiElements(page);
 
         // 4. Take a full page screenshot.
         const buffer: Buffer = await page.screenshot({ type: 'png', fullPage: true, encoding: 'binary' }) as Buffer;

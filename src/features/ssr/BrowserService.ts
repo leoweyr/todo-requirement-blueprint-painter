@@ -1,8 +1,13 @@
 import type { Browser, Page } from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium-min';
 
 
 export class BrowserService {
+    // URL to download Chromium binary pack for Lambda environments.
+    // Using the official release from @sparticuz/chromium GitHub.
+    // Vercel Functions run on x64 architecture.
+    private static readonly CHROMIUM_PACK_URL: string = 'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar';
+
     private static _instance: BrowserService;
 
     public static get instance(): BrowserService {
@@ -27,7 +32,8 @@ export class BrowserService {
             executablePath = localPuppeteer.default.executablePath();
             console.log('Using local Puppeteer Chromium:', executablePath);
         } else {
-            // Use @sparticuz/chromium for Vercel production environments (AWS Lambda).
+            // Use @sparticuz/chromium-min for Vercel production environments (AWS Lambda).
+            // The -min package requires specifying a remote URL for the Chromium binary pack.
             console.log('Environment check - Running in Lambda/Vercel');
             console.log('AWS_LAMBDA_FUNCTION_NAME:', process.env.AWS_LAMBDA_FUNCTION_NAME);
             
@@ -36,9 +42,11 @@ export class BrowserService {
                 // This ensures the correct binary variant is selected.
                 chromium.setGraphicsMode = false;
 
-                // Call executablePath without arguments to use default extraction logic.
-                // @sparticuz/chromium will extract to /tmp and return the correct path.
-                executablePath = await chromium.executablePath();
+                // Call executablePath with the remote URL for the Chromium pack.
+                // @sparticuz/chromium-min will download and extract to /tmp on first run.
+                console.log('Downloading Chromium from:', BrowserService.CHROMIUM_PACK_URL);
+
+                executablePath = await chromium.executablePath(BrowserService.CHROMIUM_PACK_URL);
 
                 console.log('Chromium executablePath returned:', executablePath);
                 
