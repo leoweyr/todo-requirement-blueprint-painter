@@ -1,19 +1,23 @@
 // Build script for SSR bundle.
-// Bundles src/ssr-entry.ts into api/render.js for Vercel Serverless Functions.
+// Bundles src/api/render.ts into api/render.js for Vercel Serverless Functions.
 
 import * as esbuild from 'esbuild';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 
 
 // Ensure the api directory exists.
 await mkdir('api', { recursive: true });
+
+// Create a package.json in api/ to force CommonJS mode.
+// This overrides the root package.json's "type": "module".
+await writeFile('api/package.json', JSON.stringify({ type: 'commonjs' }, null, 4));
 
 await esbuild.build({
     entryPoints: ['src/api/render.ts'],
     bundle: true,
     platform: 'node',
     target: 'node18',
-    format: 'esm',
+    format: 'cjs',
     outfile: 'api/render.js',
     external: [
         // Vercel provides these at runtime.
@@ -22,7 +26,7 @@ await esbuild.build({
         'puppeteer',
         // Puppeteer-core must be available at runtime.
         'puppeteer-core',
-        // @sparticuz/chromium-min must be external - it uses CommonJS internally.
+        // @sparticuz/chromium-min must be external.
         // Vercel will install it from dependencies and provide at runtime.
         '@sparticuz/chromium-min',
     ],
