@@ -12,7 +12,7 @@
         }
     ],
     "functions": {
-        "api/render.js": {
+        "api/render.cjs": {
             "maxDuration": 30,
             "memory": 1024
         }

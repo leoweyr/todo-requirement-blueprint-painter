@@ -14,7 +14,7 @@ await esbuild.build({
     platform: 'node',
     target: 'node18',
     format: 'cjs',  // Use CommonJS to support dynamic require() in dependencies.
-    outfile: 'api/render.js',
+    outfile: 'api/render.cjs',
     external: [
         // Vercel provides these at runtime.
         '@vercel/node',
@@ -30,4 +30,4 @@ await esbuild.build({
     }
 });
 
-console.log('SSR bundle built successfully: api/render.js');
+console.log('SSR bundle built successfully: api/render.cjs');
