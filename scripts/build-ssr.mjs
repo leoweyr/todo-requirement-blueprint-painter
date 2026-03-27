@@ -13,7 +13,7 @@ await esbuild.build({
     bundle: true,
     platform: 'node',
     target: 'node18',
-    format: 'esm',
+    format: 'cjs',  // Use CommonJS to support dynamic require() in dependencies.
     outfile: 'api/render.js',
     external: [
         // Vercel provides these at runtime.
