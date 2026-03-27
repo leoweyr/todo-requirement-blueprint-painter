@@ -20,9 +20,9 @@ export class BrowserService {
     private constructor() {}
 
     public async launch(): Promise<Browser> {
-        // Use a more reliable check for local development.
-        // AWS_LAMBDA_FUNCTION_NAME is present in Vercel functions.
-        const isLocal: boolean = !process.env.AWS_LAMBDA_FUNCTION_NAME;
+        // Detect Vercel/serverless environment.
+        // VERCEL is set in Vercel deployments. AWS_LAMBDA_FUNCTION_NAME is for AWS Lambda.
+        const isLocal: boolean = !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME;
         let executablePath: string = '';
 
         if (isLocal) {
@@ -34,7 +34,8 @@ export class BrowserService {
         } else {
             // Use @sparticuz/chromium-min for Vercel production environments (AWS Lambda).
             // The -min package requires specifying a remote URL for the Chromium binary pack.
-            console.log('Environment check - Running in Lambda/Vercel');
+            console.log('Environment check - Running in Vercel/Lambda');
+            console.log('VERCEL:', process.env.VERCEL);
             console.log('AWS_LAMBDA_FUNCTION_NAME:', process.env.AWS_LAMBDA_FUNCTION_NAME);
             
             try {
