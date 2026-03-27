@@ -30,37 +30,20 @@ export class BrowserService {
             const puppeteerPkg: string = 'puppeteer';
             const localPuppeteer: any = await import(puppeteerPkg);
             executablePath = localPuppeteer.default.executablePath();
-            console.log('Using local Puppeteer Chromium:', executablePath);
         } else {
             // Use @sparticuz/chromium-min for Vercel production environments (AWS Lambda).
             // The -min package requires specifying a remote URL for the Chromium binary pack.
-            console.log('Environment check - Running in Vercel/Lambda');
-            console.log('VERCEL:', process.env.VERCEL);
-            console.log('AWS_LAMBDA_FUNCTION_NAME:', process.env.AWS_LAMBDA_FUNCTION_NAME);
-            
-            try {
-                // CRITICAL: Must set graphics mode BEFORE calling executablePath().
-                // This ensures the correct binary variant is selected.
-                chromium.setGraphicsMode = false;
+            // CRITICAL: Must set graphics mode BEFORE calling executablePath().
+            // This ensures the correct binary variant is selected.
+            chromium.setGraphicsMode = false;
 
-                // Call executablePath with the remote URL for the Chromium pack.
-                // @sparticuz/chromium-min will download and extract to /tmp on first run.
-                console.log('Downloading Chromium from:', BrowserService.CHROMIUM_PACK_URL);
+            // Call executablePath with the remote URL for the Chromium pack.
+            // @sparticuz/chromium-min will download and extract to /tmp on first run.
+            executablePath = await chromium.executablePath(BrowserService.CHROMIUM_PACK_URL);
 
-                executablePath = await chromium.executablePath(BrowserService.CHROMIUM_PACK_URL);
-
-                console.log('Chromium executablePath returned:', executablePath);
-                
-                // Verify the path is valid and not from Puppeteer's cache.
-                if (!executablePath || executablePath.includes('.cache/puppeteer')) {
-                    throw new Error(`Invalid chromium path: ${executablePath}. Expected @sparticuz/chromium path, got Puppeteer cache path.`);
-                }
-
-                console.log('Using Vercel Chromium:', executablePath);
-            } catch (error) {
-                 // Fallback or detailed error logging.
-                 console.error('Failed to get chromium executable path:', error);
-                 throw error;
+            // Verify the path is valid and not from Puppeteer's cache.
+            if (!executablePath || executablePath.includes('.cache/puppeteer')) {
+                throw new Error(`Invalid chromium path: ${executablePath}. Expected @sparticuz/chromium path, got Puppeteer cache path.`);
             }
         }
 
@@ -95,8 +78,6 @@ export class BrowserService {
             headless: chromiumAny.headless !== false ? true : chromiumAny.headless,
             ignoreHTTPSErrors: true
         };
-
-        console.log('Launch options:', JSON.stringify(launchOptions, null, 2));
 
         return await puppeteerCore.default.launch(launchOptions);
     }
