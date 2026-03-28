@@ -64,10 +64,12 @@ export class GitHubLoader {
         let normalizedVersion: string | undefined = undefined;
 
         if (trbVersion) {
-             normalizedVersion = trbVersion.startsWith('v') ? trbVersion : `v${trbVersion}`;
+            normalizedVersion = trbVersion.startsWith('v') ? trbVersion : `v${trbVersion}`;
         }
 
-        await BlueprintSerializer.fromYaml(content, registry, normalizedVersion, repoName);
+        const blueprintName: string = GitHubLoader._extractBlueprintNameFromPath(blueprintPath, repoName);
+
+        await BlueprintSerializer.fromYaml(content, registry, normalizedVersion, blueprintName);
 
         // 5. Apply interceptor to all nodes if in read-only mode.
         if (GitHubLoader._interceptor && ReadOnlyView.instance.isReadOnly()) {
@@ -83,6 +85,18 @@ export class GitHubLoader {
             const { minimumX, minimumY, maximumX, maximumY }: { minimumX: number; minimumY: number; maximumX: number; maximumY: number } = result.contentBounds;
             viewport.setContentBounds(minimumX, minimumY, maximumX, maximumY, 50);
         }
+    }
+
+    private static _extractBlueprintNameFromPath(filePath: string, fallbackName: string): string {
+        const pathSegments: string[] = filePath.split('/');
+        const fileNameWithExtension: string = pathSegments[pathSegments.length - 1] || fallbackName;
+        const blueprintName: string = fileNameWithExtension.replace(/\.[^/.]+$/, '');
+
+        if (blueprintName.length === 0) {
+            return fallbackName;
+        }
+
+        return blueprintName;
     }
 
     private static _applyInterceptorToNodes(registry: DomainRegistry, interceptor: NodeInterceptor): void {

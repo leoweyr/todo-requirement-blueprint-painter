@@ -292,7 +292,7 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
             await this._loadBlueprintFromGitHub(owner, repository.name, manifestBlueprintPath, manifestTrbVersion);
         } else {
             // Create new empty blueprint.
-            await this._createNewBlueprintFromGitHub(repository.name, manifestTrbVersion);
+            await this._createNewBlueprintFromGitHub(repository.name, manifestBlueprintPath, manifestTrbVersion);
         }
     };
 
@@ -313,7 +313,8 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
 
             if (content) {
                 const normalizedVersion: string = trbVersion.startsWith('v') ? trbVersion : `v${trbVersion}`;
-                await BlueprintSerializer.fromYaml(content, registry, normalizedVersion, repositoryName);
+                const blueprintName: string = this._extractBlueprintNameFromPath(filePath, repositoryName);
+                await BlueprintSerializer.fromYaml(content, registry, normalizedVersion, blueprintName);
             }
 
             const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
@@ -332,14 +333,14 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
         }
     }
 
-    private async _createNewBlueprintFromGitHub(repositoryName: string, trbVersion: string): Promise<void> {
+    private async _createNewBlueprintFromGitHub(repositoryName: string, filePath: string, trbVersion: string): Promise<void> {
         const { registry, layoutService, onLayoutUpdate, onFileLoaded }: FileOpenModalProps = this.props;
 
         this.setState({ isLoadingFile: true });
 
         try {
             registry.clear();
-            registry.blueprintName = repositoryName;
+            registry.blueprintName = this._extractBlueprintNameFromPath(filePath, repositoryName);
 
             const normalizedVersion: string = trbVersion.startsWith('v') ? trbVersion : `v${trbVersion}`;
             registry.trbVersion = normalizedVersion;
@@ -361,6 +362,18 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
         } finally {
             this.setState({ isLoadingFile: false });
         }
+    }
+
+    private _extractBlueprintNameFromPath(filePath: string, fallbackName: string): string {
+        const pathSegments: string[] = filePath.split('/');
+        const fileNameWithExtension: string = pathSegments[pathSegments.length - 1] || fallbackName;
+        const blueprintName: string = fileNameWithExtension.replace(/\.[^/.]+$/, '');
+
+        if (blueprintName.length === 0) {
+            return fallbackName;
+        }
+
+        return blueprintName;
     }
 
     public constructor(props: FileOpenModalProps) {
