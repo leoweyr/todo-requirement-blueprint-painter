@@ -4,6 +4,12 @@ export interface TrbManifestBlueprint {
 }
 
 
+export interface TrbManifestInterceptor {
+    path: string;
+}
+
+
 export interface TrbManifest {
     blueprint: TrbManifestBlueprint;
+    interceptor?: TrbManifestInterceptor;
 }

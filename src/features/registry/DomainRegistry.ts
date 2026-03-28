@@ -74,6 +74,10 @@ export class DomainRegistry {
         return this._nodes.get(id);
     }
 
+    public getAllNodes(): Node[] {
+        return Array.from(this._nodes.values());
+    }
+
     public updateNode(nodeId: string, updates: { description?: string; version?: string; statusName?: string; metadata?: string | Record<string, any> }): void {
         const node: Node | undefined = this.getNode(nodeId);
         

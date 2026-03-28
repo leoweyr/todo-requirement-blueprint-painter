@@ -37,7 +37,6 @@ export class RenderController {
             queryParams.delete('view');
 
             const targetUrl: string = `${protocol}://${host}/?${queryParams.toString()}`;
-            console.log(`Rendering: ${targetUrl}`);
 
             // 2. Launch browser & create page.
             browser = await browserService.launch();

@@ -20,6 +20,7 @@ import { type PrerenderNode } from './features/graph/PrerenderNode';
 import { DomainRegistry } from './features/registry/DomainRegistry';
 import { GitHubLoader } from './features/github/GitHubLoader';
 import { PngGenerator } from './features/png-export/PngGenerator';
+import { ReadOnlyView } from './features/readonly/ReadOnlyView';
 
 
 interface AppState {
@@ -39,6 +40,7 @@ class App extends Component<{}, AppState> {
     private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private _edgeDrawerRef: EdgeDrawer | null = null;
     private _menuManagerRef: MenuManager | null = null;
+    private _hasLoadedFromGitHub: boolean = false;
 
     private _handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (
         result: BlueprintPrerenderCombResult
@@ -125,6 +127,11 @@ class App extends Component<{}, AppState> {
     };
 
     private _handleKeyDown: (event: KeyboardEvent) => Promise<void> = async (event: KeyboardEvent): Promise<void> => {
+        // Disable keyboard shortcuts in read-only mode.
+        if (ReadOnlyView.instance.isReadOnly()) {
+            return;
+        }
+
         // Undo: Ctrl+Z.
         // Redo: Ctrl+Y or Ctrl+Shift+Z.
         if (event.ctrlKey || event.metaKey) {
@@ -187,7 +194,9 @@ class App extends Component<{}, AppState> {
         const repoParam: string | null = urlParams.get('github');
         const viewMode: string | null = urlParams.get('view');
 
-        if (repoParam) {
+        if (repoParam && !this._hasLoadedFromGitHub) {
+            this._hasLoadedFromGitHub = true;
+
             const [owner, repoName]: string[] = repoParam.split('/');
 
             if (owner && repoName) {
@@ -219,6 +228,11 @@ class App extends Component<{}, AppState> {
         const { isFileLoaded }: AppState = this.state;
         const { isFileLoaded: wasFileLoaded }: AppState = prevState;
 
+        // Disable BlueprintPaster binding in read-only mode.
+        if (ReadOnlyView.instance.isReadOnly()) {
+            return;
+        }
+
         if (isFileLoaded && !wasFileLoaded) {
             BlueprintPaster.bind(
                 window,
@@ -233,7 +247,11 @@ class App extends Component<{}, AppState> {
     }
 
     public componentWillUnmount(): void {
-        BlueprintPaster.unbind(window);
+        // Only unbind if not in read-only mode (it was never bound).
+        if (!ReadOnlyView.instance.isReadOnly()) {
+            BlueprintPaster.unbind(window);
+        }
+
         window.removeEventListener('keydown', this._handleKeyDown);
     }
 

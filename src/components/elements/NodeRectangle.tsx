@@ -1,6 +1,7 @@
 import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
 
 import { Node } from '../../domain/Node';
+import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
 
 export interface NodeRectangleProps {
@@ -83,16 +84,19 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 {isHovered && (
                     <>
                         {/* Edge Creation Button (Left Center). */}
-                        <div 
-                            style={this.getEdgeButtonStyle()}
-                            onClick={this.handleStartEdgeClick}
-                            title="Create Demand (Upstream Dependency)"
-                        >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="12" cy="12" r="11" fill="#4CAF50" stroke="#FFFFFF" strokeWidth="2"/>
-                                <path d="M12 7V17M7 12H17" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                        </div>
+                        {/* Disable in read-only mode. */}
+                        {!ReadOnlyView.instance.isReadOnly() && (
+                            <div 
+                                style={this.getEdgeButtonStyle()}
+                                onClick={this.handleStartEdgeClick}
+                                title="Create Demand (Upstream Dependency)"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="11" fill="#4CAF50" stroke="#FFFFFF" strokeWidth="2"/>
+                                    <path d="M12 7V17M7 12H17" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            </div>
+                        )}
                         
                         {metadataEntries.length > 0 && (
                             <div style={this.getMetadataContainerStyle()}>

@@ -5,8 +5,6 @@ import { PagePreparer } from './PagePreparer';
 
 export class ScreenshotService {
     public static async capture(page: Page, url: string): Promise<Buffer> {
-        console.log(`Navigating to: ${url}`);
-        
         // 1. Navigate to the page.
         await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
 

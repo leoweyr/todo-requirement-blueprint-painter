@@ -1,6 +1,7 @@
 import { Component, type ReactNode, type CSSProperties } from 'react';
 
 import { CanvasViewport } from '../CanvasViewport';
+import { ReadOnlyView } from '../../../features/readonly/ReadOnlyView';
 import { type PrerenderNode } from '../../../features/graph/PrerenderNode';
 
 
@@ -86,6 +87,11 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
     }
 
     public handleStartEdge(nodeId: string, options?: { strokeColor?: string; strokeDasharray?: string }): void {
+        // Disable edge creation in read-only mode.
+        if (ReadOnlyView.instance.isReadOnly()) {
+            return;
+        }
+
         const prerenderNodes: PrerenderNode[] = this.props.prerenderNodes;
         const nodeProperties: PrerenderNode | undefined = prerenderNodes.find((prerenderNode: PrerenderNode): boolean => prerenderNode.node.id === nodeId);
 

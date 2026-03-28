@@ -3,6 +3,7 @@ import { Component, type CSSProperties, type ReactNode, type MouseEvent } from '
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
 import { NodeStatus } from '../../domain/NodeStatus';
 import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
+import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
 
 export interface LegendProps {
@@ -75,8 +76,13 @@ class Legend extends Component<LegendProps, LegendState> {
                             {statuses.map((status: NodeStatus): ReactNode => (
                                 <div 
                                     key={status.name} 
-                                    style={{ ...this.getItemStyle(), cursor: 'context-menu' }}
+                                    style={{ ...this.getItemStyle(), cursor: ReadOnlyView.instance.isReadOnly() ? 'default' : 'context-menu' }}
                                     onContextMenu={(event: MouseEvent): void => {
+                                        // Disable context menu in read-only mode.
+                                        if (ReadOnlyView.instance.isReadOnly()) {
+                                            return;
+                                        }
+
                                         if (this.props.onContextMenu) {
                                             event.preventDefault();
                                             event.stopPropagation();
@@ -102,9 +108,14 @@ class Legend extends Component<LegendProps, LegendState> {
                             {reasons.map((reason: EdgeEvolutionReason): ReactNode => (
                                 <div 
                                     key={reason.name} 
-                                    style={{ ...this.getItemStyle(), cursor: reason.name === 'CUT' ? 'default' : 'context-menu' }}
+                                    style={{ ...this.getItemStyle(), cursor: (reason.name === 'CUT' || ReadOnlyView.instance.isReadOnly()) ? 'default' : 'context-menu' }}
                                     onContextMenu={(event: MouseEvent): void => {
                                         if (reason.name === 'CUT') return;
+
+                                        // Disable context menu in read-only mode.
+                                        if (ReadOnlyView.instance.isReadOnly()) {
+                                            return;
+                                        }
 
                                         if (this.props.onContextMenu) {
                                             event.preventDefault();

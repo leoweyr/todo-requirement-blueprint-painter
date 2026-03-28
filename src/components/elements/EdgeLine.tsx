@@ -5,6 +5,7 @@ import { type EdgeHistoryRecord } from "../../domain/EdgeHistoryRecord";
 import { EdgeType } from '../../domain/enums/EdgeType';
 import { EdgeStatus } from '../../domain/enums/EdgeStatus';
 import { type PrerenderNode } from '../../features/graph/PrerenderNode';
+import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
 
 export interface EdgeLineProps {
@@ -223,7 +224,8 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                             />
 
                             {/* Interactive controls only show on actual Hover, not just static highlight */}
-                            {isHovered && (
+                            {/* Disable interactive controls in read-only mode. */}
+                            {isHovered && !ReadOnlyView.instance.isReadOnly() && (
                                 <>
                                     {/* Red Minus at Start (Downstream Left). */}
                             <g 

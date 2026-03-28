@@ -1,5 +1,6 @@
 import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
 
+import { ReadOnlyView } from '../../../features/readonly/ReadOnlyView';
 import ContextMenuItem from './ContextMenuItem';
 
 
@@ -22,37 +23,8 @@ interface ContextMenuState {
 class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
     private _overlayRef: HTMLDivElement | null = null;
 
-    private handleClose: () => void = (): void => {
-        this.setState({ isOpen: false });
-    };
-
-    private handleOverlayClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        if (this._overlayRef && event.target === this._overlayRef) {
-            this.handleClose();
-        }
-    };
-
-    private handleItemClick: (callback: () => void) => void = (callback: () => void): void => {
-        callback();
-        this.handleClose();
-    };
-
-    private handleContextMenuOnMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        event.preventDefault();
-    };
-
-    public handleOpen: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        event.preventDefault();
-        
-        this.setState({
-            isOpen: true,
-            x: event.clientX,
-            y: event.clientY
-        });
-    };
-
-    constructor(props: ContextMenuProps) {
-        super(props);
+    public constructor(properties: ContextMenuProps) {
+        super(properties);
 
         this.state = {
             isOpen: false,
@@ -62,10 +34,17 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
     }
 
     public render(): ReactNode {
-        const { isOpen, x, y } = this.state;
-        const { onCreateNode, onCreateNodeStatus, onCreateEdgeEvolutionReason, onPaste, onSave } = this.props;
+        const { isOpen, x, y }: ContextMenuState = this.state;
+        const { onCreateNode, onCreateNodeStatus, onCreateEdgeEvolutionReason, onPaste, onSave }: ContextMenuProps = this.props;
 
         if (!isOpen) {
+            return null;
+        }
+
+        const isReadOnly: boolean = ReadOnlyView.instance.isReadOnly();
+
+        // In read-only mode, no menu items are available.
+        if (isReadOnly) {
             return null;
         }
 
@@ -79,17 +58,17 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
 
         return (
             <div 
-                ref={(el) => { this._overlayRef = el; }}
-                style={this.getOverlayStyle()}
-                onClick={this.handleOverlayClick}
-                onContextMenu={this.handleContextMenuOnMenu}
+                ref={(element: HTMLDivElement | null): void => { this._overlayRef = element; }}
+                style={this._getOverlayStyle()}
+                onClick={(event: MouseEvent): void => this._handleOverlayClick(event)}
+                onContextMenu={(event: MouseEvent): void => this._handleContextMenuOnMenu(event)}
             >
-                <div style={this.getMenuContainerStyle(x, y)}>
+                <div style={this._getMenuContainerStyle(x, y)}>
                     {Object.entries(items).map(([label, callback]: [string, () => void]): ReactNode => (
                         <ContextMenuItem
                             key={label}
                             label={label}
-                            onClick={(): void => this.handleItemClick(callback)}
+                            onClick={(): void => this._handleItemClick(callback)}
                         />
                     ))}
                 </div>
@@ -97,7 +76,26 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
         );
     }
 
-    private getOverlayStyle(): CSSProperties {
+    private _handleClose(): void {
+        this.setState({ isOpen: false });
+    }
+
+    private _handleOverlayClick(event: MouseEvent): void {
+        if (this._overlayRef && event.target === this._overlayRef) {
+            this._handleClose();
+        }
+    }
+
+    private _handleItemClick(callback: () => void): void {
+        callback();
+        this._handleClose();
+    }
+
+    private _handleContextMenuOnMenu(event: MouseEvent): void {
+        event.preventDefault();
+    }
+
+    private _getOverlayStyle(): CSSProperties {
         return {
             position: 'fixed',
             top: 0,
@@ -109,7 +107,7 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
         };
     }
 
-    private getMenuContainerStyle(x: number, y: number): CSSProperties {
+    private _getMenuContainerStyle(x: number, y: number): CSSProperties {
         return {
             position: 'absolute',
             top: y,
@@ -123,6 +121,16 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
             display: 'flex',
             flexDirection: 'column'
         };
+    }
+
+    public handleOpen(event: MouseEvent): void {
+        event.preventDefault();
+
+        this.setState({
+            isOpen: true,
+            x: event.clientX,
+            y: event.clientY
+        });
     }
 }
 
