@@ -391,6 +391,30 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
         );
     }
 
+    private _checkIsAnyModalOpen(state: MenuManagerState): boolean {
+        const {
+            isNodeCreateModalOpen,
+            isNodeStatusCreateModalOpen,
+            isEdgeEvolutionReasonCreateModalOpen,
+            isNodeStatusEditModalOpen,
+            isEdgeEvolutionReasonEditModalOpen,
+            isNodeEditModalOpen,
+            isEdgeCreateModalOpen,
+            isEdgeEvolutionModalOpen
+        } = state;
+
+        return (
+            isNodeCreateModalOpen ||
+            isNodeStatusCreateModalOpen ||
+            isEdgeEvolutionReasonCreateModalOpen ||
+            isNodeStatusEditModalOpen ||
+            isEdgeEvolutionReasonEditModalOpen ||
+            isNodeEditModalOpen ||
+            isEdgeCreateModalOpen ||
+            isEdgeEvolutionModalOpen
+        );
+    }
+
     // The following methods are the public API for App.tsx to trigger menus.
     public openGlobalContextMenu(event: MouseEvent): void {
         if (this._contextMenuRef) {
@@ -473,30 +497,6 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
 
     public isAnyModalOpen(): boolean {
         return this._checkIsAnyModalOpen(this.state);
-    }
-
-    private _checkIsAnyModalOpen(state: MenuManagerState): boolean {
-        const {
-            isNodeCreateModalOpen,
-            isNodeStatusCreateModalOpen,
-            isEdgeEvolutionReasonCreateModalOpen,
-            isNodeStatusEditModalOpen,
-            isEdgeEvolutionReasonEditModalOpen,
-            isNodeEditModalOpen,
-            isEdgeCreateModalOpen,
-            isEdgeEvolutionModalOpen
-        } = state;
-
-        return (
-            isNodeCreateModalOpen ||
-            isNodeStatusCreateModalOpen ||
-            isEdgeEvolutionReasonCreateModalOpen ||
-            isNodeStatusEditModalOpen ||
-            isEdgeEvolutionReasonEditModalOpen ||
-            isNodeEditModalOpen ||
-            isEdgeCreateModalOpen ||
-            isEdgeEvolutionModalOpen
-        );
     }
 }
 

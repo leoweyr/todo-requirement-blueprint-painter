@@ -86,6 +86,28 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
         window.removeEventListener('mousemove', this._handleGlobalMouseMove);
     }
 
+    private _stopDrawing(): void {
+        this.setState({
+            isDrawing: false,
+            startNodeId: null
+        });
+
+        window.removeEventListener('mousemove', this._handleGlobalMouseMove);
+    }
+
+    private _getSvgStyle(): CSSProperties {
+        return {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            overflow: 'visible'
+        };
+    }
+
     public handleStartEdge(nodeId: string, options?: { strokeColor?: string; strokeDasharray?: string }): void {
         // Disable edge creation in read-only mode.
         if (ReadOnlyView.instance.isReadOnly()) {
@@ -134,28 +156,6 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
         if (this.state.isDrawing) {
             this._stopDrawing();
         }
-    }
-
-    private _stopDrawing(): void {
-        this.setState({
-            isDrawing: false,
-            startNodeId: null
-        });
-
-        window.removeEventListener('mousemove', this._handleGlobalMouseMove);
-    }
-
-    private _getSvgStyle(): CSSProperties {
-        return {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            pointerEvents: 'none',
-            zIndex: 1000,
-            overflow: 'visible'
-        };
     }
 }
 

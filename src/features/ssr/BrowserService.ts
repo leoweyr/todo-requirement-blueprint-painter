@@ -19,37 +19,6 @@ export class BrowserService {
 
     private constructor() {}
 
-    public async launch(): Promise<Browser> {
-        // Detect Vercel/serverless environment.
-        // VERCEL is set in Vercel deployments. AWS_LAMBDA_FUNCTION_NAME is for AWS Lambda.
-        const isLocal: boolean = !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME;
-        let executablePath: string = '';
-
-        if (isLocal) {
-            // Use full puppeteer for local development, which includes bundled Chromium.
-            const puppeteerPkg: string = 'puppeteer';
-            const localPuppeteer: any = await import(puppeteerPkg);
-            executablePath = localPuppeteer.default.executablePath();
-        } else {
-            // Use @sparticuz/chromium-min for Vercel production environments (AWS Lambda).
-            // The -min package requires specifying a remote URL for the Chromium binary pack.
-            // CRITICAL: Must set graphics mode BEFORE calling executablePath().
-            // This ensures the correct binary variant is selected.
-            chromium.setGraphicsMode = false;
-
-            // Call executablePath with the remote URL for the Chromium pack.
-            // @sparticuz/chromium-min will download and extract to /tmp on first run.
-            executablePath = await chromium.executablePath(BrowserService.CHROMIUM_PACK_URL);
-
-            // Verify the path is valid and not from Puppeteer's cache.
-            if (!executablePath || executablePath.includes('.cache/puppeteer')) {
-                throw new Error(`Invalid chromium path: ${executablePath}. Expected @sparticuz/chromium path, got Puppeteer cache path.`);
-            }
-        }
-
-        return await this._launchBrowser(isLocal, executablePath);
-    }
-
     private async _launchBrowser(isLocal: boolean, executablePath: string): Promise<Browser> {
         // Import puppeteer-core statically at the top level.
         const puppeteerCore: any = await import('puppeteer-core');
@@ -80,6 +49,37 @@ export class BrowserService {
         };
 
         return await puppeteerCore.default.launch(launchOptions);
+    }
+
+    public async launch(): Promise<Browser> {
+        // Detect Vercel/serverless environment.
+        // VERCEL is set in Vercel deployments. AWS_LAMBDA_FUNCTION_NAME is for AWS Lambda.
+        const isLocal: boolean = !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME;
+        let executablePath: string = '';
+
+        if (isLocal) {
+            // Use full puppeteer for local development, which includes bundled Chromium.
+            const puppeteerPkg: string = 'puppeteer';
+            const localPuppeteer: any = await import(puppeteerPkg);
+            executablePath = localPuppeteer.default.executablePath();
+        } else {
+            // Use @sparticuz/chromium-min for Vercel production environments (AWS Lambda).
+            // The -min package requires specifying a remote URL for the Chromium binary pack.
+            // CRITICAL: Must set graphics mode BEFORE calling executablePath().
+            // This ensures the correct binary variant is selected.
+            chromium.setGraphicsMode = false;
+
+            // Call executablePath with the remote URL for the Chromium pack.
+            // @sparticuz/chromium-min will download and extract to /tmp on first run.
+            executablePath = await chromium.executablePath(BrowserService.CHROMIUM_PACK_URL);
+
+            // Verify the path is valid and not from Puppeteer's cache.
+            if (!executablePath || executablePath.includes('.cache/puppeteer')) {
+                throw new Error(`Invalid chromium path: ${executablePath}. Expected @sparticuz/chromium path, got Puppeteer cache path.`);
+            }
+        }
+
+        return await this._launchBrowser(isLocal, executablePath);
     }
 
     public async createPage(browser: Browser): Promise<Page> {
