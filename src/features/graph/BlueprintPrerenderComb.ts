@@ -18,6 +18,7 @@ export class BlueprintPrerenderComb {
     private readonly _NODE_HEIGHT: number = 80;
     private readonly _PADDING: number = 50;
     private readonly _COMPONENT_GAP: number = 80;  // Defines the vertical gap between connected components.
+    private readonly _EDGE_NODE_REPULSION_MARGIN: number = 20;  // Defines the margin for edge-node repulsion detection.
 
     private _calculateLayoutInternal(registry: DomainRegistry, timeLimit?: string): BlueprintPrerenderCombResult {
         const nodes: Node[] = registry.allNodes;
@@ -419,15 +420,33 @@ export class BlueprintPrerenderComb {
                     const layerDiff: number = downstreamGraphNode.layer - upstreamGraphNode.layer;
                     const divisions: number = Math.max(2, layerDiff + 1);
 
+                    const edgeStartX: number = startPosition.x;
+                    const edgeStartY: number = startPosition.y + centerY;
+                    const edgeEndX: number = endPosition.x + this._NODE_WIDTH;
+                    const edgeEndY: number = endPosition.y + centerY;
+
+                    // Calculate repulsion curvature to avoid intermediate nodes.
+                    const repulsionCurvature: number = this._calculateRepulsionCurvature(
+                        edgeStartX,
+                        edgeStartY,
+                        edgeEndX,
+                        edgeEndY,
+                        downstreamGraphNode.layer,
+                        upstreamGraphNode.layer,
+                        sortedLayerIndices,
+                        componentLayers,
+                        resultNodes
+                    );
+
                     const prerenderEdge: PrerenderEdge = {
                         edge: edge,
-                        startX: startPosition.x,
-                        startY: startPosition.y + centerY,
-                        endX: endPosition.x + this._NODE_WIDTH,
-                        endY: endPosition.y + centerY,
+                        startX: edgeStartX,
+                        startY: edgeStartY,
+                        endX: edgeEndX,
+                        endY: edgeEndY,
                         labelPositionDivisions: divisions,
                         labelPositionIndex: 1,
-                        curvature: 0
+                        curvature: repulsionCurvature
                     };
 
                     const key: string = [downstreamNode.id, upstreamNode.id].sort().join('-');
@@ -440,7 +459,7 @@ export class BlueprintPrerenderComb {
                 });
             });
 
-            // Apply curvature to overlapping edges.
+            // Apply additional curvature to overlapping edges (on top of repulsion curvature).
             const CURVATURE_GAP: number = 50;
 
             edgeGroups.forEach((group: PrerenderEdge[]): void => {
@@ -449,10 +468,10 @@ export class BlueprintPrerenderComb {
                 if (count === 1) {
                     prerenderEdges.push(group[0]);
                 } else {
-                    group.forEach((edge: PrerenderEdge, index: number): void => {
-                        const offset: number = (index - (count - 1) / 2) * CURVATURE_GAP;
-                        edge.curvature = offset;
-                        prerenderEdges.push(edge);
+                    group.forEach((prerenderEdge: PrerenderEdge, index: number): void => {
+                        const overlapOffset: number = (index - (count - 1) / 2) * CURVATURE_GAP;
+                        prerenderEdge.curvature = (prerenderEdge.curvature || 0) + overlapOffset;
+                        prerenderEdges.push(prerenderEdge);
                     });
                 }
             });
@@ -550,6 +569,177 @@ export class BlueprintPrerenderComb {
     private _estimateTextWidth(text: string): number {
         // Estimate width: length * 9px per char + 20px padding.
         return text.length * 9 + 20;
+    }
+
+    private _doesEdgeIntersectNode(
+        edgeStartX: number,
+        edgeStartY: number,
+        edgeEndX: number,
+        edgeEndY: number,
+        nodeX: number,
+        nodeY: number
+    ): boolean {
+        const margin: number = this._EDGE_NODE_REPULSION_MARGIN;
+        const nodeLeft: number = nodeX - margin;
+        const nodeRight: number = nodeX + this._NODE_WIDTH + margin;
+        const nodeTop: number = nodeY - margin;
+        const nodeBottom: number = nodeY + this._NODE_HEIGHT + margin;
+
+        // Check if the line segment from (edgeStartX, edgeStartY) to (edgeEndX, edgeEndY) intersects the rectangle.
+        // Use Liang-Barsky algorithm for line-rectangle intersection.
+        const differenceX: number = edgeEndX - edgeStartX;
+        const differenceY: number = edgeEndY - edgeStartY;
+
+        const parameterValues: number[] = [0, 1];
+
+        const checkBoundary: (denominator: number, numerator: number) => boolean = (
+            denominator: number,
+            numerator: number
+        ): boolean => {
+            if (denominator === 0) {
+                // Line is parallel to this boundary.
+                // If numerator < 0, line is completely outside this boundary.
+                // If numerator >= 0, line is inside or on this boundary, continue checking.
+                return numerator >= 0;
+            }
+
+            const parameter: number = numerator / denominator;
+
+            if (denominator < 0) {
+                if (parameter > parameterValues[1]) {
+                    return false;
+                }
+
+                if (parameter > parameterValues[0]) {
+                    parameterValues[0] = parameter;
+                }
+            } else {
+                if (parameter < parameterValues[0]) {
+                    return false;
+                }
+
+                if (parameter < parameterValues[1]) {
+                    parameterValues[1] = parameter;
+                }
+            }
+
+            return true;
+        };
+
+        if (!checkBoundary(-differenceX, edgeStartX - nodeLeft)) {
+            return false;
+        }
+
+        if (!checkBoundary(differenceX, nodeRight - edgeStartX)) {
+            return false;
+        }
+
+        if (!checkBoundary(-differenceY, edgeStartY - nodeTop)) {
+            return false;
+        }
+
+        if (!checkBoundary(differenceY, nodeBottom - edgeStartY)) {
+            return false;
+        }
+
+        return parameterValues[0] <= parameterValues[1];
+    }
+
+    private _calculateRepulsionCurvature(
+        edgeStartX: number,
+        edgeStartY: number,
+        edgeEndX: number,
+        edgeEndY: number,
+        sourceLayer: number,
+        targetLayer: number,
+        sortedLayerIndices: number[],
+        componentLayers: Map<number, GraphNode[]>,
+        resultNodes: Map<string, { x: number; y: number }>
+    ): number {
+        // Find intermediate layers between source and target.
+        const intermediateLayerIndices: number[] = sortedLayerIndices.filter(
+            (layerIndex: number): boolean => layerIndex > targetLayer && layerIndex < sourceLayer
+        );
+
+        if (intermediateLayerIndices.length === 0) {
+            return 0;
+        }
+
+        // Collect all nodes in intermediate layers.
+        const obstructingNodes: Array<{ x: number; y: number }> = [];
+
+        intermediateLayerIndices.forEach((layerIndex: number): void => {
+            const layerNodes: GraphNode[] | undefined = componentLayers.get(layerIndex);
+
+            if (!layerNodes) {
+                return;
+            }
+
+            layerNodes.forEach((graphNode: GraphNode): void => {
+                const position: { x: number; y: number } | undefined = resultNodes.get(graphNode.id);
+
+                if (position) {
+                    obstructingNodes.push(position);
+                }
+            });
+        });
+
+        if (obstructingNodes.length === 0) {
+            return 0;
+        }
+
+        // Check which nodes the edge would intersect.
+        const intersectingNodes: Array<{ x: number; y: number }> = obstructingNodes.filter(
+            (nodePosition: { x: number; y: number }): boolean => this._doesEdgeIntersectNode(
+                edgeStartX,
+                edgeStartY,
+                edgeEndX,
+                edgeEndY,
+                nodePosition.x,
+                nodePosition.y
+            )
+        );
+
+        if (intersectingNodes.length === 0) {
+            return 0;
+        }
+
+        // Calculate required curvature to avoid all intersecting nodes.
+        const edgeMidY: number = (edgeStartY + edgeEndY) / 2;
+        let maximumUpwardOffset: number = 0;
+        let maximumDownwardOffset: number = 0;
+
+        intersectingNodes.forEach((nodePosition: { x: number; y: number }): void => {
+            const nodeTopWithMargin: number = nodePosition.y - this._EDGE_NODE_REPULSION_MARGIN;
+            const nodeBottomWithMargin: number = nodePosition.y + this._NODE_HEIGHT + this._EDGE_NODE_REPULSION_MARGIN;
+
+            // Calculate offset needed to clear this node from both directions.
+            // Always calculate both to choose the smaller one.
+            const downwardOffset: number = nodeBottomWithMargin - edgeMidY + this._EDGE_NODE_REPULSION_MARGIN;
+            const upwardOffset: number = edgeMidY - nodeTopWithMargin + this._EDGE_NODE_REPULSION_MARGIN;
+
+            if (downwardOffset > maximumDownwardOffset) {
+                maximumDownwardOffset = downwardOffset;
+            }
+
+            if (upwardOffset > maximumUpwardOffset) {
+                maximumUpwardOffset = upwardOffset;
+            }
+        });
+
+        // For quadratic Bezier curves, the actual curve displacement is approximately half of the control point offset.
+        // Multiply by 2 to ensure the curve clears the node completely.
+        const curvatureMultiplier: number = 2;
+
+        // Choose the direction with smaller offset to minimize visual disruption.
+        // Prefer upward (negative curvature) when offsets are equal.
+        if (maximumUpwardOffset > 0 && maximumUpwardOffset <= maximumDownwardOffset) {
+            return -maximumUpwardOffset * curvatureMultiplier;  // Negative curvature curves upward.
+        } else if (maximumDownwardOffset > 0) {
+            return maximumDownwardOffset * curvatureMultiplier;  // Positive curvature curves downward.
+        }
+
+        return 0;
     }
 
     public calculateLayout(registry: DomainRegistry): BlueprintPrerenderCombResult {
