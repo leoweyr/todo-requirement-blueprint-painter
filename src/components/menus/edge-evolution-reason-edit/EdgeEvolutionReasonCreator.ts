@@ -1,5 +1,6 @@
+import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
+
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { EdgeEvolutionReason } from '../../../domain/EdgeEvolutionReason';
 
 
 export class EdgeEvolutionReasonCreator {

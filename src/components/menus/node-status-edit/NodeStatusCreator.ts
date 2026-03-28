@@ -1,5 +1,6 @@
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
+
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { NodeStatus } from '../../../domain/NodeStatus';
 
 
 export class NodeStatusCreator {

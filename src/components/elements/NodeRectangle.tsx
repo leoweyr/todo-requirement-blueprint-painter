@@ -1,6 +1,6 @@
 import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
+import { Node } from '@todo-requirement-blueprint/domain';
 
-import { Node } from '../../domain/Node';
 import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
 

@@ -1,8 +1,8 @@
 import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
+import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
-import { NodeStatus } from '../../domain/NodeStatus';
-import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
 import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
 

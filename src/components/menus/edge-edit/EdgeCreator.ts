@@ -1,10 +1,11 @@
+import { Node } from '@todo-requirement-blueprint/domain';
+import { Edge } from '@todo-requirement-blueprint/domain';
+import { EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
+import { EdgeType } from '@todo-requirement-blueprint/domain';
+import { EdgeStatus } from '@todo-requirement-blueprint/domain';
+import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
+
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { Node } from '../../../domain/Node';
-import { Edge } from '../../../domain/Edge';
-import { EdgeHistoryRecord } from '../../../domain/EdgeHistoryRecord';
-import { EdgeType } from '../../../domain/enums/EdgeType';
-import { EdgeStatus } from '../../../domain/enums/EdgeStatus';
-import { EdgeEvolutionReason } from '../../../domain/EdgeEvolutionReason';
 
 
 export class EdgeCreator {

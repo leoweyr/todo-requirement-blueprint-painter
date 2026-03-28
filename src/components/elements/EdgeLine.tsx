@@ -1,9 +1,9 @@
 import { Component, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
+import { Edge } from '@todo-requirement-blueprint/domain';
+import { type EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
+import { EdgeType } from '@todo-requirement-blueprint/domain';
+import { EdgeStatus } from '@todo-requirement-blueprint/domain';
 
-import { Edge } from '../../domain/Edge';
-import { type EdgeHistoryRecord } from "../../domain/EdgeHistoryRecord";
-import { EdgeType } from '../../domain/enums/EdgeType';
-import { EdgeStatus } from '../../domain/enums/EdgeStatus';
 import { type PrerenderNode } from '../../features/graph/PrerenderNode';
 import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 

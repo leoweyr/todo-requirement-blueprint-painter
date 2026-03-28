@@ -1,12 +1,12 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
+import { Node } from '@todo-requirement-blueprint/domain';
+import { EdgeType } from '@todo-requirement-blueprint/domain';
+import { EdgeStatus } from '@todo-requirement-blueprint/domain';
+import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
 import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
-import { Node } from '../../../domain/Node';
-import { EdgeType } from '../../../domain/enums/EdgeType';
-import { EdgeStatus } from '../../../domain/enums/EdgeStatus';
-import { EdgeEvolutionReason } from '../../../domain/EdgeEvolutionReason';
 import { EdgeCreator } from '../edge-edit/EdgeCreator';
 
 

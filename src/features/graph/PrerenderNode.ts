@@ -1,5 +1,4 @@
-import { Node } from '../../domain/Node';
-
+import { Node } from '@todo-requirement-blueprint/domain';
 
 export interface PrerenderNode {
     node: Node;

@@ -1,7 +1,7 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { NodeStatus } from '../../../domain/NodeStatus';
 import { ColorUtils } from '../../../utils/ColorUtils';
 
 

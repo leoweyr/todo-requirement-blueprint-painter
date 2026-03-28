@@ -1,4 +1,5 @@
-import type { Node } from '../../domain/Node';
+import type { Node } from '@todo-requirement-blueprint/domain';
+
 import type { NodeInterceptor } from './NodeInterceptor';
 import { GitHubClient } from '../github/GitHubClient';
 

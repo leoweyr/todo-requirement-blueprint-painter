@@ -1,8 +1,8 @@
-import { Node } from '../../domain/Node';
-import { NodeStatus } from '../../domain/NodeStatus';
-import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
-import { Edge } from '../../domain/Edge';
-import { EdgeHistoryRecord } from '../../domain/EdgeHistoryRecord';
+import { Node } from '@todo-requirement-blueprint/domain';
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
+import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
+import { Edge } from '@todo-requirement-blueprint/domain';
+import { EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
 
 
 export class DomainRegistry {

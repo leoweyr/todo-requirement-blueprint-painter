@@ -1,6 +1,5 @@
-import { EdgeType } from '../../domain/enums/EdgeType';
-import { EdgeStatus } from '../../domain/enums/EdgeStatus';
-
+import { EdgeType } from '@todo-requirement-blueprint/domain';
+import { EdgeStatus } from '@todo-requirement-blueprint/domain';
 
 export interface SerializedEdgeHistory {
     version: string;

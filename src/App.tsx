@@ -1,7 +1,8 @@
 import { Component, type ReactNode, type MouseEvent, type CSSProperties } from 'react';
+import { Edge } from '@todo-requirement-blueprint/domain';
+import { Node } from '@todo-requirement-blueprint/domain';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
-import { Edge } from './domain/Edge';
 import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
 import { EdgeInteractionManager } from './components/canvas/edge-interaction/EdgeInteractionManager';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
@@ -12,7 +13,6 @@ import { BlueprintPaster } from './components/menus/blueprint-edit/BlueprintPast
 import { EdgeCreator } from './components/menus/edge-edit/EdgeCreator';
 import MenuManager from './components/menus/MenuManager';
 import FileOpenModal from './components/menus/modals/FileOpenModal';
-import { Node } from './domain/Node';
 import { EditorHistoryService } from './features/editor-history/EditorHistoryService';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';

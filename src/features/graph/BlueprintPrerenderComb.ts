@@ -1,12 +1,13 @@
-import { EdgeStatus } from '../../domain/enums/EdgeStatus';
+import { EdgeStatus } from '@todo-requirement-blueprint/domain';
+import { Node } from '@todo-requirement-blueprint/domain';
+import { Edge } from '@todo-requirement-blueprint/domain';
+import { type EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
+
 import { DomainRegistry } from '../registry/DomainRegistry';
-import { Node } from '../../domain/Node';
-import { Edge } from '../../domain/Edge';
 import { type BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResult';
 import { type PrerenderNode } from './PrerenderNode';
 import { type PrerenderEdge } from './PrerenderEdge';
 import { type GraphNode } from './GraphNode';
-import { type EdgeHistoryRecord } from '../../domain/EdgeHistoryRecord';
 
 
 export class BlueprintPrerenderComb {

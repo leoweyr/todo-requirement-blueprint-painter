@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
+import { Edge } from '@todo-requirement-blueprint/domain';
+import { EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
+import { EdgeStatus } from '@todo-requirement-blueprint/domain';
+import { EdgeType } from '@todo-requirement-blueprint/domain';
+import { Node } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { Edge } from '../../../domain/Edge';
-import { EdgeHistoryRecord } from '../../../domain/EdgeHistoryRecord';
-import { EdgeStatus } from '../../../domain/enums/EdgeStatus';
-import { EdgeType } from '../../../domain/enums/EdgeType';
-import { Node } from '../../../domain/Node';
 import type { PrerenderEdge } from '../../../features/graph/PrerenderEdge';
 import type { PrerenderNode } from '../../../features/graph/PrerenderNode';
 import EdgeLine from '../../elements/EdgeLine';

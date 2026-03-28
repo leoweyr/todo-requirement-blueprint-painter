@@ -1,10 +1,10 @@
 import { Component, type ReactNode, type MouseEvent } from 'react';
+import { Node } from '@todo-requirement-blueprint/domain';
+import { Edge } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
 import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderComb';
 import { CanvasViewport } from '../canvas/CanvasViewport';
-import { Node } from '../../domain/Node';
-import { Edge } from '../../domain/Edge';
 import { EdgeInteractionManager } from '../canvas/edge-interaction/EdgeInteractionManager';
 import type { EdgeMenuHandler } from '../canvas/edge-interaction/EdgeMenuHandler';
 import { BlueprintPaster } from './blueprint-edit/BlueprintPaster';

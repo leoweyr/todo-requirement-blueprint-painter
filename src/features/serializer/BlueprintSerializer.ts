@@ -1,12 +1,12 @@
 import yaml from 'js-yaml';
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
+import { Edge } from '@todo-requirement-blueprint/domain';
+import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
+import { EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
+import { Node } from '@todo-requirement-blueprint/domain';
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
 
-import { Edge } from '../../domain/Edge';
-import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
-import { EdgeHistoryRecord } from '../../domain/EdgeHistoryRecord';
-import { Node } from '../../domain/Node';
-import { NodeStatus } from '../../domain/NodeStatus';
 import { DomainRegistry } from '../registry/DomainRegistry';
 import { type SerializedBlueprint } from './SerializedBlueprint';
 import { type SerializedEdge } from './SerializedEdge';
