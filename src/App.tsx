@@ -16,6 +16,7 @@ import FileOpenModal from './components/menus/modals/FileOpenModal';
 import { EditorHistoryService } from './features/editor-history/EditorHistoryService';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
+import { type PrerenderEdge } from './features/graph/PrerenderEdge';
 import { type PrerenderNode } from './features/graph/PrerenderNode';
 import { DomainRegistry } from './features/registry/DomainRegistry';
 import { GitHubLoader } from './features/github/GitHubLoader';
@@ -355,12 +356,13 @@ class App extends Component<{}, AppState> {
     private _renderGraph(): ReactNode {
         if (!this._layoutResult) return null;
 
-        const { prerenderNodes: latestNodes, prerenderEdges, updateTimes, frames }: BlueprintPrerenderCombResult = this._layoutResult;
+        const { prerenderNodes: latestNodes, prerenderEdges, updateTimes, frames, edgeFrames }: BlueprintPrerenderCombResult = this._layoutResult;
         const reanchoringEdge: Edge | null = this._menuManagerRef?.reanchoringEdge || null;
         const { timelineIndex, timelineIsTransition, timelineRawPosition }: AppState = this.state;
 
         // Interpolation Logic.
         const displayedNodes: PrerenderNode[] = [];
+        const displayedEdges: PrerenderEdge[] = [];
         
         // If frames (historical layouts) exist, interpolate.
         if (frames && frames.size > 0) {
@@ -373,7 +375,7 @@ class App extends Component<{}, AppState> {
              
              // Map end frame nodes for fast lookup.
              const endNodeMap: Map<string, PrerenderNode> = new Map<string, PrerenderNode>();
-             endFrame.forEach((n: PrerenderNode): void => { endNodeMap.set(n.node.id, n); });
+             endFrame.forEach((prerenderNode: PrerenderNode): void => { endNodeMap.set(prerenderNode.node.id, prerenderNode); });
              
              // Track processed IDs to handle new nodes.
              const processedIds: Set<string> = new Set<string>();
@@ -405,9 +407,62 @@ class App extends Component<{}, AppState> {
                      displayedNodes.push(endNode);
                  }
              });
+
+             // Interpolate edges (including curvature).
+             if (edgeFrames && edgeFrames.size > 0) {
+                 const startEdgeFrame: PrerenderEdge[] = edgeFrames.get(startIndex) || prerenderEdges;
+                 const endEdgeFrame: PrerenderEdge[] = edgeFrames.get(endIndex) || startEdgeFrame;
+
+                 // Map end frame edges for fast lookup by edge ID.
+                 const endEdgeMap: Map<string, PrerenderEdge> = new Map<string, PrerenderEdge>();
+                 endEdgeFrame.forEach((prerenderEdge: PrerenderEdge): void => { endEdgeMap.set(prerenderEdge.edge.id, prerenderEdge); });
+
+                 // Track processed edge IDs.
+                 const processedEdgeIds: Set<string> = new Set<string>();
+
+                 // Interpolate from Start to End.
+                 startEdgeFrame.forEach((startEdge: PrerenderEdge): void => {
+                     const endEdge: PrerenderEdge | undefined = endEdgeMap.get(startEdge.edge.id);
+
+                     if (endEdge) {
+                         // Edge exists in both frames: Interpolate positions and curvature.
+                         const startCurvature: number = startEdge.curvature || 0;
+                         const endCurvature: number = endEdge.curvature || 0;
+
+                         displayedEdges.push({
+                             edge: startEdge.edge,
+                             startX: startEdge.startX + (endEdge.startX - startEdge.startX) * progress,
+                             startY: startEdge.startY + (endEdge.startY - startEdge.startY) * progress,
+                             endX: startEdge.endX + (endEdge.endX - startEdge.endX) * progress,
+                             endY: startEdge.endY + (endEdge.endY - startEdge.endY) * progress,
+                             labelPositionDivisions: startEdge.labelPositionDivisions,
+                             labelPositionIndex: startEdge.labelPositionIndex,
+                             curvature: startCurvature + (endCurvature - startCurvature) * progress
+                         });
+                     } else {
+                         // Edge exists only in Start Frame: Keep at Start Position.
+                         displayedEdges.push(startEdge);
+                     }
+
+                     processedEdgeIds.add(startEdge.edge.id);
+                 });
+
+                 // Handle Edges that appear ONLY in End Frame.
+                 endEdgeFrame.forEach((endEdge: PrerenderEdge): void => {
+
+                     if (!processedEdgeIds.has(endEdge.edge.id)) {
+                         // New Edge: Use End Position.
+                         displayedEdges.push(endEdge);
+                     }
+                 });
+             } else {
+                 // Fallback: Use latest edges if no edge frames.
+                 displayedEdges.push(...prerenderEdges);
+             }
         } else {
             // Fallback: Use latest nodes if no frames.
             displayedNodes.push(...latestNodes);
+            displayedEdges.push(...prerenderEdges);
         }
 
         // Create a map for fast node position lookup.
@@ -424,7 +479,7 @@ class App extends Component<{}, AppState> {
             <>
                 {/* Render the edges behind the nodes. */}
                 {EdgeInteractionManager.renderEdges(
-                    prerenderEdges,
+                    displayedEdges,
                     reanchoringEdge,
                     currentTime,
                     nextTime,

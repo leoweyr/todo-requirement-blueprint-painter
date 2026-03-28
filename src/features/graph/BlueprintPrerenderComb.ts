@@ -761,15 +761,18 @@ export class BlueprintPrerenderComb {
         const result: BlueprintPrerenderCombResult = this._calculateLayoutInternal(registry, undefined);
         result.updateTimes = updateTimes;
 
-        // Frames for animation.
+        // Frames for animation (both nodes and edges).
         const frames: Map<number, PrerenderNode[]> = new Map<number, PrerenderNode[]>();
+        const edgeFrames: Map<number, PrerenderEdge[]> = new Map<number, PrerenderEdge[]>();
 
         updateTimes.forEach((time: string, index: number): void => {
             const frameResult: BlueprintPrerenderCombResult = this._calculateLayoutInternal(registry, time);
             frames.set(index, frameResult.prerenderNodes);
+            edgeFrames.set(index, frameResult.prerenderEdges);
         });
 
         result.frames = frames;
+        result.edgeFrames = edgeFrames;
 
         return result;
     }
