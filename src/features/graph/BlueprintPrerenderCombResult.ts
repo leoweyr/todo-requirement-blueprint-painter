@@ -10,4 +10,5 @@ export interface BlueprintPrerenderCombResult {
     updateTimes: string[];  // Represents a sorted list of all unique edge history update timestamps.
     frames?: Map<number, PrerenderNode[]>;  // Map<TimeIndex, Nodes>. Pre-calculated layout for each timeline version.
     edgeFrames?: Map<number, PrerenderEdge[]>;  // Map<TimeIndex, Edges>. Pre-calculated edges with curvature for each timeline version.
+    layerGapFrames?: Map<number, number[]>;  // Map<TimeIndex, LayerGapCenters>. Pre-calculated layer gap positions for each timeline version.
 }

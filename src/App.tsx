@@ -264,7 +264,7 @@ class App extends Component<{}, AppState> {
             <>
                 <InfiniteCanvas 
                     viewport={this._viewport}
-                    layerGapCenters={layoutResult?.layerGapCenters}
+                    layerGapCenters={this._getDisplayedLayerGapCenters()}
                     onContextMenu={(event: MouseEvent): void => this._handleContextMenu(event)}
                     onClick={(): void => {
 
@@ -513,6 +513,40 @@ class App extends Component<{}, AppState> {
                 ))}
             </>
         );
+    }
+
+    private _getDisplayedLayerGapCenters(): number[] {
+        if (!this._layoutResult) {
+            return [];
+        }
+
+        const { layerGapCenters, layerGapFrames, frames }: BlueprintPrerenderCombResult = this._layoutResult;
+        const { timelineRawPosition }: AppState = this.state;
+
+        // If layer gap frames exist, interpolate.
+        if (layerGapFrames && layerGapFrames.size > 0 && frames && frames.size > 0) {
+            const startIndex: number = Math.floor(timelineRawPosition);
+            const endIndex: number = Math.ceil(timelineRawPosition);
+            const progress: number = timelineRawPosition - startIndex;
+
+            const startGaps: number[] = layerGapFrames.get(startIndex) || layerGapCenters;
+            const endGaps: number[] = layerGapFrames.get(endIndex) || startGaps;
+
+            // Interpolate gap positions.
+            const maxLength: number = Math.max(startGaps.length, endGaps.length);
+            const displayedGaps: number[] = [];
+
+            for (let index: number = 0; index < maxLength; index++) {
+                const startValue: number = startGaps[index] ?? startGaps[startGaps.length - 1] ?? 0;
+                const endValue: number = endGaps[index] ?? endGaps[endGaps.length - 1] ?? 0;
+                displayedGaps.push(startValue + (endValue - startValue) * progress);
+            }
+
+            return displayedGaps;
+        }
+
+        // Fallback: Use latest layer gap centers.
+        return layerGapCenters;
     }
 
     private async _generatePng(): Promise<void> {
