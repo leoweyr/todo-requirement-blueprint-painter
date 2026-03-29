@@ -147,6 +147,7 @@ export class EdgeInteractionManager {
                                 <EdgeLine
                                     key={`edge-${prerenderEdge.edge.id}-${edgeIndex}`}
                                     {...prerenderEdge}
+                                    opacity={prerenderEdge.opacity}
                                     sourceNode={sourceNode}
                                     targetNode={targetNode}
                                     historyIndex={prerenderEdge.edge.history.length - 1}
@@ -183,6 +184,7 @@ export class EdgeInteractionManager {
                                     <EdgeLine
                                         key={`edge-born-${prerenderEdge.edge.id}-${nextHistoryIndex}-${edgeIndex}`}
                                         {...prerenderEdge}
+                                        opacity={prerenderEdge.opacity}
                                         sourceNode={sourceNode}
                                         targetNode={targetNode}
                                         historyIndex={nextHistoryIndex}
@@ -208,6 +210,7 @@ export class EdgeInteractionManager {
                                  <EdgeLine
                                     key={`edge-static-${prerenderEdge.edge.id}-${historyIndex}-${edgeIndex}`}
                                     {...prerenderEdge}
+                                    opacity={prerenderEdge.opacity}
                                     sourceNode={sourceNode}
                                     targetNode={targetNode}
                                     historyIndex={historyIndex}  // Override to show past state.
@@ -242,6 +245,7 @@ export class EdgeInteractionManager {
                                     <EdgeLine
                                         key={`edge-trans-same-${prerenderEdge.edge.id}-${currentHistoryIndex}-${edgeIndex}`}
                                         {...prerenderEdge}
+                                        opacity={prerenderEdge.opacity}
                                         sourceNode={sourceNode}
                                         targetNode={targetNode}
                                         historyIndex={currentHistoryIndex}
@@ -270,6 +274,7 @@ export class EdgeInteractionManager {
                                 <EdgeLine
                                     key={`edge-trans-highlight-${prerenderEdge.edge.id}-${nextHistoryIndex}-${edgeIndex}`}
                                     {...prerenderEdge}
+                                    opacity={prerenderEdge.opacity}
                                     sourceNode={sourceNode}
                                     targetNode={targetNode}
                                     historyIndex={nextHistoryIndex}
@@ -291,6 +296,7 @@ export class EdgeInteractionManager {
                                         <EdgeLine
                                             key={`edge-trans-old-${prerenderEdge.edge.id}-${currentHistoryIndex}-${edgeIndex}`}
                                             {...prerenderEdge}
+                                            opacity={prerenderEdge.opacity}
                                             sourceNode={sourceNode}
                                             targetNode={oldTargetNode}
                                             historyIndex={currentHistoryIndex}
@@ -304,6 +310,7 @@ export class EdgeInteractionManager {
                                         <EdgeLine
                                             key={`edge-trans-new-${prerenderEdge.edge.id}-${nextHistoryIndex}-${edgeIndex}`}
                                             {...prerenderEdge}
+                                            opacity={prerenderEdge.opacity}
                                             sourceNode={sourceNode}
                                             targetNode={newTargetNode}
                                             historyIndex={nextHistoryIndex}

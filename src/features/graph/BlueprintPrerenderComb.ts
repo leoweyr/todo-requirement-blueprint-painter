@@ -1,9 +1,12 @@
 import { EdgeStatus } from '@todo-requirement-blueprint/domain';
 import { Node } from '@todo-requirement-blueprint/domain';
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
 import { Edge } from '@todo-requirement-blueprint/domain';
 import { type EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../registry/DomainRegistry';
+import { type NodeHistoryVersion } from '../node-history/NodeHistoryVersion';
+import { type NodeTimeline } from '../node-history/NodeTimeline';
 import { type BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResult';
 import { type ContentBounds } from './ContentBounds';
 import { type PrerenderNode } from './PrerenderNode';
@@ -21,8 +24,181 @@ export class BlueprintPrerenderComb {
     private readonly _COMPONENT_GAP: number = 80;  // Defines the vertical gap between connected components.
     private readonly _EDGE_NODE_REPULSION_MARGIN: number = 20;  // Defines the margin for edge-node repulsion detection.
 
-    private _calculateLayoutInternal(registry: DomainRegistry, timeLimit?: string): BlueprintPrerenderCombResult {
-        const nodes: Node[] = registry.allNodes;
+    private _createDisplayNodeFromVersion(nodeId: string, nodeVersion: NodeHistoryVersion): Node {
+        const frameStatus: NodeStatus = new NodeStatus(
+            nodeVersion.statusName,
+            nodeVersion.statusDescription,
+            nodeVersion.statusMetadata
+        );
+
+        return new Node(
+            nodeId,
+            nodeVersion.description,
+            nodeVersion.version,
+            nodeVersion.updatedAt,
+            frameStatus,
+            nodeVersion.metadata
+        );
+    }
+
+    private _createSyntheticNode(nodeId: string, nodeTimeline: NodeTimeline): Node | null {
+        const latestVersion: NodeHistoryVersion | undefined = nodeTimeline.versions[nodeTimeline.versions.length - 1];
+
+        if (!latestVersion) {
+            return null;
+        }
+
+        return this._createDisplayNodeFromVersion(nodeId, latestVersion);
+    }
+
+    private _buildLayoutNodePool(
+        registry: DomainRegistry,
+        nodeTimelines?: Map<string, NodeTimeline>
+    ): Node[] {
+        const nodeMap: Map<string, Node> = new Map<string, Node>();
+
+        registry.allNodes.forEach((node: Node): void => {
+            nodeMap.set(node.id, node);
+        });
+
+        if (nodeTimelines && nodeTimelines.size > 0) {
+            nodeTimelines.forEach((nodeTimeline: NodeTimeline, nodeId: string): void => {
+                if (nodeMap.has(nodeId)) {
+                    return;
+                }
+
+                const syntheticNode: Node | null = this._createSyntheticNode(nodeId, nodeTimeline);
+
+                if (syntheticNode) {
+                    nodeMap.set(nodeId, syntheticNode);
+                }
+            });
+        }
+
+        return Array.from(nodeMap.values());
+    }
+
+    private _getNodeVersionAtTime(nodeTimeline: NodeTimeline, timeLimit: string): NodeHistoryVersion | null {
+        const timeLimitMilliseconds: number = new Date(timeLimit).getTime();
+        let result: NodeHistoryVersion | null = null;
+
+        for (const nodeVersion of nodeTimeline.versions) {
+            const versionMilliseconds: number = new Date(nodeVersion.updatedAt).getTime();
+
+            if (versionMilliseconds <= timeLimitMilliseconds) {
+                result = nodeVersion;
+                continue;
+            }
+
+            break;
+        }
+
+        return result;
+    }
+
+    private _resolveFrameNodes(
+        node: Node,
+        timeLimit?: string,
+        nodeTimelines?: Map<string, NodeTimeline>
+    ): { layoutNode: Node; displayNode: Node } | null {
+        if (!timeLimit) {
+            if (nodeTimelines && nodeTimelines.size > 0) {
+                const nodeTimeline: NodeTimeline | undefined = nodeTimelines.get(node.id);
+
+                if (nodeTimeline) {
+                    if (nodeTimeline.lastSeenAt !== null) {
+                        return null;
+                    }
+
+                    const latestVersion: NodeHistoryVersion | undefined = nodeTimeline.versions[nodeTimeline.versions.length - 1];
+
+                    if (latestVersion) {
+                        return {
+                            layoutNode: node,
+                            displayNode: this._createDisplayNodeFromVersion(node.id, latestVersion)
+                        };
+                    }
+                }
+            }
+
+            return {
+                layoutNode: node,
+                displayNode: node
+            };
+        }
+
+        if (!nodeTimelines || nodeTimelines.size === 0) {
+            const nodeTimeMilliseconds: number = new Date(node.updatedAt).getTime();
+            const timeLimitMilliseconds: number = new Date(timeLimit).getTime();
+
+            if (nodeTimeMilliseconds > timeLimitMilliseconds) {
+                return null;
+            }
+
+            return {
+                layoutNode: node,
+                displayNode: node
+            };
+        }
+
+        const nodeTimeline: NodeTimeline | undefined = nodeTimelines.get(node.id);
+
+        if (!nodeTimeline) {
+            return {
+                layoutNode: node,
+                displayNode: node
+            };
+        }
+
+        const timeLimitMilliseconds: number = new Date(timeLimit).getTime();
+        const firstAppearedMilliseconds: number = new Date(nodeTimeline.firstAppearedAt).getTime();
+
+        if (timeLimitMilliseconds < firstAppearedMilliseconds) {
+            return null;
+        }
+
+        if (nodeTimeline.lastSeenAt !== null) {
+            const lastSeenMilliseconds: number = new Date(nodeTimeline.lastSeenAt).getTime();
+
+            if (timeLimitMilliseconds > lastSeenMilliseconds) {
+                return null;
+            }
+        }
+
+        const frameVersion: NodeHistoryVersion | null = this._getNodeVersionAtTime(nodeTimeline, timeLimit);
+
+        if (!frameVersion) {
+            return null;
+        }
+
+        return {
+            layoutNode: node,
+            displayNode: this._createDisplayNodeFromVersion(node.id, frameVersion)
+        };
+    }
+
+    private _calculateLayoutInternal(
+        registry: DomainRegistry,
+        timeLimit?: string,
+        nodeTimelines?: Map<string, NodeTimeline>
+    ): BlueprintPrerenderCombResult {
+        const allNodes: Node[] = this._buildLayoutNodePool(registry, nodeTimelines);
+        const nodes: Node[] = [];
+        const displayNodeMap: Map<string, Node> = new Map<string, Node>();
+
+        allNodes.forEach((node: Node): void => {
+            const resolvedFrameNodes: { layoutNode: Node; displayNode: Node } | null = this._resolveFrameNodes(
+                node,
+                timeLimit,
+                nodeTimelines
+            );
+
+            if (resolvedFrameNodes) {
+                nodes.push(resolvedFrameNodes.layoutNode);
+                displayNodeMap.set(node.id, resolvedFrameNodes.displayNode);
+            }
+        });
+
         const graphNodes: Map<string, GraphNode> = new Map<string, GraphNode>();
 
         // Step 0: Build adjacency list for connected component detection.
@@ -211,6 +387,7 @@ export class BlueprintPrerenderComb {
             sortedLayerIndices,
             layerXPositions,
             layerGapCenters,
+            displayNodeMap,
             timeLimit
         );
     }
@@ -223,6 +400,7 @@ export class BlueprintPrerenderComb {
         sortedLayerIndices: number[],
         layerXPositions: Map<number, number>,
         layerGapCenters: number[],
+        displayNodeMap: Map<string, Node>,
         timeLimit?: string
     ): BlueprintPrerenderCombResult {
         const prerenderNodes: PrerenderNode[] = [];
@@ -379,8 +557,10 @@ export class BlueprintPrerenderComb {
                 const position: { x: number; y: number } | undefined = resultNodes.get(node.id);
 
                 if (position) {
+                    const displayNode: Node = displayNodeMap.get(node.id) || node;
+
                     prerenderNodes.push({
-                        node: node,
+                        node: displayNode,
                         x: position.x,
                         y: position.y
                     });
@@ -743,9 +923,27 @@ export class BlueprintPrerenderComb {
         return 0;
     }
 
-    public calculateLayout(registry: DomainRegistry): BlueprintPrerenderCombResult {
-        // Step 0: Extract all edge history update times.
+    public calculateLayout(
+        registry: DomainRegistry,
+        nodeTimelines?: Map<string, NodeTimeline>
+    ): BlueprintPrerenderCombResult {
+        // Step 0: Extract all update times (from edges and nodes).
         const updateTimesSet: Set<string> = new Set<string>();
+
+        // Collect node history update times.
+        if (nodeTimelines && nodeTimelines.size > 0) {
+            nodeTimelines.forEach((nodeTimeline: NodeTimeline): void => {
+                nodeTimeline.versions.forEach((nodeVersion: NodeHistoryVersion): void => {
+                    updateTimesSet.add(nodeVersion.updatedAt);
+                });
+            });
+        } else {
+            registry.allNodes.forEach((node: Node): void => {
+                updateTimesSet.add(node.updatedAt);
+            });
+        }
+
+        // Collect edge history update times.
         registry.allNodes.forEach((node: Node): void => {
             node.edges.forEach((edge: Edge): void => {
                 edge.history.forEach((record: EdgeHistoryRecord): void => {
@@ -759,7 +957,7 @@ export class BlueprintPrerenderComb {
         });
 
         // Main layout (latest).
-        const result: BlueprintPrerenderCombResult = this._calculateLayoutInternal(registry, undefined);
+        const result: BlueprintPrerenderCombResult = this._calculateLayoutInternal(registry, undefined, nodeTimelines);
         result.updateTimes = updateTimes;
 
         // Frames for animation (nodes, edges, and layer gaps).
@@ -769,7 +967,7 @@ export class BlueprintPrerenderComb {
         const contentBoundsFrames: Map<number, ContentBounds> = new Map<number, ContentBounds>();
 
         updateTimes.forEach((time: string, index: number): void => {
-            const frameResult: BlueprintPrerenderCombResult = this._calculateLayoutInternal(registry, time);
+            const frameResult: BlueprintPrerenderCombResult = this._calculateLayoutInternal(registry, time, nodeTimelines);
             frames.set(index, frameResult.prerenderNodes);
             edgeFrames.set(index, frameResult.prerenderEdges);
             layerGapFrames.set(index, frameResult.layerGapCenters);

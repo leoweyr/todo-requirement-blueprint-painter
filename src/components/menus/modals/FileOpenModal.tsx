@@ -8,6 +8,7 @@ import { BlueprintSerializer } from '../../../features/serializer/BlueprintSeria
 import { GitHubClient } from '../../../features/github/GitHubClient';
 import { type GitHubRepository } from '../../../features/github/GitHubRepository';
 import { type TrbManifest, type TrbManifestBlueprint } from '../../../features/github/TrbManifest';
+import { NodeHistoryTracker } from '../../../features/node-history/NodeHistoryTracker';
 import { FileOpenModalView } from './enums/FileOpenModalView.ts';
 
 
@@ -317,7 +318,9 @@ class FileOpenModal extends Component<FileOpenModalProps, FileOpenModalState> {
                 await BlueprintSerializer.fromYaml(content, registry, normalizedVersion, blueprintName);
             }
 
-            const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
+            const nodeHistoryTracker: NodeHistoryTracker = new NodeHistoryTracker();
+            await nodeHistoryTracker.loadFromGitHub(owner, repositoryName, filePath);
+            const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry, nodeHistoryTracker.nodeTimelines);
             onLayoutUpdate(result);
 
             if (result.contentBounds) {

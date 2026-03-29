@@ -8,6 +8,7 @@ import type { NodeInterceptor } from '../interceptor/NodeInterceptor';
 import { ReadOnlyView } from '../readonly/ReadOnlyView';
 import { DomainRegistry } from '../registry/DomainRegistry';
 import { BlueprintSerializer } from '../serializer/BlueprintSerializer';
+import { NodeHistoryTracker } from '../node-history/NodeHistoryTracker';
 import { GitHubClient } from './GitHubClient';
 import { type TrbManifest } from './TrbManifest';
 
@@ -70,6 +71,8 @@ export class GitHubLoader {
         const blueprintName: string = GitHubLoader._extractBlueprintNameFromPath(blueprintPath, repoName);
 
         await BlueprintSerializer.fromYaml(content, registry, normalizedVersion, blueprintName);
+        const nodeHistoryTracker: NodeHistoryTracker = new NodeHistoryTracker();
+        await nodeHistoryTracker.loadFromGitHub(owner, repoName, blueprintPath);
 
         // 5. Apply interceptor to all nodes if in read-only mode.
         if (GitHubLoader._interceptor && ReadOnlyView.instance.isReadOnly()) {
@@ -77,7 +80,7 @@ export class GitHubLoader {
         }
 
         // 6. Update layout.
-        const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
+        const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry, nodeHistoryTracker.nodeTimelines);
         onLayoutUpdate(result);
 
         // 7. Update Viewport.

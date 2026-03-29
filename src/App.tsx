@@ -388,32 +388,56 @@ class App extends Component<{}, AppState> {
              const processedIds: Set<string> = new Set<string>();
 
              // Interpolate from Start to End.
-             startFrame.forEach((startNode: PrerenderNode): void => {
-                 const endNode: PrerenderNode | undefined = endNodeMap.get(startNode.node.id);
-                 
-                 if (endNode) {
-                     // Node exists in both frames: Interpolate.
-                     displayedNodes.push({
-                         node: startNode.node,
-                         x: startNode.x + (endNode.x - startNode.x) * progress,
-                         y: startNode.y + (endNode.y - startNode.y) * progress
-                     });
-                 } else {
-                     // Node exists only in Start Frame: Keep at Start Position.
-                     displayedNodes.push(startNode);
-                 }
+              startFrame.forEach((startNode: PrerenderNode): void => {
+                  const endNode: PrerenderNode | undefined = endNodeMap.get(startNode.node.id);
+                  
+                  if (endNode) {
+                      // Node exists in both frames: Interpolate position and colors.
+                      const startColors: { backgroundColor: string; borderColor: string } = this._getNodeColors(startNode.node);
+                      const endColors: { backgroundColor: string; borderColor: string } = this._getNodeColors(endNode.node);
+
+                      displayedNodes.push({
+                          node: endNode.node,  // Use end node for latest status.
+                          x: startNode.x + (endNode.x - startNode.x) * progress,
+                          y: startNode.y + (endNode.y - startNode.y) * progress,
+                          opacity: 1,
+                          backgroundColor: this._interpolateColor(startColors.backgroundColor, endColors.backgroundColor, progress),
+                          borderColor: this._interpolateColor(startColors.borderColor, endColors.borderColor, progress)
+                      });
+                  } else {
+                      // Node exists only in Start Frame: Fade out.
+                      const startColors: { backgroundColor: string; borderColor: string } = this._getNodeColors(startNode.node);
+
+                      displayedNodes.push({
+                          node: startNode.node,
+                          x: startNode.x,
+                          y: startNode.y,
+                          opacity: 1 - progress,  // Fade out.
+                          backgroundColor: startColors.backgroundColor,
+                          borderColor: startColors.borderColor
+                      });
+                  }
 
                  processedIds.add(startNode.node.id);
              });
              
              // Handle Nodes that appear ONLY in End Frame.
-             endFrame.forEach((endNode: PrerenderNode): void => {
+              endFrame.forEach((endNode: PrerenderNode): void => {
 
-                 if (!processedIds.has(endNode.node.id)) {
-                     // New Node: Use End Position.
-                     displayedNodes.push(endNode);
-                 }
-             });
+                  if (!processedIds.has(endNode.node.id)) {
+                      // New Node: Fade in at End Position.
+                      const endColors: { backgroundColor: string; borderColor: string } = this._getNodeColors(endNode.node);
+
+                      displayedNodes.push({
+                          node: endNode.node,
+                          x: endNode.x,
+                          y: endNode.y,
+                          opacity: progress,  // Fade in.
+                          backgroundColor: endColors.backgroundColor,
+                          borderColor: endColors.borderColor
+                      });
+                  }
+              });
 
              // Interpolate edges (including curvature).
              if (edgeFrames && edgeFrames.size > 0) {
@@ -428,40 +452,53 @@ class App extends Component<{}, AppState> {
                  const processedEdgeIds: Set<string> = new Set<string>();
 
                  // Interpolate from Start to End.
-                 startEdgeFrame.forEach((startEdge: PrerenderEdge): void => {
-                     const endEdge: PrerenderEdge | undefined = endEdgeMap.get(startEdge.edge.id);
+                  startEdgeFrame.forEach((startEdge: PrerenderEdge): void => {
+                      const endEdge: PrerenderEdge | undefined = endEdgeMap.get(startEdge.edge.id);
 
-                     if (endEdge) {
-                         // Edge exists in both frames: Interpolate positions and curvature.
-                         const startCurvature: number = startEdge.curvature || 0;
-                         const endCurvature: number = endEdge.curvature || 0;
+                      if (endEdge) {
+                          // Edge exists in both frames: Interpolate positions and curvature.
+                          const startCurvature: number = startEdge.curvature || 0;
+                          const endCurvature: number = endEdge.curvature || 0;
+                          const startOpacity: number = startEdge.opacity !== undefined ? startEdge.opacity : 1;
+                          const endOpacity: number = endEdge.opacity !== undefined ? endEdge.opacity : 1;
 
-                         displayedEdges.push({
-                             edge: startEdge.edge,
-                             startX: startEdge.startX + (endEdge.startX - startEdge.startX) * progress,
-                             startY: startEdge.startY + (endEdge.startY - startEdge.startY) * progress,
-                             endX: startEdge.endX + (endEdge.endX - startEdge.endX) * progress,
-                             endY: startEdge.endY + (endEdge.endY - startEdge.endY) * progress,
-                             labelPositionDivisions: startEdge.labelPositionDivisions,
-                             labelPositionIndex: startEdge.labelPositionIndex,
-                             curvature: startCurvature + (endCurvature - startCurvature) * progress
-                         });
-                     } else {
-                         // Edge exists only in Start Frame: Keep at Start Position.
-                         displayedEdges.push(startEdge);
-                     }
+                          displayedEdges.push({
+                              edge: startEdge.edge,
+                              startX: startEdge.startX + (endEdge.startX - startEdge.startX) * progress,
+                              startY: startEdge.startY + (endEdge.startY - startEdge.startY) * progress,
+                              endX: startEdge.endX + (endEdge.endX - startEdge.endX) * progress,
+                              endY: startEdge.endY + (endEdge.endY - startEdge.endY) * progress,
+                              labelPositionDivisions: endEdge.labelPositionDivisions,
+                              labelPositionIndex: endEdge.labelPositionIndex,
+                              curvature: startCurvature + (endCurvature - startCurvature) * progress,
+                              opacity: startOpacity + (endOpacity - startOpacity) * progress
+                          });
+                      } else {
+                          // Edge exists only in Start Frame: Fade out.
+                          const startOpacity: number = startEdge.opacity !== undefined ? startEdge.opacity : 1;
+
+                          displayedEdges.push({
+                              ...startEdge,
+                              opacity: startOpacity * (1 - progress)
+                          });
+                      }
 
                      processedEdgeIds.add(startEdge.edge.id);
                  });
 
                  // Handle Edges that appear ONLY in End Frame.
-                 endEdgeFrame.forEach((endEdge: PrerenderEdge): void => {
+                  endEdgeFrame.forEach((endEdge: PrerenderEdge): void => {
 
-                     if (!processedEdgeIds.has(endEdge.edge.id)) {
-                         // New Edge: Use End Position.
-                         displayedEdges.push(endEdge);
-                     }
-                 });
+                      if (!processedEdgeIds.has(endEdge.edge.id)) {
+                          // New Edge: Fade in at End Position.
+                          const endOpacity: number = endEdge.opacity !== undefined ? endEdge.opacity : 1;
+
+                          displayedEdges.push({
+                              ...endEdge,
+                              opacity: endOpacity * progress
+                          });
+                      }
+                  });
              } else {
                  // Fallback: Use latest edges if no edge frames.
                  displayedEdges.push(...prerenderEdges);
@@ -505,6 +542,9 @@ class App extends Component<{}, AppState> {
                         node={prerenderNode.node}
                         x={prerenderNode.x}
                         y={prerenderNode.y}
+                        opacity={prerenderNode.opacity}
+                        backgroundColor={prerenderNode.backgroundColor}
+                        borderColor={prerenderNode.borderColor}
                         onStartEdge={(nodeId: string): void => {
                             if (!this._edgeDrawerRef) return;
 
@@ -554,6 +594,35 @@ class App extends Component<{}, AppState> {
 
         // Fallback: Use latest layer gap centers.
         return layerGapCenters;
+    }
+
+    private _parseColor(hexColor: string): { red: number; green: number; blue: number } {
+        // Parse hex color string to RGB components.
+        const hex: string = hexColor.replace('#', '');
+        const red: number = parseInt(hex.substring(0, 2), 16);
+        const green: number = parseInt(hex.substring(2, 4), 16);
+        const blue: number = parseInt(hex.substring(4, 6), 16);
+
+        return { red, green, blue };
+    }
+
+    private _interpolateColor(startColor: string, endColor: string, progress: number): string {
+        const start: { red: number; green: number; blue: number } = this._parseColor(startColor);
+        const end: { red: number; green: number; blue: number } = this._parseColor(endColor);
+
+        const red: number = Math.round(start.red + (end.red - start.red) * progress);
+        const green: number = Math.round(start.green + (end.green - start.green) * progress);
+        const blue: number = Math.round(start.blue + (end.blue - start.blue) * progress);
+
+        return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+    }
+
+    private _getNodeColors(node: Node): { backgroundColor: string; borderColor: string } {
+        const metadata: Record<string, unknown> | undefined = node.status.metadata;
+        const backgroundColor: string = (metadata?.backgroundColor as string) || '#F5F5F5';
+        const borderColor: string = (metadata?.borderColor as string) || '#666666';
+
+        return { backgroundColor, borderColor };
     }
 
     private _updateViewportForTimeline(): void {

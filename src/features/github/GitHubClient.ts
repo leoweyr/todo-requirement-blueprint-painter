@@ -1,3 +1,4 @@
+import { type GitHubCommit } from './GitHubCommit';
 import { type GitHubFileContent } from './GitHubFileContent';
 import { type GitHubRepository } from './GitHubRepository';
 import { type TrbManifest } from './TrbManifest';
@@ -138,5 +139,67 @@ export class GitHubClient {
         } catch {
             return null;
         }
+    }
+
+    public async getCommits(owner: string, repository: string, path?: string, perPage: number = 100): Promise<GitHubCommit[]> {
+        let url: string = `https://api.github.com/repos/${owner}/${repository}/commits?per_page=${perPage}`;
+
+        if (path) {
+            url += `&path=${encodeURIComponent(path)}`;
+        }
+
+        const headers: Record<string, string> = {
+            'Accept': 'application/vnd.github.v3+json'
+        };
+
+        if (this._token) {
+            headers['Authorization'] = `token ${this._token}`;
+        }
+
+        const response: Response = await fetch(url, { headers });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch commits: ${response.status} ${response.statusText}`);
+        }
+
+        const commits: GitHubCommit[] = await response.json();
+
+        return commits;
+    }
+
+    public async getFileContentAtCommit(owner: string, repository: string, path: string, sha: string): Promise<string | null> {
+        const url: string = `https://api.github.com/repos/${owner}/${repository}/contents/${path}?ref=${sha}`;
+
+        const headers: Record<string, string> = {
+            'Accept': 'application/vnd.github.v3+json'
+        };
+
+        if (this._token) {
+            headers['Authorization'] = `token ${this._token}`;
+        }
+
+        const response: Response = await fetch(url, { headers });
+
+        if (response.status === 404) {
+            return null;
+        }
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch file at commit: ${response.status} ${response.statusText}`);
+        }
+
+        const data: GitHubFileContent = await response.json();
+
+        if (data.encoding === 'base64' && data.content) {
+            try {
+                // Decode base64 content with UTF-8 support.
+                return decodeURIComponent(escape(window.atob(data.content.replace(/\n/g, ''))));
+            } catch {
+                // Fallback to raw atob decoding.
+                return window.atob(data.content.replace(/\n/g, ''));
+            }
+        }
+
+        throw new Error('File content not found or encoding not supported.');
     }
 }

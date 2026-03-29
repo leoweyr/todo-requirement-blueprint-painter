@@ -30,7 +30,7 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
             const viewport: CanvasViewport = this.props.viewport;
             
             // Calculate worldX as (screenX - viewportX) / scale.
-            // worldX = (screenX - viewportX) / scale.
+            // The formula is worldX = (screenX - viewportX) / scale.
             const worldX: number = (event.clientX - viewport.x) / viewport.scale;
             const worldY: number = (event.clientY - viewport.y) / viewport.scale;
 
