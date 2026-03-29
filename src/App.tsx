@@ -7,6 +7,7 @@ import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
 import { EdgeInteractionManager } from './components/canvas/edge-interaction/EdgeInteractionManager';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import Legend from './components/canvas/Legend';
+import { type LegendScreenBounds } from './components/canvas/LegendScreenBounds';
 import { TimelineSlider } from './components/canvas/TimelineSlider';
 import NodeRectangle from './components/elements/NodeRectangle';
 import { BlueprintPaster } from './components/menus/blueprint-edit/BlueprintPaster';
@@ -34,6 +35,15 @@ interface AppState {
 
 
 class App extends Component<{}, AppState> {
+    private readonly _NODE_WIDTH: number = BlueprintPrerenderComb.NODE_WIDTH;
+    private readonly _NODE_HEIGHT: number = BlueprintPrerenderComb.NODE_HEIGHT;
+    private readonly _ROW_HEIGHT: number = BlueprintPrerenderComb.ROW_HEIGHT;
+    private readonly _REPULSION_MARGIN: number = this._ROW_HEIGHT - this._NODE_HEIGHT;
+    private readonly _TIMELINE_REPULSION_DELAY_MILLISECONDS: number = 220;
+    private readonly _LATEST_SLICE_THRESHOLD: number = 0.001;
+    private readonly _TIMELINE_TICK_THRESHOLD: number = 0.01;
+    private readonly _LEGEND_BOUNDS_EQUAL_THRESHOLD: number = 0.5;
+
     private readonly _viewport: CanvasViewport;
     private readonly _layoutService: BlueprintPrerenderComb;
     private readonly _registry: DomainRegistry;
@@ -43,6 +53,9 @@ class App extends Component<{}, AppState> {
     private _edgeDrawerRef: EdgeDrawer | null = null;
     private _menuManagerRef: MenuManager | null = null;
     private _hasLoadedFromGitHub: boolean = false;
+    private _legendBounds: LegendScreenBounds | null = null;
+    private _repulsionAnchorTickIndex: number | null = null;
+    private _repulsionTimerId: number | null = null;
 
     private _handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (
         result: BlueprintPrerenderCombResult
@@ -84,6 +97,21 @@ class App extends Component<{}, AppState> {
             timelineIsTransition: isTransition,
             timelineRawPosition: rawPosition
         } as unknown as Pick<AppState, keyof AppState>);
+    };
+
+    private _handleLegendBoundsChange: (bounds: LegendScreenBounds | null) => void = (bounds: LegendScreenBounds | null): void => {
+        if (this._areLegendBoundsEqual(this._legendBounds, bounds)) {
+            return;
+        }
+
+        this._legendBounds = bounds;
+        const updateTimesLength: number = this._layoutResult?.updateTimes?.length ?? 0;
+        const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
+        const isAtLatestSlice: boolean = Math.abs(this.state.timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
+        const canStartRepulsionTimer: boolean = this._canStartRepulsionTimer(this.state.timelineIsTransition, this.state.timelineRawPosition);
+        const timelineTickIndex: number | null = canStartRepulsionTimer ? this._resolveTimelineTickIndex(this.state.timelineRawPosition) : null;
+        this._scheduleRenderRepulsion(isAtLatestSlice, canStartRepulsionTimer, timelineTickIndex);
+        this.forceUpdate();
     };
 
     private _handleModalStateChange: (isOpen: boolean) => void = (isOpen: boolean): void => {
@@ -231,9 +259,15 @@ class App extends Component<{}, AppState> {
         const { isFileLoaded: wasFileLoaded }: AppState = prevState;
         const hasTimelineChanged: boolean = prevState.timelineRawPosition !== this.state.timelineRawPosition;
         const hasTransitionStateChanged: boolean = prevState.timelineIsTransition !== this.state.timelineIsTransition;
+        const updateTimesLength: number = this._layoutResult?.updateTimes?.length ?? 0;
+        const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
+        const isAtLatestSlice: boolean = Math.abs(this.state.timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
+        const canStartRepulsionTimer: boolean = this._canStartRepulsionTimer(this.state.timelineIsTransition, this.state.timelineRawPosition);
+        const timelineTickIndex: number | null = canStartRepulsionTimer ? this._resolveTimelineTickIndex(this.state.timelineRawPosition) : null;
 
         if (hasTimelineChanged || hasTransitionStateChanged) {
             this._updateViewportForTimeline();
+            this._scheduleRenderRepulsion(isAtLatestSlice, canStartRepulsionTimer, timelineTickIndex);
         }
 
         // Disable BlueprintPaster binding in read-only mode.
@@ -261,6 +295,11 @@ class App extends Component<{}, AppState> {
         }
 
         window.removeEventListener('keydown', this._handleKeyDown);
+
+        if (this._repulsionTimerId !== null) {
+            window.clearTimeout(this._repulsionTimerId);
+            this._repulsionTimerId = null;
+        }
     }
 
     public render(): ReactNode {
@@ -350,7 +389,13 @@ class App extends Component<{}, AppState> {
                     </div>
                 )}
                 
-                {isFileLoaded && <Legend registry={this._registry} onContextMenu={(event: MouseEvent, type: 'node-status' | 'edge-evolution-reason', name: string): void => this._handleLegendContextMenu(event, type, name)} />}
+                {isFileLoaded && (
+                    <Legend
+                        registry={this._registry}
+                        onBoundsChange={(bounds: LegendScreenBounds | null): void => this._handleLegendBoundsChange(bounds)}
+                        onContextMenu={(event: MouseEvent, type: 'node-status' | 'edge-evolution-reason', name: string): void => this._handleLegendContextMenu(event, type, name)}
+                    />
+                )}
             </>
         );
     }
@@ -509,9 +554,21 @@ class App extends Component<{}, AppState> {
             displayedEdges.push(...prerenderEdges);
         }
 
+        const updateTimesLength: number = updateTimes?.length ?? 0;
+        const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
+        const isAtLatestSlice: boolean = Math.abs(timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
+        const isOnTimelineTick: boolean = this._isOnTimelineTick(timelineRawPosition);
+        const timelineTickIndex: number = this._resolveTimelineTickIndex(timelineRawPosition);
+        const shouldApplyRepulsionNow: boolean = !timelineIsTransition
+            && isOnTimelineTick
+            && (isAtLatestSlice || this._repulsionAnchorTickIndex === timelineTickIndex);
+        const repulsedNodes: PrerenderNode[] = shouldApplyRepulsionNow
+            ? this._applyRenderRepulsion(displayedNodes)
+            : displayedNodes;
+
         // Create a map for fast node position lookup.
         const nodeMap: Map<string, PrerenderNode> = new Map<string, PrerenderNode>();
-        displayedNodes.forEach((node: PrerenderNode): void => { nodeMap.set(node.node.id, node); });
+        repulsedNodes.forEach((node: PrerenderNode): void => { nodeMap.set(node.node.id, node); });
 
         // Represents the current time point.
         const currentTime: string | undefined = updateTimes && updateTimes[timelineIndex];
@@ -536,7 +593,7 @@ class App extends Component<{}, AppState> {
                 )}
 
                 {/* Render the nodes on top of the edges. */}
-                {displayedNodes.map((prerenderNode: PrerenderNode): ReactNode => (
+                {repulsedNodes.map((prerenderNode: PrerenderNode): ReactNode => (
                     <NodeRectangle
                         key={prerenderNode.node.id as string}
                         node={prerenderNode.node}
@@ -623,6 +680,183 @@ class App extends Component<{}, AppState> {
         const borderColor: string = (metadata?.borderColor as string) || '#666666';
 
         return { backgroundColor, borderColor };
+    }
+
+    private _canStartRepulsionTimer(timelineIsTransition: boolean, timelineRawPosition: number): boolean {
+        return !timelineIsTransition && this._isOnTimelineTick(timelineRawPosition);
+    }
+
+    private _isOnTimelineTick(timelineRawPosition: number): boolean {
+        return Math.abs(timelineRawPosition - Math.round(timelineRawPosition)) < this._TIMELINE_TICK_THRESHOLD;
+    }
+
+    private _resolveTimelineTickIndex(timelineRawPosition: number): number {
+        return Math.round(timelineRawPosition);
+    }
+
+    private _scheduleRenderRepulsion(
+        isAtLatestSlice: boolean,
+        canStartRepulsionTimer: boolean,
+        timelineTickIndex: number | null
+    ): void {
+        if (this._repulsionTimerId !== null) {
+            window.clearTimeout(this._repulsionTimerId);
+            this._repulsionTimerId = null;
+        }
+
+        if (!canStartRepulsionTimer || timelineTickIndex === null) {
+            this._repulsionAnchorTickIndex = null;
+            return;
+        }
+
+        if (isAtLatestSlice) {
+            this._repulsionAnchorTickIndex = timelineTickIndex;
+            return;
+        }
+
+        this._repulsionAnchorTickIndex = null;
+        const anchorTickIndex: number = timelineTickIndex;
+
+        this._repulsionTimerId = window.setTimeout((): void => {
+            this._repulsionTimerId = null;
+            const canStillStartRepulsion: boolean = this._canStartRepulsionTimer(this.state.timelineIsTransition, this.state.timelineRawPosition);
+            const currentTickIndex: number = this._resolveTimelineTickIndex(this.state.timelineRawPosition);
+
+            if (canStillStartRepulsion && currentTickIndex === anchorTickIndex) {
+                this._repulsionAnchorTickIndex = anchorTickIndex;
+                this.forceUpdate();
+            }
+        }, this._TIMELINE_REPULSION_DELAY_MILLISECONDS);
+    }
+
+    private _areLegendBoundsEqual(
+        firstBounds: LegendScreenBounds | null,
+        secondBounds: LegendScreenBounds | null
+    ): boolean {
+        if (!firstBounds && !secondBounds) {
+            return true;
+        }
+
+        if (!firstBounds || !secondBounds) {
+            return false;
+        }
+
+        return (
+            Math.abs(firstBounds.left - secondBounds.left) < this._LEGEND_BOUNDS_EQUAL_THRESHOLD
+            && Math.abs(firstBounds.top - secondBounds.top) < this._LEGEND_BOUNDS_EQUAL_THRESHOLD
+            && Math.abs(firstBounds.right - secondBounds.right) < this._LEGEND_BOUNDS_EQUAL_THRESHOLD
+            && Math.abs(firstBounds.bottom - secondBounds.bottom) < this._LEGEND_BOUNDS_EQUAL_THRESHOLD
+        );
+    }
+
+    private _screenToWorldX(screenX: number): number {
+        return (screenX - this._viewport.x) / this._viewport.scale;
+    }
+
+    private _screenToWorldY(screenY: number): number {
+        return (screenY - this._viewport.y) / this._viewport.scale;
+    }
+
+    private _getLegendWorldBounds():
+        { left: number; top: number; right: number; bottom: number } | null {
+        if (!this._legendBounds) {
+            return null;
+        }
+
+        return {
+            left: this._screenToWorldX(this._legendBounds.left) - this._REPULSION_MARGIN,
+            top: this._screenToWorldY(this._legendBounds.top) - this._REPULSION_MARGIN,
+            right: this._screenToWorldX(this._legendBounds.right) + this._REPULSION_MARGIN,
+            bottom: this._screenToWorldY(this._legendBounds.bottom) + this._REPULSION_MARGIN
+        };
+    }
+
+    private _buildNodeRectangle(node: PrerenderNode):
+        { left: number; top: number; right: number; bottom: number } {
+        return {
+            left: node.x,
+            top: node.y,
+            right: node.x + this._NODE_WIDTH,
+            bottom: node.y + this._NODE_HEIGHT
+        };
+    }
+
+    private _rectanglesOverlap(
+        rectangleA: { left: number; top: number; right: number; bottom: number },
+        rectangleB: { left: number; top: number; right: number; bottom: number }
+    ): boolean {
+        return !(
+            rectangleA.right <= rectangleB.left ||
+            rectangleA.left >= rectangleB.right ||
+            rectangleA.bottom <= rectangleB.top ||
+            rectangleA.top >= rectangleB.bottom
+        );
+    }
+
+    private _applyRenderRepulsion(nodes: PrerenderNode[]): PrerenderNode[] {
+        const repulsedNodes: PrerenderNode[] = nodes
+            .map((node: PrerenderNode): PrerenderNode => ({ ...node }))
+            .sort((nodeA: PrerenderNode, nodeB: PrerenderNode): number => nodeA.y - nodeB.y);
+        const legendBounds: { left: number; top: number; right: number; bottom: number } | null = this._getLegendWorldBounds();
+        const movedNodeIds: Set<string> = new Set<string>();
+        const maxIterations: number = 8;
+
+        for (let iteration: number = 0; iteration < maxIterations; iteration++) {
+            let hasMovedInThisIteration: boolean = false;
+
+            for (let index: number = 0; index < repulsedNodes.length; index++) {
+                const currentNode: PrerenderNode = repulsedNodes[index];
+                let currentRectangle: { left: number; top: number; right: number; bottom: number } =
+                    this._buildNodeRectangle(currentNode);
+
+                if (legendBounds && this._rectanglesOverlap(currentRectangle, legendBounds)) {
+                    const pushDownDistance: number = legendBounds.bottom - currentRectangle.top;
+                    currentNode.y += pushDownDistance;
+                    movedNodeIds.add(currentNode.node.id);
+                    hasMovedInThisIteration = true;
+                    currentRectangle = this._buildNodeRectangle(currentNode);
+                }
+
+                for (let nextIndex: number = index + 1; nextIndex < repulsedNodes.length; nextIndex++) {
+                    const nextNode: PrerenderNode = repulsedNodes[nextIndex];
+                    const nextRectangle: { left: number; top: number; right: number; bottom: number } =
+                        this._buildNodeRectangle(nextNode);
+
+                    if (this._rectanglesOverlap(currentRectangle, nextRectangle)) {
+                        const pushDownDistance: number = currentRectangle.bottom - nextRectangle.top + this._REPULSION_MARGIN;
+                        nextNode.y += pushDownDistance;
+                        movedNodeIds.add(nextNode.node.id);
+                        hasMovedInThisIteration = true;
+                    }
+                }
+            }
+
+            if (!hasMovedInThisIteration) {
+                break;
+            }
+        }
+
+        return repulsedNodes.map((node: PrerenderNode): PrerenderNode => {
+            if (!movedNodeIds.has(node.node.id)) {
+                return node;
+            }
+
+            const originalNode: PrerenderNode | undefined = nodes.find(
+                (original: PrerenderNode): boolean => original.node.id === node.node.id
+            );
+
+            if (!originalNode) {
+                return node;
+            }
+
+            return {
+                ...node,
+                x: originalNode.x,
+                opacity: node.opacity !== undefined ? node.opacity : originalNode.opacity,
+                backgroundColor: node.backgroundColor || originalNode.backgroundColor,
+                borderColor: node.borderColor || originalNode.borderColor
+            };
+        });
     }
 
     private _updateViewportForTimeline(): void {

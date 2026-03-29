@@ -15,11 +15,15 @@ import { type GraphNode } from './GraphNode';
 
 
 export class BlueprintPrerenderComb {
-    private readonly _ROW_HEIGHT: number = 150;  // Defines the vertical spacing between node centers.
+    public static readonly ROW_HEIGHT: number = 150;
+    public static readonly NODE_WIDTH: number = 200;
+    public static readonly NODE_HEIGHT: number = 80;
+
+    private readonly _ROW_HEIGHT: number = BlueprintPrerenderComb.ROW_HEIGHT;  // Defines the vertical spacing between node centers.
     private readonly _MIN_LAYER_SPACING: number = 100;  // Defines the minimum spacing between layers.
     private readonly _TEXT_PADDING: number = 50;  // Defines the padding around text in the gap.
-    private readonly _NODE_WIDTH: number = 200;
-    private readonly _NODE_HEIGHT: number = 80;
+    private readonly _NODE_WIDTH: number = BlueprintPrerenderComb.NODE_WIDTH;
+    private readonly _NODE_HEIGHT: number = BlueprintPrerenderComb.NODE_HEIGHT;
     private readonly _PADDING: number = 50;
     private readonly _COMPONENT_GAP: number = 80;  // Defines the vertical gap between connected components.
     private readonly _EDGE_NODE_REPULSION_MARGIN: number = 20;  // Defines the margin for edge-node repulsion detection.
