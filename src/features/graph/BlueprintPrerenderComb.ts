@@ -5,6 +5,7 @@ import { type EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../registry/DomainRegistry';
 import { type BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResult';
+import { type ContentBounds } from './ContentBounds';
 import { type PrerenderNode } from './PrerenderNode';
 import { type PrerenderEdge } from './PrerenderEdge';
 import { type GraphNode } from './GraphNode';
@@ -765,17 +766,20 @@ export class BlueprintPrerenderComb {
         const frames: Map<number, PrerenderNode[]> = new Map<number, PrerenderNode[]>();
         const edgeFrames: Map<number, PrerenderEdge[]> = new Map<number, PrerenderEdge[]>();
         const layerGapFrames: Map<number, number[]> = new Map<number, number[]>();
+        const contentBoundsFrames: Map<number, ContentBounds> = new Map<number, ContentBounds>();
 
         updateTimes.forEach((time: string, index: number): void => {
             const frameResult: BlueprintPrerenderCombResult = this._calculateLayoutInternal(registry, time);
             frames.set(index, frameResult.prerenderNodes);
             edgeFrames.set(index, frameResult.prerenderEdges);
             layerGapFrames.set(index, frameResult.layerGapCenters);
+            contentBoundsFrames.set(index, frameResult.contentBounds);
         });
 
         result.frames = frames;
         result.edgeFrames = edgeFrames;
         result.layerGapFrames = layerGapFrames;
+        result.contentBoundsFrames = contentBoundsFrames;
 
         return result;
     }

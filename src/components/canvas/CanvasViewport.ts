@@ -74,6 +74,14 @@ export class CanvasViewport {
         this._recalculateConstraints(true);
     }
 
+    public updateContentBoundsSmooth(minimumX: number, minimumY: number, maximumX: number, maximumY: number): void {
+        // Update content bounds and recenter without forcing scale reset.
+        // Used for timeline changes where smooth centering is desired.
+        this._contentBounds = { minimumX, minimumY, maximumX, maximumY };
+        this._recalculateConstraints(false);
+        this._centerContent();
+    }
+
     public setContainerSize(width: number, height: number): void {
         this._containerSize = { width, height };
         this._recalculateConstraints(false);

@@ -16,6 +16,7 @@ import FileOpenModal from './components/menus/modals/FileOpenModal';
 import { EditorHistoryService } from './features/editor-history/EditorHistoryService';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
+import { TimelineViewportBoundsResolver } from './features/graph/TimelineViewportBoundsResolver';
 import { type PrerenderEdge } from './features/graph/PrerenderEdge';
 import { type PrerenderNode } from './features/graph/PrerenderNode';
 import { DomainRegistry } from './features/registry/DomainRegistry';
@@ -228,6 +229,12 @@ class App extends Component<{}, AppState> {
     public componentDidUpdate(_prevProps: {}, prevState: AppState): void {
         const { isFileLoaded }: AppState = this.state;
         const { isFileLoaded: wasFileLoaded }: AppState = prevState;
+        const hasTimelineChanged: boolean = prevState.timelineRawPosition !== this.state.timelineRawPosition;
+        const hasTransitionStateChanged: boolean = prevState.timelineIsTransition !== this.state.timelineIsTransition;
+
+        if (hasTimelineChanged || hasTransitionStateChanged) {
+            this._updateViewportForTimeline();
+        }
 
         // Disable BlueprintPaster binding in read-only mode.
         if (ReadOnlyView.instance.isReadOnly()) {
@@ -547,6 +554,21 @@ class App extends Component<{}, AppState> {
 
         // Fallback: Use latest layer gap centers.
         return layerGapCenters;
+    }
+
+    private _updateViewportForTimeline(): void {
+        if (!this._layoutResult) {
+            return;
+        }
+
+        const { timelineRawPosition }: AppState = this.state;
+        const interpolatedBounds = TimelineViewportBoundsResolver.resolve(this._layoutResult, timelineRawPosition);
+        this._viewport.updateContentBoundsSmooth(
+            interpolatedBounds.minimumX,
+            interpolatedBounds.minimumY,
+            interpolatedBounds.maximumX,
+            interpolatedBounds.maximumY
+        );
     }
 
     private async _generatePng(): Promise<void> {
