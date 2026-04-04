@@ -1,13 +1,16 @@
 import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
+import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
-import { NodeStatus } from '../../domain/NodeStatus';
-import { EdgeEvolutionReason } from '../../domain/EdgeEvolutionReason';
+import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
+import { type LegendScreenBounds } from './LegendScreenBounds';
 
 
 export interface LegendProps {
     registry: DomainRegistry;
     onContextMenu?: (event: MouseEvent, type: 'node-status' | 'edge-evolution-reason', name: string) => void;
+    onBoundsChange?: (bounds: LegendScreenBounds | null) => void;
 }
 
 
@@ -19,6 +22,7 @@ interface LegendState {
 
 class Legend extends Component<LegendProps, LegendState> {
     private _interval: number | null = null;
+    private _containerRef: HTMLDivElement | null = null;
 
     private _updateData: () => void = (): void => {
         const statuses: NodeStatus[] = this.props.registry.allNodeStatuses;
@@ -48,14 +52,23 @@ class Legend extends Component<LegendProps, LegendState> {
 
     public componentDidMount(): void {
         this._updateData();
+        this._notifyBoundsChange();
         
         // Listen for registry changes.
         this._interval = window.setInterval(this._updateData, 1000);
     }
 
+    public componentDidUpdate(): void {
+        this._notifyBoundsChange();
+    }
+
     public componentWillUnmount(): void {
         if (this._interval) {
             window.clearInterval(this._interval);
+        }
+
+        if (this.props.onBoundsChange) {
+            this.props.onBoundsChange(null);
         }
     }
 
@@ -67,7 +80,10 @@ class Legend extends Component<LegendProps, LegendState> {
         }
 
         return (
-            <div style={this.getContainerStyle()}>
+            <div
+                ref={(reference: HTMLDivElement | null): void => { this._containerRef = reference; }}
+                style={this.getContainerStyle()}
+            >
                 {statuses.length > 0 && (
                     <>
                         <h3 style={this.getTitleStyle()}>Node Statuses</h3>
@@ -75,8 +91,13 @@ class Legend extends Component<LegendProps, LegendState> {
                             {statuses.map((status: NodeStatus): ReactNode => (
                                 <div 
                                     key={status.name} 
-                                    style={{ ...this.getItemStyle(), cursor: 'context-menu' }}
+                                    style={{ ...this.getItemStyle(), cursor: ReadOnlyView.instance.isReadOnly() ? 'default' : 'context-menu' }}
                                     onContextMenu={(event: MouseEvent): void => {
+                                        // Disable context menu in read-only mode.
+                                        if (ReadOnlyView.instance.isReadOnly()) {
+                                            return;
+                                        }
+
                                         if (this.props.onContextMenu) {
                                             event.preventDefault();
                                             event.stopPropagation();
@@ -102,9 +123,14 @@ class Legend extends Component<LegendProps, LegendState> {
                             {reasons.map((reason: EdgeEvolutionReason): ReactNode => (
                                 <div 
                                     key={reason.name} 
-                                    style={{ ...this.getItemStyle(), cursor: reason.name === 'CUT' ? 'default' : 'context-menu' }}
+                                    style={{ ...this.getItemStyle(), cursor: (reason.name === 'CUT' || ReadOnlyView.instance.isReadOnly()) ? 'default' : 'context-menu' }}
                                     onContextMenu={(event: MouseEvent): void => {
                                         if (reason.name === 'CUT') return;
+
+                                        // Disable context menu in read-only mode.
+                                        if (ReadOnlyView.instance.isReadOnly()) {
+                                            return;
+                                        }
 
                                         if (this.props.onContextMenu) {
                                             event.preventDefault();
@@ -124,6 +150,26 @@ class Legend extends Component<LegendProps, LegendState> {
                 )}
             </div>
         );
+    }
+
+    private _notifyBoundsChange(): void {
+        if (!this.props.onBoundsChange) {
+            return;
+        }
+
+        if (!this._containerRef) {
+            this.props.onBoundsChange(null);
+            return;
+        }
+
+        const boundingClientRect: DOMRect = this._containerRef.getBoundingClientRect();
+
+        this.props.onBoundsChange({
+            left: boundingClientRect.left,
+            top: boundingClientRect.top,
+            right: boundingClientRect.right,
+            bottom: boundingClientRect.bottom
+        });
     }
 
     private getContainerStyle(): CSSProperties {

@@ -1,10 +1,10 @@
 import { Component, type ReactNode, type MouseEvent } from 'react';
+import { Node } from '@todo-requirement-blueprint/domain';
+import { Edge } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
 import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderComb';
 import { CanvasViewport } from '../canvas/CanvasViewport';
-import { Node } from '../../domain/Node';
-import { Edge } from '../../domain/Edge';
 import { EdgeInteractionManager } from '../canvas/edge-interaction/EdgeInteractionManager';
 import type { EdgeMenuHandler } from '../canvas/edge-interaction/EdgeMenuHandler';
 import { BlueprintPaster } from './blueprint-edit/BlueprintPaster';
@@ -391,6 +391,30 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
         );
     }
 
+    private _checkIsAnyModalOpen(state: MenuManagerState): boolean {
+        const {
+            isNodeCreateModalOpen,
+            isNodeStatusCreateModalOpen,
+            isEdgeEvolutionReasonCreateModalOpen,
+            isNodeStatusEditModalOpen,
+            isEdgeEvolutionReasonEditModalOpen,
+            isNodeEditModalOpen,
+            isEdgeCreateModalOpen,
+            isEdgeEvolutionModalOpen
+        } = state;
+
+        return (
+            isNodeCreateModalOpen ||
+            isNodeStatusCreateModalOpen ||
+            isEdgeEvolutionReasonCreateModalOpen ||
+            isNodeStatusEditModalOpen ||
+            isEdgeEvolutionReasonEditModalOpen ||
+            isNodeEditModalOpen ||
+            isEdgeCreateModalOpen ||
+            isEdgeEvolutionModalOpen
+        );
+    }
+
     // The following methods are the public API for App.tsx to trigger menus.
     public openGlobalContextMenu(event: MouseEvent): void {
         if (this._contextMenuRef) {
@@ -473,30 +497,6 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
 
     public isAnyModalOpen(): boolean {
         return this._checkIsAnyModalOpen(this.state);
-    }
-
-    private _checkIsAnyModalOpen(state: MenuManagerState): boolean {
-        const {
-            isNodeCreateModalOpen,
-            isNodeStatusCreateModalOpen,
-            isEdgeEvolutionReasonCreateModalOpen,
-            isNodeStatusEditModalOpen,
-            isEdgeEvolutionReasonEditModalOpen,
-            isNodeEditModalOpen,
-            isEdgeCreateModalOpen,
-            isEdgeEvolutionModalOpen
-        } = state;
-
-        return (
-            isNodeCreateModalOpen ||
-            isNodeStatusCreateModalOpen ||
-            isEdgeEvolutionReasonCreateModalOpen ||
-            isNodeStatusEditModalOpen ||
-            isEdgeEvolutionReasonEditModalOpen ||
-            isNodeEditModalOpen ||
-            isEdgeCreateModalOpen ||
-            isEdgeEvolutionModalOpen
-        );
     }
 }
 

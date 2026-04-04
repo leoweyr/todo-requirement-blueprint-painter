@@ -1,0 +1,20 @@
+{
+    "rewrites": [
+        {
+            "source": "/",
+            "has": [{ "type": "query", "key": "view", "value": "png" }],
+            "destination": "/api/render"
+        },
+        {
+            "source": "/:path*",
+            "has": [{ "type": "query", "key": "view", "value": "png" }],
+            "destination": "/api/render"
+        }
+    ],
+    "functions": {
+        "api/render.js": {
+            "maxDuration": 30,
+            "memory": 1024
+        }
+    }
+}

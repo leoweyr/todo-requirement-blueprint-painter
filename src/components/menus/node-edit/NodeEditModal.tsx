@@ -1,9 +1,9 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
+import { Node } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
 import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
-import { NodeStatus } from '../../../domain/NodeStatus';
-import { Node } from '../../../domain/Node';
 
 
 export interface NodeEditModalProps {

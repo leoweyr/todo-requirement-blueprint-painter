@@ -16,3 +16,37 @@ Set the following environment variable in your `.env` file (for local developmen
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `APP_GITHUB_TOKEN` | A GitHub Personal Access Token (classic or fine-grained) with `public_repo` scope (or read-only access to public repositories). | Yes |
+
+## 🔗 Route-Based Access
+
+Provides convenient URL-based access to blueprints hosted in GitHub repositories. This enables quick sharing, embedding in documentation, and seamless integration with existing workflows.
+
+### Loading Interactive Blueprint
+
+Opens the blueprint in interactive read-only mode for safe viewing and exploration, supports node interceptor-based desensitization for public-safe viewing, such as masking internal names, removing sensitive metadata, and replacing confidential labels with public aliases.
+
+Access blueprints directly from any GitHub repository using the `?github=` parameter:
+
+```
+https://your-deployment.vercel.app/?github=owner/repo
+```
+
+To make your TRB project repository compatible with TRB Painter, see the **[TRB Template](https://github.com/leoweyr/todo-requirement-blueprint-template)** for a complete example with best practices, and to recognize what a node interceptor is.
+
+### Image Reference and Embedding
+
+Offers two methods for generating PNG images of your blueprint:
+
+| Route                               | `/?github=&view=png`         | `/api/render?github=`                   |
+| ----------------------------------- | ---------------------------- | --------------------------------------- |
+| **Returns**                         | HTML page with image preview | Direct image file                       |
+| **Embedded in `<img>` or Markdown** | ❌ No                         | ✅ Yes                                   |
+| **Rendering Method**                | Client-side (browser)        | Server-side (Vercel Function)           |
+| **Best For**                        | Manual preview/download      | Embedding in READMEs, wikis, dashboards |
+
+Example Usage in Markdown:
+
+```markdown
+<!-- Embed live blueprint image in your README -->
+![Architecture Blueprint](https://your-deployment.vercel.app/api/render?github=owner/repo)
+```

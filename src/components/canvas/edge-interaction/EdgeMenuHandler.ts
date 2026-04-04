@@ -1,5 +1,4 @@
-import { Edge } from '../../../domain/Edge';
-
+import { Edge } from '@todo-requirement-blueprint/domain';
 
 export interface EdgeMenuHandler {
     startEdgeCut(edge: Edge): void;

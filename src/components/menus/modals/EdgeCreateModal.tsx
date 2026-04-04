@@ -1,11 +1,12 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
+import { Node } from '@todo-requirement-blueprint/domain';
+import { EdgeType } from '@todo-requirement-blueprint/domain';
+import { EdgeStatus } from '@todo-requirement-blueprint/domain';
+import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
 import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
-import { Node } from '../../../domain/Node';
-import { EdgeType } from '../../../domain/enums/EdgeType';
-import { EdgeStatus } from '../../../domain/enums/EdgeStatus';
 import { EdgeCreator } from '../edge-edit/EdgeCreator';
 
 
@@ -23,17 +24,21 @@ interface EdgeCreateModalState {
     demandDescription: string;
     selectedType: EdgeType;
     selectedStatus: EdgeStatus;
+    selectedReasonName: string;
 }
 
 
 class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalState> {
-    private handleDescriptionChange: (event: ChangeEvent<HTMLInputElement>) => void = (
+    private static readonly DEFAULT_REASON_NAME: string = 'INITIAL_MVP';
+    private static readonly DEFAULT_REASON_DESC: string = 'Initial minimum viable product.';
+
+    private _handleDescriptionChange: (event: ChangeEvent<HTMLInputElement>) => void = (
         event: ChangeEvent<HTMLInputElement>
     ): void => {
         this.setState({ demandDescription: event.target.value });
     };
 
-    private handleTypeChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
+    private _handleTypeChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
         event: ChangeEvent<HTMLSelectElement>
     ): void => {
         const value: string = event.target.value;
@@ -44,7 +49,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         }
     };
 
-    private handleStatusChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
+    private _handleStatusChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
         event: ChangeEvent<HTMLSelectElement>
     ): void => {
         const value: string = event.target.value;
@@ -54,26 +59,48 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         }
     };
 
-    private handleConfirmClick: () => void = (): void => {
-        const { demandDescription, selectedType, selectedStatus }: EdgeCreateModalState = this.state;
+    private _handleReasonChange: (event: ChangeEvent<HTMLSelectElement>) => void = (
+        event: ChangeEvent<HTMLSelectElement>
+    ): void => {
+        this.setState({ selectedReasonName: event.target.value });
+    };
+
+    private _handleConfirmClick: () => void = (): void => {
+        const { demandDescription, selectedType, selectedStatus, selectedReasonName }: EdgeCreateModalState = this.state;
         const { registry, layoutService, sourceNode, targetNode, onClose, onLayoutUpdate }: EdgeCreateModalProps = this.props;
 
-        if (demandDescription && selectedType && selectedStatus) {
-            EdgeCreator.create(
-                registry,
-                sourceNode,
-                targetNode,
-                demandDescription,
-                selectedType,
-                selectedStatus
-            );
-            
-            // The EdgeCreator.create method modifies the sourceNode's edges in place.
-            // The registry contains the node references, so it reflects these changes immediately.
-            const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
-            onLayoutUpdate(result);
-            
-            onClose();
+        if (demandDescription && selectedType && selectedStatus && selectedReasonName) {
+            let evolutionReason: EdgeEvolutionReason | undefined = registry.getEdgeEvolutionReason(selectedReasonName);
+
+            // If selected reason is the default one and not yet in registry, create and register it.
+            if (!evolutionReason && selectedReasonName === EdgeCreateModal.DEFAULT_REASON_NAME) {
+                evolutionReason = new EdgeEvolutionReason(
+                    EdgeCreateModal.DEFAULT_REASON_NAME, 
+                    EdgeCreateModal.DEFAULT_REASON_DESC
+                );
+
+                registry.registerEdgeEvolutionReason(evolutionReason, true);
+            }
+
+            if (evolutionReason) {
+                EdgeCreator.create(
+                    sourceNode,
+                    targetNode,
+                    demandDescription,
+                    selectedType,
+                    selectedStatus,
+                    evolutionReason
+                );
+                
+                // The EdgeCreator.create method modifies the sourceNode's edges in place.
+                // The registry contains the node references, so it reflects these changes immediately.
+                const result: BlueprintPrerenderCombResult = layoutService.calculateLayout(registry);
+                onLayoutUpdate(result);
+                
+                onClose();
+            } else {
+                console.error(`Evolution reason '${selectedReasonName}' not found.`);
+            }
         }
     };
 
@@ -83,35 +110,37 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         this.state = {
             demandDescription: '',
             selectedType: EdgeType.REQUIRES,
-            selectedStatus: EdgeStatus.ACTIVE
+            selectedStatus: EdgeStatus.ACTIVE,
+            selectedReasonName: EdgeCreateModal.DEFAULT_REASON_NAME
         };
     }
 
     public render(): ReactNode {
-        const { demandDescription, selectedType, selectedStatus }: EdgeCreateModalState = this.state;
+        const { demandDescription, selectedType, selectedStatus, selectedReasonName }: EdgeCreateModalState = this.state;
         const { onClose }: EdgeCreateModalProps = this.props;
+        const availableReasons: EdgeEvolutionReason[] = this._getAvailableReasons();
 
         return (
-            <div style={this.getContainerStyle()}>
-                <h2 style={this.getTitleStyle()}>Create New Edge</h2>
+            <div style={this._getContainerStyle()}>
+                <h2 style={this._getTitleStyle()}>Create New Edge</h2>
 
-                <div style={this.getFieldGroupStyle()}>
-                    <label style={this.getLabelStyle()}>Demand Description</label>
+                <div style={this._getFieldGroupStyle()}>
+                    <label style={this._getLabelStyle()}>Demand Description</label>
                     <input
                         type="text"
                         value={demandDescription}
-                        onChange={this.handleDescriptionChange}
-                        style={this.getInputStyle()}
-                        placeholder={this.getPlaceholder('Edge', 'demand_description', 'Describe the demand...')}
+                        onChange={this._handleDescriptionChange}
+                        style={this._getInputStyle()}
+                        placeholder={this._getPlaceholder('Edge', 'demand_description', 'Describe the demand...')}
                     />
                 </div>
 
-                <div style={this.getFieldGroupStyle()}>
-                    <label style={this.getLabelStyle()}>Type</label>
+                <div style={this._getFieldGroupStyle()}>
+                    <label style={this._getLabelStyle()}>Type</label>
                     <select
                         value={selectedType}
-                        onChange={this.handleTypeChange}
-                        style={this.getInputStyle()}
+                        onChange={this._handleTypeChange}
+                        style={this._getInputStyle()}
                     >
                         {Object.values(EdgeType).map((type: string): ReactNode => (
                             <option key={type} value={type}>
@@ -121,12 +150,12 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
                     </select>
                 </div>
 
-                <div style={this.getFieldGroupStyle()}>
-                    <label style={this.getLabelStyle()}>Status</label>
+                <div style={this._getFieldGroupStyle()}>
+                    <label style={this._getLabelStyle()}>Status</label>
                     <select
                         value={selectedStatus}
-                        onChange={this.handleStatusChange}
-                        style={this.getInputStyle()}
+                        onChange={this._handleStatusChange}
+                        style={this._getInputStyle()}
                     >
                         {Object.values(EdgeStatus).map((status: string): ReactNode => (
                             <option key={status} value={status}>
@@ -136,16 +165,31 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
                     </select>
                 </div>
 
-                <div style={this.getButtonGroupStyle()}>
+                <div style={this._getFieldGroupStyle()}>
+                    <label style={this._getLabelStyle()}>Evolution Reason</label>
+                    <select
+                        value={selectedReasonName}
+                        onChange={this._handleReasonChange}
+                        style={this._getInputStyle()}
+                    >
+                        {availableReasons.map((reason: EdgeEvolutionReason): ReactNode => (
+                            <option key={reason.name} value={reason.name}>
+                                {reason.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div style={this._getButtonGroupStyle()}>
                     <button
-                        style={{ ...this.getButtonStyle(), backgroundColor: '#8E8E93' }}
+                        style={{ ...this._getButtonStyle(), backgroundColor: '#8E8E93' }}
                         onClick={onClose}
                     >
                         Cancel
                     </button>
                     <button
-                        style={this.getButtonStyle()}
-                        onClick={this.handleConfirmClick}
+                        style={this._getButtonStyle()}
+                        onClick={this._handleConfirmClick}
                         disabled={!demandDescription}
                     >
                         Create
@@ -155,7 +199,25 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         );
     }
 
-    private getContainerStyle(): CSSProperties {
+    private _getAvailableReasons(): EdgeEvolutionReason[] {
+        const reasons: EdgeEvolutionReason[] = this.props.registry.allEdgeEvolutionReasons;
+        const hasDefault: boolean = reasons.some((r: EdgeEvolutionReason) => r.name === EdgeCreateModal.DEFAULT_REASON_NAME);
+
+        if (!hasDefault) {
+            // Add default reason as a temporary option (not registered yet).
+            const defaultReason = new EdgeEvolutionReason(
+                EdgeCreateModal.DEFAULT_REASON_NAME,
+                EdgeCreateModal.DEFAULT_REASON_DESC
+            );
+
+            return [...reasons, defaultReason];
+        }
+
+        return reasons;
+    }
+
+
+    private _getContainerStyle(): CSSProperties {
         return {
             backgroundColor: '#ffffff',
             padding: '30px',
@@ -169,7 +231,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getTitleStyle(): CSSProperties {
+    private _getTitleStyle(): CSSProperties {
         return {
             margin: '0 0 10px 0',
             fontSize: '20px',
@@ -179,7 +241,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getFieldGroupStyle(): CSSProperties {
+    private _getFieldGroupStyle(): CSSProperties {
         return {
             display: 'flex',
             flexDirection: 'column',
@@ -187,7 +249,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getLabelStyle(): CSSProperties {
+    private _getLabelStyle(): CSSProperties {
         return {
             fontSize: '14px',
             fontWeight: 600,
@@ -195,7 +257,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getInputStyle(): CSSProperties {
+    private _getInputStyle(): CSSProperties {
         return {
             padding: '8px 12px',
             borderRadius: '6px',
@@ -206,7 +268,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getButtonGroupStyle(): CSSProperties {
+    private _getButtonGroupStyle(): CSSProperties {
         return {
             marginTop: '10px',
             display: 'flex',
@@ -215,7 +277,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getButtonStyle(): CSSProperties {
+    private _getButtonStyle(): CSSProperties {
         return {
             padding: '10px 0',
             backgroundColor: '#007AFF',
@@ -230,7 +292,7 @@ class EdgeCreateModal extends Component<EdgeCreateModalProps, EdgeCreateModalSta
         };
     }
 
-    private getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
+    private _getPlaceholder(definitionKey: string, propertyName: string, fallback: string): string {
         const definition: any = this.props.registry.getSchemaDefinition(definitionKey);
 
         if (definition && definition.properties && definition.properties[propertyName]) {

@@ -1,6 +1,7 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ReactNode, type CSSProperties } from 'react';
 
 import { CanvasViewport } from '../CanvasViewport';
+import { ReadOnlyView } from '../../../features/readonly/ReadOnlyView';
 import { type PrerenderNode } from '../../../features/graph/PrerenderNode';
 
 
@@ -26,10 +27,10 @@ interface EdgeDrawerState {
 class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
     private _handleGlobalMouseMove: (event: globalThis.MouseEvent) => void = (event: globalThis.MouseEvent): void => {
         if (this.state.isDrawing) {
-            const { viewport } = this.props;
+            const viewport: CanvasViewport = this.props.viewport;
             
             // Calculate worldX as (screenX - viewportX) / scale.
-            // worldX = (screenX - viewportX) / scale.
+            // The formula is worldX = (screenX - viewportX) / scale.
             const worldX: number = (event.clientX - viewport.x) / viewport.scale;
             const worldY: number = (event.clientY - viewport.y) / viewport.scale;
 
@@ -52,22 +53,19 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
     };
 
     public render(): ReactNode {
-        const { isDrawing, startX, startY, currentX, currentY, strokeColor, strokeDasharray } = this.state;
+        const isDrawing: boolean = this.state.isDrawing;
+        const startX: number = this.state.startX;
+        const startY: number = this.state.startY;
+        const currentX: number = this.state.currentX;
+        const currentY: number = this.state.currentY;
+        const strokeColor: string = this.state.strokeColor;
+        const strokeDasharray: string = this.state.strokeDasharray;
 
         if (!isDrawing) return null;
 
         return (
             <svg
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 1000,
-                    overflow: 'visible'
-                }}
+                style={this._getSvgStyle()}
             >
                 <line
                     x1={startX}
@@ -88,8 +86,35 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
         window.removeEventListener('mousemove', this._handleGlobalMouseMove);
     }
 
+    private _stopDrawing(): void {
+        this.setState({
+            isDrawing: false,
+            startNodeId: null
+        });
+
+        window.removeEventListener('mousemove', this._handleGlobalMouseMove);
+    }
+
+    private _getSvgStyle(): CSSProperties {
+        return {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            overflow: 'visible'
+        };
+    }
+
     public handleStartEdge(nodeId: string, options?: { strokeColor?: string; strokeDasharray?: string }): void {
-        const { prerenderNodes } = this.props;
+        // Disable edge creation in read-only mode.
+        if (ReadOnlyView.instance.isReadOnly()) {
+            return;
+        }
+
+        const prerenderNodes: PrerenderNode[] = this.props.prerenderNodes;
         const nodeProperties: PrerenderNode | undefined = prerenderNodes.find((prerenderNode: PrerenderNode): boolean => prerenderNode.node.id === nodeId);
 
         if (nodeProperties) {
@@ -117,28 +142,20 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
     }
 
     public handleCompleteEdge(nodeId: string): void {
-        const { isDrawing, startNodeId } = this.state;
-        const { onEdgeConnect } = this.props;
+        const isDrawing: boolean = this.state.isDrawing;
+        const startNodeId: string | null = this.state.startNodeId;
+        const onEdgeConnect: (sourceId: string, targetId: string) => void = this.props.onEdgeConnect;
 
         if (isDrawing && startNodeId) {
             onEdgeConnect(startNodeId, nodeId);
-            this.stopDrawing();
+            this._stopDrawing();
         }
     }
 
     public handleCanvasClick(): void {
         if (this.state.isDrawing) {
-            this.stopDrawing();
+            this._stopDrawing();
         }
-    }
-
-    private stopDrawing(): void {
-        this.setState({
-            isDrawing: false,
-            startNodeId: null
-        });
-
-        window.removeEventListener('mousemove', this._handleGlobalMouseMove);
     }
 }
 

@@ -1,10 +1,10 @@
 import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
+import { NodeStatus } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
 import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
 import { NodeCreator } from '../node-edit/NodeCreator';
-import { NodeStatus } from '../../../domain/NodeStatus';
 
 
 export interface NodeCreateModalProps {

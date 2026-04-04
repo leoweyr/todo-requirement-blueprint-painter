@@ -1,12 +1,16 @@
 import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
+import { Node } from '@todo-requirement-blueprint/domain';
 
-import { Node } from '../../domain/Node';
+import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
 
 export interface NodeRectangleProps {
     node: Node;
     x: number;
     y: number;
+    opacity?: number;  // Defines node opacity in the [0, 1] range for transition animations.
+    backgroundColor?: string;  // Overrides the status background color.
+    borderColor?: string;  // Overrides the status border color.
     onStartEdge?: (nodeId: string) => void;
     onCompleteEdge?: (nodeId: string) => void;
     onContextMenu?: (event: MouseEvent, nodeId: string) => void;
@@ -19,15 +23,15 @@ interface NodeRectangleState {
 
 
 class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
-    private handleMouseEnter: () => void = (): void => {
+    private _handleMouseEnter: () => void = (): void => {
         this.setState({ isHovered: true });
     };
 
-    private handleMouseLeave: () => void = (): void => {
+    private _handleMouseLeave: () => void = (): void => {
         this.setState({ isHovered: false });
     };
 
-    private handleStartEdgeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
+    private _handleStartEdgeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.stopPropagation();
 
         if (this.props.onStartEdge) {
@@ -35,7 +39,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         }
     };
 
-    private handleNodeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
+    private _handleNodeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.stopPropagation();
 
         if (this.props.onCompleteEdge) {
@@ -43,7 +47,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         }
     };
 
-    private handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
+    private _handleContextMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
         if (this.props.onContextMenu) {
             event.preventDefault();
             event.stopPropagation();
@@ -67,42 +71,45 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         return (
             <div 
                 style={{
-                    ...this.getContainerStyle(),
+                    ...this._getContainerStyle(),
                     left: x,
                     top: y
                 }}
-                onMouseEnter={this.handleMouseEnter}
-                onMouseLeave={this.handleMouseLeave}
-                onClick={this.handleNodeClick}
-                onContextMenu={this.handleContextMenu}
+                onMouseEnter={this._handleMouseEnter}
+                onMouseLeave={this._handleMouseLeave}
+                onClick={this._handleNodeClick}
+                onContextMenu={this._handleContextMenu}
             >
-                <span style={this.getTextStyle()}>
+                <span style={this._getTextStyle()}>
                     {node.description}
                 </span>
 
                 {isHovered && (
                     <>
                         {/* Edge Creation Button (Left Center). */}
-                        <div 
-                            style={this.getEdgeButtonStyle()}
-                            onClick={this.handleStartEdgeClick}
-                            title="Create Demand (Upstream Dependency)"
-                        >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="12" cy="12" r="11" fill="#4CAF50" stroke="#FFFFFF" strokeWidth="2"/>
-                                <path d="M12 7V17M7 12H17" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                        </div>
+                        {/* Disable in read-only mode. */}
+                        {!ReadOnlyView.instance.isReadOnly() && (
+                            <div 
+                                style={this._getEdgeButtonStyle()}
+                                onClick={this._handleStartEdgeClick}
+                                title="Create Demand (Upstream Dependency)"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="11" fill="#4CAF50" stroke="#FFFFFF" strokeWidth="2"/>
+                                    <path d="M12 7V17M7 12H17" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            </div>
+                        )}
                         
                         {metadataEntries.length > 0 && (
-                            <div style={this.getMetadataContainerStyle()}>
+                            <div style={this._getMetadataContainerStyle()}>
                                 {metadataEntries.map(([key, value]: [string, any]): ReactNode => {
                                     const displayValue: string = (typeof value === 'object' && value !== null)
                                         ? JSON.stringify(value)
                                         : String(value);
 
                                     return (
-                                        <div key={key} style={this.getMetadataTextStyle()}>
+                                        <div key={key} style={this._getMetadataTextStyle()}>
                                             {key}: {displayValue}
                                         </div>
                                     );
@@ -115,7 +122,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         );
     }
 
-    private getEdgeButtonStyle(): CSSProperties {
+    private _getEdgeButtonStyle(): CSSProperties {
         return {
             position: 'absolute',
             left: '-10px',
@@ -130,12 +137,12 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         };
     }
 
-    private getContainerStyle(): CSSProperties {
-        const { node }: NodeRectangleProps = this.props;
+    private _getContainerStyle(): CSSProperties {
+        const { node, opacity, backgroundColor: overrideBackgroundColor, borderColor: overrideBorderColor }: NodeRectangleProps = this.props;
         const metadata: Record<string, unknown> | undefined = node.status.metadata;
         
-        const backgroundColor: string = (metadata?.backgroundColor as string) || '#F5F5F5';
-        const borderColor: string = (metadata?.borderColor as string) || '#666666';
+        const backgroundColor: string = overrideBackgroundColor || (metadata?.backgroundColor as string) || '#F5F5F5';
+        const borderColor: string = overrideBorderColor || (metadata?.borderColor as string) || '#666666';
 
         return {
             backgroundColor: backgroundColor,
@@ -152,11 +159,12 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             padding: '10px',
             boxSizing: 'border-box',
             height: 'fit-content',
-            position: 'absolute'
+            position: 'absolute',
+            opacity: opacity !== undefined ? opacity : 1
         };
     }
 
-    private getTextStyle(): CSSProperties {
+    private _getTextStyle(): CSSProperties {
         return {
             textAlign: 'center',
             wordBreak: 'break-word',
@@ -168,7 +176,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         };
     }
 
-    private getMetadataContainerStyle(): CSSProperties {
+    private _getMetadataContainerStyle(): CSSProperties {
         return {
             position: 'absolute',
             top: '100%',
@@ -189,7 +197,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         };
     }
 
-    private getMetadataTextStyle(): CSSProperties {
+    private _getMetadataTextStyle(): CSSProperties {
         return {
             color: '#555555',
             fontSize: '8pt',

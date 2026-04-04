@@ -1,4 +1,4 @@
-import { Edge } from '../../domain/Edge';
+import { Edge } from '@todo-requirement-blueprint/domain';
 
 
 export interface PrerenderEdge {
@@ -10,4 +10,5 @@ export interface PrerenderEdge {
     labelPositionDivisions?: number;
     labelPositionIndex?: number;
     curvature?: number;
+    opacity?: number;  // Defines the edge opacity in the [0, 1] range for transition animations.
 }

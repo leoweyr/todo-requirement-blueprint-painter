@@ -1,10 +1,11 @@
 import { Component, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
+import { Edge } from '@todo-requirement-blueprint/domain';
+import { type EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
+import { EdgeType } from '@todo-requirement-blueprint/domain';
+import { EdgeStatus } from '@todo-requirement-blueprint/domain';
 
-import { Edge } from '../../domain/Edge';
-import { type EdgeHistoryRecord } from "../../domain/EdgeHistoryRecord";
-import { EdgeType } from '../../domain/enums/EdgeType';
-import { EdgeStatus } from '../../domain/enums/EdgeStatus';
 import { type PrerenderNode } from '../../features/graph/PrerenderNode';
+import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
 
 export interface EdgeLineProps {
@@ -18,6 +19,7 @@ export interface EdgeLineProps {
     labelPositionDivisions?: number;
     labelPositionIndex?: number;
     curvature?: number;
+    opacity?: number;
     historyIndex?: number;  // Optional index to force rendering a specific history version.
     overrideColor?: string;  // Optional color override (e.g., for diff view).
     highlightColor?: string;  // Optional highlight color (e.g. for transition diffs).
@@ -65,6 +67,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
             labelPositionDivisions = 2,
             labelPositionIndex = 1,
             curvature = 0,
+            opacity = 1,
             historyIndex,
             overrideColor,
             highlightColor,
@@ -201,6 +204,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                     top: top,
                     width: totalWidth,
                     height: totalHeight,
+                    opacity: opacity,
                     pointerEvents: 'none',
                     zIndex: isHovered ? 999 : 0
                 }}
@@ -223,7 +227,8 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                             />
 
                             {/* Interactive controls only show on actual Hover, not just static highlight */}
-                            {isHovered && (
+                            {/* Disable interactive controls in read-only mode. */}
+                            {isHovered && !ReadOnlyView.instance.isReadOnly() && (
                                 <>
                                     {/* Red Minus at Start (Downstream Left). */}
                             <g 

@@ -1,5 +1,6 @@
 import { Component, type CSSProperties, type ReactNode, type MouseEvent } from 'react';
 
+import { ReadOnlyView } from '../../../features/readonly/ReadOnlyView';
 import ContextMenuItem from './ContextMenuItem';
 
 
@@ -16,41 +17,33 @@ export interface NodeContextMenuProps {
 class NodeContextMenu extends Component<NodeContextMenuProps> {
     private _overlayRef: HTMLDivElement | null = null;
 
-    private handleOverlayClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        if (this._overlayRef && event.target === this._overlayRef) {
-            this.props.onClose();
-        }
-    };
-
-    private handleItemClick: (callback: () => void) => void = (callback: () => void): void => {
-        callback();
-        this.props.onClose();
-    };
-
-    private handleContextMenuOnMenu: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        event.preventDefault();
-    };
-
     public render(): ReactNode {
-        const { x, y, onEdit, onDelete, nodeId } = this.props;
+        const { x, y, onEdit, onDelete, nodeId }: NodeContextMenuProps = this.props;
+
+        const isReadOnly: boolean = ReadOnlyView.instance.isReadOnly();
+
+        // In read-only mode, no menu items are available.
+        if (isReadOnly) {
+            return null;
+        }
 
         return (
             <div 
-                ref={(el) => { this._overlayRef = el; }}
-                style={this.getOverlayStyle()}
-                onClick={this.handleOverlayClick}
-                onContextMenu={this.handleContextMenuOnMenu}
+                ref={(element: HTMLDivElement | null): void => { this._overlayRef = element; }}
+                style={this._getOverlayStyle()}
+                onClick={(event: MouseEvent): void => this._handleOverlayClick(event)}
+                onContextMenu={(event: MouseEvent): void => this._handleContextMenuOnMenu(event)}
             >
-                <div style={this.getMenuContainerStyle(x, y)}>
+                <div style={this._getMenuContainerStyle(x, y)}>
                     <ContextMenuItem
                         key="edit"
                         label="Edit"
-                        onClick={(): void => this.handleItemClick(() => onEdit(nodeId))}
+                        onClick={(): void => this._handleItemClick((): void => onEdit(nodeId))}
                     />
                     <ContextMenuItem
                         key="delete"
                         label="Delete"
-                        onClick={(): void => this.handleItemClick(() => onDelete(nodeId))}
+                        onClick={(): void => this._handleItemClick((): void => onDelete(nodeId))}
                         style={{ color: '#FF3B30' }}
                     />
                 </div>
@@ -58,7 +51,22 @@ class NodeContextMenu extends Component<NodeContextMenuProps> {
         );
     }
 
-    private getOverlayStyle(): CSSProperties {
+    private _handleOverlayClick(event: MouseEvent): void {
+        if (this._overlayRef && event.target === this._overlayRef) {
+            this.props.onClose();
+        }
+    }
+
+    private _handleItemClick(callback: () => void): void {
+        callback();
+        this.props.onClose();
+    }
+
+    private _handleContextMenuOnMenu(event: MouseEvent): void {
+        event.preventDefault();
+    }
+
+    private _getOverlayStyle(): CSSProperties {
         return {
             position: 'fixed',
             top: 0,
@@ -70,7 +78,7 @@ class NodeContextMenu extends Component<NodeContextMenuProps> {
         };
     }
 
-    private getMenuContainerStyle(x: number, y: number): CSSProperties {
+    private _getMenuContainerStyle(x: number, y: number): CSSProperties {
         return {
             position: 'absolute',
             top: y,
