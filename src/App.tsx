@@ -112,7 +112,13 @@ class App extends Component<{}, AppState> {
         const updateTimesLength: number = this._layoutResult?.updateTimes?.length ?? 0;
         const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
         const isAtLatestSlice: boolean = Math.abs(this.state.timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
-        const canStartRepulsionTimer: boolean = this._canStartRepulsionTimer(this.state.timelineIsTransition, this.state.timelineRawPosition);
+
+        const canStartRepulsionTimer: boolean = this._canStartRepulsionTimer(
+            this.state.timelineIsTransition,
+            this.state.timelineRawPosition,
+            this._hasEnoughNodesForRepulsionAtPosition(this.state.timelineRawPosition)
+        );
+
         const timelineTickIndex: number | null = canStartRepulsionTimer ? this._resolveTimelineTickIndex(this.state.timelineRawPosition) : null;
         this._scheduleRenderRepulsion(isAtLatestSlice, canStartRepulsionTimer, timelineTickIndex);
         this.forceUpdate();
@@ -271,7 +277,13 @@ class App extends Component<{}, AppState> {
         const updateTimesLength: number = this._layoutResult?.updateTimes?.length ?? 0;
         const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
         const isAtLatestSlice: boolean = Math.abs(this.state.timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
-        const canStartRepulsionTimer: boolean = this._canStartRepulsionTimer(this.state.timelineIsTransition, this.state.timelineRawPosition);
+
+        const canStartRepulsionTimer: boolean = this._canStartRepulsionTimer(
+            this.state.timelineIsTransition,
+            this.state.timelineRawPosition,
+            this._hasEnoughNodesForRepulsionAtPosition(this.state.timelineRawPosition)
+        );
+
         const timelineTickIndex: number | null = canStartRepulsionTimer ? this._resolveTimelineTickIndex(this.state.timelineRawPosition) : null;
 
         if (hasTimelineChanged || hasTransitionStateChanged) {
@@ -589,10 +601,14 @@ class App extends Component<{}, AppState> {
         const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
         const isAtLatestSlice: boolean = Math.abs(timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
         const isOnTimelineTick: boolean = this._isOnTimelineTick(timelineRawPosition);
+        const hasEnoughNodesForRepulsion: boolean = displayedNodes.length > 1;
         const timelineTickIndex: number = this._resolveTimelineTickIndex(timelineRawPosition);
-        const shouldApplyRepulsionNow: boolean = !timelineIsTransition
+
+        const shouldApplyRepulsionNow: boolean = hasEnoughNodesForRepulsion
+            && !timelineIsTransition
             && isOnTimelineTick
             && (isAtLatestSlice || this._repulsionAnchorTickIndex === timelineTickIndex);
+
         const repulsedNodes: PrerenderNode[] = shouldApplyRepulsionNow
             ? this._applyRenderRepulsion(displayedNodes)
             : displayedNodes;
@@ -713,8 +729,29 @@ class App extends Component<{}, AppState> {
         return { backgroundColor, borderColor };
     }
 
-    private _canStartRepulsionTimer(timelineIsTransition: boolean, timelineRawPosition: number): boolean {
-        return !timelineIsTransition && this._isOnTimelineTick(timelineRawPosition);
+    private _hasEnoughNodesForRepulsionAtPosition(timelineRawPosition: number): boolean {
+        if (!this._layoutResult) {
+            return false;
+        }
+
+        const { frames, prerenderNodes }: BlueprintPrerenderCombResult = this._layoutResult;
+
+        if (frames && frames.size > 0) {
+            const timelineTickIndex: number = this._resolveTimelineTickIndex(timelineRawPosition);
+            const frameNodes: PrerenderNode[] = frames.get(timelineTickIndex) || prerenderNodes;
+            return frameNodes.length > 1;
+        }
+
+        const nodeCount: number = prerenderNodes.length;
+        return nodeCount > 1;
+    }
+
+    private _canStartRepulsionTimer(
+        timelineIsTransition: boolean,
+        timelineRawPosition: number,
+        hasEnoughNodesForRepulsion: boolean
+    ): boolean {
+        return hasEnoughNodesForRepulsion && !timelineIsTransition && this._isOnTimelineTick(timelineRawPosition);
     }
 
     private _isOnTimelineTick(timelineRawPosition: number): boolean {
@@ -750,7 +787,13 @@ class App extends Component<{}, AppState> {
 
         this._repulsionTimerId = window.setTimeout((): void => {
             this._repulsionTimerId = null;
-            const canStillStartRepulsion: boolean = this._canStartRepulsionTimer(this.state.timelineIsTransition, this.state.timelineRawPosition);
+
+            const canStillStartRepulsion: boolean = this._canStartRepulsionTimer(
+                this.state.timelineIsTransition,
+                this.state.timelineRawPosition,
+                this._hasEnoughNodesForRepulsionAtPosition(this.state.timelineRawPosition)
+            );
+
             const currentTickIndex: number = this._resolveTimelineTickIndex(this.state.timelineRawPosition);
 
             if (canStillStartRepulsion && currentTickIndex === anchorTickIndex) {
