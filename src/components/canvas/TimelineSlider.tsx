@@ -1,5 +1,7 @@
 import { Component, type CSSProperties, type ReactNode, type WheelEvent, type MouseEvent as ReactMouseEvent } from 'react';
 
+import type { TimelineSnapToNearestTickOptions } from './TimelineSnapToNearestTickOptions';
+
 
 export interface TimelineSliderProps {
     updateTimes: string[];
@@ -26,6 +28,16 @@ interface TimelineSliderState {
     // Used for edge interaction feedback.
     isLeftEdgeActive: boolean;
     isRightEdgeActive: boolean;
+
+    // Used for keyboard-driven boundary feedback.
+    isKeyboardBoundaryActive: boolean;
+
+    // Used for keyboard-driven expansion.
+    isKeyboardActive: boolean;
+    keyboardHeightTransitionMilliseconds: number;
+
+    // Used to soften boundary rebound for specific keyboard flows.
+    isSoftKeyboardBoundaryRebound: boolean;
 }
 
 export class TimelineSlider extends Component<TimelineSliderProps, TimelineSliderState> {
@@ -81,7 +93,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
         });
     };
     
-    public constructor(props: TimelineSliderProps) {
+    constructor(props: TimelineSliderProps) {
         super(props);
         const maxIndex: number = Math.max(0, props.updateTimes.length - 1);
         
@@ -105,8 +117,41 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             isDragging: false,
             startX: 0,
             isLeftEdgeActive: false,
-            isRightEdgeActive: false
+            isRightEdgeActive: false,
+            isKeyboardBoundaryActive: false,
+            isKeyboardActive: false,
+            keyboardHeightTransitionMilliseconds: 200,
+            isSoftKeyboardBoundaryRebound: false
         };
+    }
+
+    public render(): ReactNode {
+        const { updateTimes } = this.props;
+
+        if (updateTimes.length === 0) return null;
+
+        return (
+            <div
+                style={this._getContainerStyle()}
+                onWheel={this._handleWheel}
+                onMouseDown={this._handleMouseDown}
+            >
+                <div style={this._getVisualBgStyle()} />
+
+                {/* Labels Layer - Outside clipping mask, moves with ruler. */}
+                <div style={this._getRulerStyle()}>
+                    {this._renderLabels()}
+                </div>
+
+                <div style={this._getClippingMaskStyle()}>
+                    <div style={this._getRulerStyle()}>
+                        {this._renderTicks()}
+                    </div>
+                </div>
+
+                {this._renderCursor()}
+            </div>
+        );
     }
 
     public componentDidMount(): void {
@@ -119,44 +164,22 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
         window.removeEventListener('mouseup', this._handleGlobalMouseUp);
     }
 
-    public render(): ReactNode {
-        const { updateTimes } = this.props;
-
-        if (updateTimes.length === 0) return null;
-
-        return (
-            <div 
-                style={this._getContainerStyle()}
-                onWheel={this._handleWheel}
-                onMouseDown={this._handleMouseDown}
-            >
-                <div style={this._getVisualBgStyle()} />
-                
-                {/* Labels Layer - Outside clipping mask, moves with ruler. */}
-                <div style={this._getRulerStyle()}> 
-                    {this._renderLabels()}
-                </div>
-
-                <div style={this._getClippingMaskStyle()}>
-                    <div style={this._getRulerStyle()}>
-                        {this._renderTicks()}
-                    </div>
-                </div>
-                
-                {this._renderCursor()}
-            </div>
-        );
+    private _backOutEasing(t: number): number {
+        const c1: number = 1.70158;
+        const c3: number = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
     }
 
     private _getRulerStyle(): CSSProperties {
-        const { viewOffset } = this.state;
+        const { viewOffset, isDragging, isKeyboardActive }: TimelineSliderState = this.state;
+        const isInteracting: boolean = isDragging || isKeyboardActive;
 
         return {
             display: 'flex',
             alignItems: 'center',
             height: '100%',
             transform: `translateX(${-viewOffset}px)`,
-            transition: this.state.isDragging ? 'none' : 'transform 0.1s ease-out',
+            transition: isInteracting ? 'none' : 'transform 0.1s ease-out',
             willChange: 'transform',
             position: 'absolute',
             left: 0,
@@ -167,7 +190,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
     private _renderTicks(): ReactNode {
         const { updateTimes } = this.props;
         const ticks: ReactNode[] = [];
-        
+
         for (let i: number = 0; i < updateTimes.length; i++) {
             ticks.push(this._renderMajorTick(i));
 
@@ -181,10 +204,11 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
 
     private _renderLabels(): ReactNode {
         const { updateTimes } = this.props;
-        const { isDragging } = this.state;
-        
+        const { isDragging, isKeyboardActive }: TimelineSliderState = this.state;
+        const isExpanded: boolean = isDragging || isKeyboardActive;
+
         // Only render labels when dragging.
-        if (!isDragging) return null;
+        if (!isExpanded) return null;
 
         const labels: ReactNode[] = [];
 
@@ -199,14 +223,14 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
 
         return labels;
     }
-    
+
     private _renderCursor(): ReactNode {
         const { currentPosition, viewOffset } = this.state;
         const pxPerUnit: number = 2 * this._TICK_SPACING;
-        
+
         // Cursor position relative to container.
-        const cursorLeft: number = (currentPosition * pxPerUnit) - viewOffset + (this._TICK_SPACING / 2); 
-        
+        const cursorLeft: number = (currentPosition * pxPerUnit) - viewOffset + (this._TICK_SPACING / 2);
+
         const style: CSSProperties = this._getCursorStyle();
 
         // Override left position.
@@ -218,7 +242,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
 
         return (
             <div style={cursorStyle}>
-                 <div style={{
+                <div style={{
                     position: 'absolute',
                     left: '50%',
                     top: '50%',
@@ -232,16 +256,22 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             </div>
         );
     }
-    
 
-    private _updatePosition(delta: number, isDragging: boolean = false): void {
+
+    private _updatePosition(
+        delta: number,
+        isDragging: boolean = false,
+        isKeyboardDriven: boolean = false,
+        isKeyboardStep: boolean = false,
+        preserveKeyboardBoundaryFeedback: boolean = false
+    ): void {
         const { updateTimes } = this.props;
         const maxPos: number = updateTimes.length - 1;
         const pxPerUnit: number = 2 * this._TICK_SPACING;
-        
+
         this.setState((prevState: TimelineSliderState): TimelineSliderState => {
             let newPos: number = prevState.currentPosition + delta;
-            
+
             if (newPos < 0) newPos = 0;
 
             if (newPos > maxPos) newPos = maxPos;
@@ -250,16 +280,17 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             // Offset for tick centering (20px).
             const tickOffset: number = this._TICK_SPACING / 2;
             const cursorScreenX: number = (newPos * pxPerUnit) - prevState.viewOffset + tickOffset;
-            
+
             let newViewOffset: number = prevState.viewOffset;
             let isLeftEdgeActive: boolean = false;
             let isRightEdgeActive: boolean = false;
+            let isKeyboardBoundaryActive: boolean = prevState.isKeyboardBoundaryActive;
+
+            const leftZone: number = this._EDGE_SCROLL_ZONE;
+            const rightZone: number = this._VISIBLE_WINDOW_WIDTH - this._EDGE_SCROLL_ZONE;
 
             if (isDragging) {
-                // If dragging, check edge constraints.
-                const leftZone: number = this._EDGE_SCROLL_ZONE;
-                const rightZone: number = this._VISIBLE_WINDOW_WIDTH - this._EDGE_SCROLL_ZONE;
-                
+                // If dragging, check edge constraints and auto-scroll.
                 if (cursorScreenX < leftZone) {
                     const scrollAmount: number = (leftZone - cursorScreenX) * 0.2;  // Dampen.
                     newViewOffset -= scrollAmount;
@@ -269,7 +300,36 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
                     newViewOffset += scrollAmount;
                     isRightEdgeActive = true;
                 }
+            } else if (isKeyboardDriven) {
+                // If keyboard-driven, check container edge for visual feedback.
+                const keyboardScrollFactor: number = isKeyboardStep ? 1 : 0.3;
+
+                if (cursorScreenX < leftZone) {
+                    isLeftEdgeActive = true;
+                    isKeyboardBoundaryActive = true;
+
+                    // Gradual scroll to keep cursor visible.
+                    const scrollAmount: number = (leftZone - cursorScreenX) * keyboardScrollFactor;
+                    newViewOffset -= scrollAmount;
+                } else if (cursorScreenX > rightZone) {
+                    isRightEdgeActive = true;
+                    isKeyboardBoundaryActive = true;
+
+                    // Gradual scroll to keep cursor visible.
+                    const scrollAmount: number = (cursorScreenX - rightZone) * keyboardScrollFactor;
+                    newViewOffset += scrollAmount;
+                } else {
+                    isKeyboardBoundaryActive = false;
+                }
             } else {
+                // Normal mode (wheel): instant auto-scroll viewport.
+                if (!preserveKeyboardBoundaryFeedback) {
+                    isKeyboardBoundaryActive = false;
+                } else {
+                    isLeftEdgeActive = prevState.isLeftEdgeActive;
+                    isRightEdgeActive = prevState.isRightEdgeActive;
+                }
+
                 const margin: number = 100;
 
                 if (cursorScreenX < margin) {
@@ -282,16 +342,20 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             const snapped: number = Math.round(newPos * 2) / 2;
             const isTransition: boolean = snapped % 1 !== 0;
             const index: number = Math.floor(snapped);
-            
+
             this.props.onTimeChange(index, isTransition, newPos);
-            
+
             return {
                 currentPosition: newPos,
                 viewOffset: newViewOffset,
                 isLeftEdgeActive,
                 isRightEdgeActive,
                 isDragging: prevState.isDragging,
-                startX: prevState.startX
+                startX: prevState.startX,
+                isKeyboardBoundaryActive,
+                isKeyboardActive: prevState.isKeyboardActive,
+                keyboardHeightTransitionMilliseconds: prevState.keyboardHeightTransitionMilliseconds,
+                isSoftKeyboardBoundaryRebound: prevState.isSoftKeyboardBoundaryRebound
             };
         });
     }
@@ -308,41 +372,41 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
         const { updateTimes } = this.props;
         const { viewOffset } = this.state;
         const timeStr: string = updateTimes[index];
-        
+
         const pxPerUnit: number = 2 * this._TICK_SPACING;
-        const tickX: number = index * pxPerUnit; 
-        const screenX: number = tickX - viewOffset + (this._TICK_SPACING / 2); 
-        
+        const tickX: number = index * pxPerUnit;
+        const screenX: number = tickX - viewOffset + (this._TICK_SPACING / 2);
+
         // Fade zone width (pixels from edge).
-        const FADE_WIDTH: number = 80; 
-        
+        const FADE_WIDTH: number = 80;
+
         // Calculate distance from nearest edge.
         const distToLeft: number = screenX;
         const distToRight: number = this._VISIBLE_WINDOW_WIDTH - screenX;
         const distToEdge: number = Math.min(distToLeft, distToRight);
-        
+
         // Linear opacity: 0 at edge, 1 at FADE_WIDTH.
         let opacity: number = Math.max(0, Math.min(1, distToEdge / FADE_WIDTH));
-        
+
         // Optimization: Do not render text if invisible.
         if (opacity <= 0.01) {
-             return (
+            return (
                 <div key={`label-${index}`} style={{
                     width: `${this._TICK_SPACING}px`,
                     height: '100%',
                     flexShrink: 0
                 }} />
-             );
+            );
         }
-        
+
         const date: Date = new Date(timeStr);
 
         // Format: YYYY-MM-DD HH:mm:ss.
-        const formatted: string = date.getFullYear() + '-' + 
+        const formatted: string = date.getFullYear() + '-' +
             String(date.getMonth() + 1).padStart(2, '0') + '-' +
-            String(date.getDate()).padStart(2, '0') + ' ' + 
-            String(date.getHours()).padStart(2, '0') + ':' + 
-            String(date.getMinutes()).padStart(2, '0') + ':' + 
+            String(date.getDate()).padStart(2, '0') + ' ' +
+            String(date.getHours()).padStart(2, '0') + ':' +
+            String(date.getMinutes()).padStart(2, '0') + ':' +
             String(date.getSeconds()).padStart(2, '0');
 
         const isTop: boolean = index % 2 === 0;
@@ -359,7 +423,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             }}>
                 <div style={{
                     position: 'absolute',
-                    [isTop ? 'top' : 'bottom']: '100%', 
+                    [isTop ? 'top' : 'bottom']: '100%',
                     marginTop: isTop ? '8px' : undefined,
                     marginBottom: !isTop ? '8px' : undefined,
                     fontSize: '10px',
@@ -389,14 +453,22 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
     }
 
     private _getContainerStyle(): CSSProperties {
+        const {
+            isDragging,
+            isKeyboardActive,
+            keyboardHeightTransitionMilliseconds
+        }: TimelineSliderState = this.state;
+
+        const isExpanded: boolean = isDragging || isKeyboardActive;
+
         return {
             position: 'absolute',
             bottom: '80px',  // Raised to accommodate bottom labels.
             left: '50%',
             transform: 'translate(-50%, 50%)',
             width: `${this._VISIBLE_WINDOW_WIDTH}px`,
-            height: this.state.isDragging ? '46px' : '14px', 
-            transition: 'height 0.2s ease-out',
+            height: isExpanded ? '46px' : '14px',
+            transition: `height ${keyboardHeightTransitionMilliseconds}ms ease-out`,
             userSelect: 'none',
             display: 'flex',
             flexDirection: 'column',
@@ -404,7 +476,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             justifyContent: 'center',
             cursor: this.state.isDragging ? 'grabbing' : 'grab',
             zIndex: 1000,
-            backgroundColor: 'transparent' 
+            backgroundColor: 'transparent'
         };
     }
 
@@ -423,10 +495,25 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
     }
 
     private _getVisualBgStyle(): CSSProperties {
-        const { isDragging, isLeftEdgeActive, isRightEdgeActive } = this.state;
+        const {
+            isDragging,
+            isLeftEdgeActive,
+            isRightEdgeActive,
+            isKeyboardBoundaryActive,
+            isSoftKeyboardBoundaryRebound
+        }: TimelineSliderState = this.state;
+
         const stretchAmount: string = '24px';
-        const isStretchingLeft: boolean = isDragging && isLeftEdgeActive;
-        const isStretchingRight: boolean = isDragging && isRightEdgeActive;
+        const isStretchingLeft: boolean = (isDragging || isKeyboardBoundaryActive) && isLeftEdgeActive;
+        const isStretchingRight: boolean = (isDragging || isKeyboardBoundaryActive) && isRightEdgeActive;
+        const isStretching: boolean = isStretchingLeft || isStretchingRight;
+
+        const shouldUseSoftKeyboardBoundaryTransition: boolean =
+            isSoftKeyboardBoundaryRebound && isKeyboardBoundaryActive && !isDragging;
+
+        const boundaryTransition: string = shouldUseSoftKeyboardBoundaryTransition
+            ? (isStretching ? 'all 0.14s ease-out' : 'all 0.7s ease-out')
+            : 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
 
         let transform: string = 'translateX(0)';
         let width: string = '100%';
@@ -438,7 +525,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             boxShadow = 'none';  // Remove shadow when stretching.
         } else if (isStretchingRight) {
             width = `calc(100% + ${stretchAmount})`;
-            transform = `translateX(0)`; 
+            transform = `translateX(0)`;
             boxShadow = 'none';  // Remove shadow when stretching.
         }
 
@@ -451,11 +538,11 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             border: '1px solid #d1d5db',
             borderRadius: '12px',
             boxShadow,
-            
+
             // Elastic dynamics.
             width,
             transform,
-            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',  // Spring-like snap back.
+            transition: boundaryTransition,
             zIndex: 0
         };
     }
@@ -472,7 +559,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             position: 'relative'  // Allow absolute positioning of labels.
         };
     }
-    
+
     private _getMajorTickMarkStyle(): CSSProperties {
         return {
             width: '2px',
@@ -494,17 +581,143 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
         return {
             position: 'absolute',
             left: '50%',
-            top: '50%', 
+            top: '50%',
             transform: 'translate(-50%, -50%)',
             width: '18px',  // Slightly wider.
             height: '52px',  // Taller than container (32-46px).
             backgroundColor: '#f9fafb',  // Gray-50.
             backgroundImage: 'linear-gradient(to bottom, #ffffff, #f3f4f6)',
-            border: '1px solid #9ca3af', 
+            border: '1px solid #9ca3af',
             borderRadius: '6px',
             zIndex: 1001,  // Above mask.
             pointerEvents: 'none',
             boxShadow: '0 2px 5px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9)'
         };
+    }
+
+    public getCurrentPosition(): number {
+        return this.state.currentPosition;
+    }
+
+    public getMaxPosition(): number {
+        return this.props.updateTimes.length - 1;
+    }
+
+    public moveContinuous(delta: number): void {
+        this._updatePosition(delta, false, true, false);
+    }
+
+    public jumpTo(delta: number, isKeyboardStep: boolean = false): void {
+        const { currentPosition }: TimelineSliderState = this.state;
+        const currentInt: number = Math.round(currentPosition);
+        const targetPosition: number = currentInt + delta;
+        const actualDelta: number = targetPosition - currentPosition;
+
+        if (isKeyboardStep) {
+            this._updatePosition(actualDelta, false, true, true);
+            return;
+        }
+
+        this._updatePosition(actualDelta, false, false, false);
+    }
+
+    public setKeyboardActive(isActive: boolean, heightTransitionMilliseconds: number = 200): void {
+        this.setState({
+            isKeyboardActive: isActive,
+            keyboardHeightTransitionMilliseconds: heightTransitionMilliseconds
+        });
+    }
+
+    public setKeyboardBoundaryReboundSoftMode(isSoftMode: boolean): void {
+        this.setState({
+            isSoftKeyboardBoundaryRebound: isSoftMode
+        });
+    }
+
+    public clearKeyboardBoundaryFeedback(): void {
+        this.setState({
+            isKeyboardBoundaryActive: false,
+            isLeftEdgeActive: false,
+            isRightEdgeActive: false
+        });
+    }
+
+    public startKeyboardSynchronizedCollapse(heightTransitionMilliseconds: number): void {
+        this.setState({
+            isKeyboardBoundaryActive: false,
+            isLeftEdgeActive: false,
+            isRightEdgeActive: false,
+            isKeyboardActive: false,
+            keyboardHeightTransitionMilliseconds: heightTransitionMilliseconds
+        });
+    }
+
+    public snapToNearestTick(options: TimelineSnapToNearestTickOptions = {}): void {
+        const { currentPosition }: TimelineSliderState = this.state;
+
+        const {
+            durationMilliseconds = 400,
+            keepKeyboardExpanded = false,
+            preserveKeyboardBoundaryFeedback = false,
+            onComplete
+        }: TimelineSnapToNearestTickOptions = options;
+        const snapped: number = Math.round(currentPosition * 2) / 2;
+        const distance: number = snapped - currentPosition;
+
+        if (keepKeyboardExpanded) {
+            if (!preserveKeyboardBoundaryFeedback) {
+                this.setState({
+                    isKeyboardBoundaryActive: false
+                });
+            }
+        } else {
+            // Clear keyboard states.
+            this.setState({
+                isKeyboardBoundaryActive: false,
+                isKeyboardActive: false
+            });
+        }
+
+        // If already at a tick, no animation needed.
+        if (Math.abs(distance) < 0.001) {
+            if (onComplete) {
+                onComplete();
+            }
+
+            return;
+        }
+
+        // Animate to snapped position.
+        const startTime: number = performance.now();
+        const duration: number = durationMilliseconds;
+        const startPosition: number = currentPosition;
+
+        const animate: () => void = (): void => {
+            const elapsed: number = performance.now() - startTime;
+            const progress: number = Math.min(elapsed / duration, 1);
+
+            // Use back-out easing similar to cubic-bezier(0.175, 0.885, 0.32, 1.275).
+            const easedProgress: number = this._backOutEasing(progress);
+            const newPosition: number = startPosition + distance * easedProgress;
+
+            this._updatePosition(
+                newPosition - this.state.currentPosition,
+                false,
+                false,
+                false,
+                preserveKeyboardBoundaryFeedback
+            );
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+                return;
+            }
+
+            if (onComplete) {
+                onComplete();
+            }
+        };
+
+        requestAnimationFrame(animate);
     }
 }

@@ -8,6 +8,7 @@ import { EdgeInteractionManager } from './components/canvas/edge-interaction/Edg
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import Legend from './components/canvas/Legend';
 import { type LegendScreenBounds } from './components/canvas/LegendScreenBounds';
+import { TimelineKeyboardController } from './components/canvas/TimelineKeyboardController';
 import { TimelineSlider } from './components/canvas/TimelineSlider';
 import NodeRectangle from './components/elements/NodeRectangle';
 import { BlueprintPaster } from './components/menus/blueprint-edit/BlueprintPaster';
@@ -48,14 +49,17 @@ class App extends Component<{}, AppState> {
     private readonly _layoutService: BlueprintPrerenderComb;
     private readonly _registry: DomainRegistry;
     private readonly _historyService: EditorHistoryService;
+    private readonly _timelineKeyboardController: TimelineKeyboardController;
 
     private _layoutResult: BlueprintPrerenderCombResult | null = null;
     private _edgeDrawerRef: EdgeDrawer | null = null;
     private _menuManagerRef: MenuManager | null = null;
+    private _timelineSliderRef: TimelineSlider | null = null;
     private _hasLoadedFromGitHub: boolean = false;
     private _legendBounds: LegendScreenBounds | null = null;
     private _repulsionAnchorTickIndex: number | null = null;
     private _repulsionTimerId: number | null = null;
+    private _isModalOpen: boolean = false;
 
     private _handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (
         result: BlueprintPrerenderCombResult
@@ -115,8 +119,11 @@ class App extends Component<{}, AppState> {
     };
 
     private _handleModalStateChange: (isOpen: boolean) => void = (isOpen: boolean): void => {
+        this._isModalOpen = isOpen;
+
         if (isOpen) {
             BlueprintPaster.unbind(window);
+            this._timelineKeyboardController.unbind(window);
         } else if (this.state.isFileLoaded) {
             BlueprintPaster.bind(
                 window,
@@ -125,6 +132,7 @@ class App extends Component<{}, AppState> {
                 this._viewport,
                 this._handleLayoutUpdate
             );
+            this._bindTimelineKeyboardController();
         }
     };
 
@@ -207,6 +215,7 @@ class App extends Component<{}, AppState> {
         this._registry = DomainRegistry.instance;
         this._registry.clear();
         this._historyService = new EditorHistoryService(this._registry);
+        this._timelineKeyboardController = new TimelineKeyboardController();
 
         this._layoutResult = this._layoutService.calculateLayout(this._registry);
     }
@@ -270,6 +279,13 @@ class App extends Component<{}, AppState> {
             this._scheduleRenderRepulsion(isAtLatestSlice, canStartRepulsionTimer, timelineTickIndex);
         }
 
+        // Timeline keyboard controller should work in both edit and read-only modes.
+        if (isFileLoaded && !wasFileLoaded) {
+            this._bindTimelineKeyboardController();
+        } else if (!isFileLoaded && wasFileLoaded) {
+            this._timelineKeyboardController.unbind(window);
+        }
+
         // Disable BlueprintPaster binding in read-only mode.
         if (ReadOnlyView.instance.isReadOnly()) {
             return;
@@ -295,6 +311,7 @@ class App extends Component<{}, AppState> {
         }
 
         window.removeEventListener('keydown', this._handleKeyDown);
+        this._timelineKeyboardController.unbind(window);
 
         if (this._repulsionTimerId !== null) {
             window.clearTimeout(this._repulsionTimerId);
@@ -359,6 +376,7 @@ class App extends Component<{}, AppState> {
                 {isFileLoaded && layoutResult?.updateTimes && layoutResult.updateTimes.length > 1 && (
                     <div className="timeline-slider">
                         <TimelineSlider 
+                            ref={(ref: TimelineSlider | null): void => { this._handleTimelineSliderRef(ref); }}
                             updateTimes={layoutResult.updateTimes}
                             onTimeChange={(index: number, isTransition: boolean, rawPosition: number): void => this._handleTimelineChange(index, isTransition, rawPosition)}
                         />
@@ -403,6 +421,19 @@ class App extends Component<{}, AppState> {
     private _refreshLayout(): void {
         const layoutResult: BlueprintPrerenderCombResult = this._layoutService.calculateLayout(this._registry);
         this._handleLayoutUpdate(layoutResult);
+    }
+
+    private _handleTimelineSliderRef(ref: TimelineSlider | null): void {
+        this._timelineSliderRef = ref;
+        this._timelineKeyboardController.setTimelineSlider(ref);
+    }
+
+    private _bindTimelineKeyboardController(): void {
+        // Only bind if timeline is available and no modal is open.
+        if (this._timelineSliderRef && !this._isModalOpen) {
+            this._timelineKeyboardController.setTimelineSlider(this._timelineSliderRef);
+            this._timelineKeyboardController.bind(window);
+        }
     }
 
     private _renderGraph(): ReactNode {
