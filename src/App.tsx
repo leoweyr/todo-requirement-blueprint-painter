@@ -4,13 +4,11 @@ import { Node } from '@todo-requirement-blueprint/domain';
 
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
-import { EdgeInteractionManager } from './components/canvas/edge-interaction/EdgeInteractionManager';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
 import Legend from './components/canvas/Legend';
 import { type LegendScreenBounds } from './components/canvas/LegendScreenBounds';
 import { TimelineKeyboardController } from './components/canvas/TimelineKeyboardController';
 import { TimelineSlider } from './components/canvas/TimelineSlider';
-import NodeRectangle from './components/elements/NodeRectangle';
 import { BlueprintPaster } from './components/menus/blueprint-edit/BlueprintPaster';
 import { EdgeCreator } from './components/menus/edge-edit/EdgeCreator';
 import MenuManager from './components/menus/MenuManager';
@@ -18,6 +16,10 @@ import FileOpenModal from './components/menus/modals/FileOpenModal';
 import { EditorHistoryService } from './features/editor-history/EditorHistoryService';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
+import { GraphLayerRenderer } from './features/graph/GraphLayerRenderer';
+import { RenderRepulsionController } from './features/graph/RenderRepulsionController';
+import { TimelineGraphProjector } from './features/graph/TimelineGraphProjector';
+import { TimelineRepulsionScheduler } from './features/graph/TimelineRepulsionScheduler';
 import { TimelineViewportBoundsResolver } from './features/graph/TimelineViewportBoundsResolver';
 import { type PrerenderEdge } from './features/graph/PrerenderEdge';
 import { type PrerenderNode } from './features/graph/PrerenderNode';
@@ -57,8 +59,7 @@ class App extends Component<{}, AppState> {
     private _timelineSliderRef: TimelineSlider | null = null;
     private _hasLoadedFromGitHub: boolean = false;
     private _legendBounds: LegendScreenBounds | null = null;
-    private _repulsionAnchorTickIndex: number | null = null;
-    private _repulsionTimerId: number | null = null;
+    private _timelineRepulsionScheduler: TimelineRepulsionScheduler;
     private _isModalOpen: boolean = false;
 
     private _handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (
@@ -222,6 +223,7 @@ class App extends Component<{}, AppState> {
         this._registry.clear();
         this._historyService = new EditorHistoryService(this._registry);
         this._timelineKeyboardController = new TimelineKeyboardController();
+        this._timelineRepulsionScheduler = new TimelineRepulsionScheduler();
 
         this._layoutResult = this._layoutService.calculateLayout(this._registry);
     }
@@ -324,11 +326,7 @@ class App extends Component<{}, AppState> {
 
         window.removeEventListener('keydown', this._handleKeyDown);
         this._timelineKeyboardController.unbind(window);
-
-        if (this._repulsionTimerId !== null) {
-            window.clearTimeout(this._repulsionTimerId);
-            this._repulsionTimerId = null;
-        }
+        this._timelineRepulsionScheduler.dispose();
     }
 
     public render(): ReactNode {
@@ -435,6 +433,14 @@ class App extends Component<{}, AppState> {
         this._handleLayoutUpdate(layoutResult);
     }
 
+    private _getDisplayedLayerGapCenters(): number[] {
+        if (!this._layoutResult) {
+            return [];
+        }
+
+        return TimelineGraphProjector.resolveLayerGapCenters(this._layoutResult, this.state.timelineRawPosition);
+    }
+
     private _handleTimelineSliderRef(ref: TimelineSlider | null): void {
         this._timelineSliderRef = ref;
         this._timelineKeyboardController.setTimelineSlider(ref);
@@ -449,173 +455,47 @@ class App extends Component<{}, AppState> {
     }
 
     private _renderGraph(): ReactNode {
-        if (!this._layoutResult) return null;
+        if (!this._layoutResult) {
+            return null;
+        }
 
-        const { prerenderNodes: latestNodes, prerenderEdges, updateTimes, frames, edgeFrames }: BlueprintPrerenderCombResult = this._layoutResult;
+        const { updateTimes }: BlueprintPrerenderCombResult = this._layoutResult;
         const reanchoringEdge: Edge | null = this._menuManagerRef?.reanchoringEdge || null;
         const { timelineIndex, timelineIsTransition, timelineRawPosition }: AppState = this.state;
 
-        // Interpolation Logic.
-        const displayedNodes: PrerenderNode[] = [];
-        const displayedEdges: PrerenderEdge[] = [];
-        
-        // If frames (historical layouts) exist, interpolate.
-        if (frames && frames.size > 0) {
-             const startIndex: number = Math.floor(timelineRawPosition);
-             const endIndex: number = Math.ceil(timelineRawPosition);
-             const progress: number = timelineRawPosition - startIndex;
-             
-             const startFrame: PrerenderNode[] = frames.get(startIndex) || latestNodes;
-             const endFrame: PrerenderNode[] = frames.get(endIndex) || startFrame;
-             
-             // Map end frame nodes for fast lookup.
-             const endNodeMap: Map<string, PrerenderNode> = new Map<string, PrerenderNode>();
-             endFrame.forEach((prerenderNode: PrerenderNode): void => { endNodeMap.set(prerenderNode.node.id, prerenderNode); });
-             
-             // Track processed IDs to handle new nodes.
-             const processedIds: Set<string> = new Set<string>();
-
-             // Interpolate from Start to End.
-              startFrame.forEach((startNode: PrerenderNode): void => {
-                  const endNode: PrerenderNode | undefined = endNodeMap.get(startNode.node.id);
-                  
-                  if (endNode) {
-                      // Node exists in both frames: Interpolate position and colors.
-                      const startColors: { backgroundColor: string; borderColor: string } = this._getNodeColors(startNode.node);
-                      const endColors: { backgroundColor: string; borderColor: string } = this._getNodeColors(endNode.node);
-
-                      displayedNodes.push({
-                          node: endNode.node,  // Use end node for latest status.
-                          x: startNode.x + (endNode.x - startNode.x) * progress,
-                          y: startNode.y + (endNode.y - startNode.y) * progress,
-                          opacity: 1,
-                          backgroundColor: this._interpolateColor(startColors.backgroundColor, endColors.backgroundColor, progress),
-                          borderColor: this._interpolateColor(startColors.borderColor, endColors.borderColor, progress)
-                      });
-                  } else {
-                      // Node exists only in Start Frame: Fade out.
-                      const startColors: { backgroundColor: string; borderColor: string } = this._getNodeColors(startNode.node);
-
-                      displayedNodes.push({
-                          node: startNode.node,
-                          x: startNode.x,
-                          y: startNode.y,
-                          opacity: 1 - progress,  // Fade out.
-                          backgroundColor: startColors.backgroundColor,
-                          borderColor: startColors.borderColor
-                      });
-                  }
-
-                 processedIds.add(startNode.node.id);
-             });
-             
-             // Handle Nodes that appear ONLY in End Frame.
-              endFrame.forEach((endNode: PrerenderNode): void => {
-
-                  if (!processedIds.has(endNode.node.id)) {
-                      // New Node: Fade in at End Position.
-                      const endColors: { backgroundColor: string; borderColor: string } = this._getNodeColors(endNode.node);
-
-                      displayedNodes.push({
-                          node: endNode.node,
-                          x: endNode.x,
-                          y: endNode.y,
-                          opacity: progress,  // Fade in.
-                          backgroundColor: endColors.backgroundColor,
-                          borderColor: endColors.borderColor
-                      });
-                  }
-              });
-
-             // Interpolate edges (including curvature).
-             if (edgeFrames && edgeFrames.size > 0) {
-                 const startEdgeFrame: PrerenderEdge[] = edgeFrames.get(startIndex) || prerenderEdges;
-                 const endEdgeFrame: PrerenderEdge[] = edgeFrames.get(endIndex) || startEdgeFrame;
-
-                 // Map end frame edges for fast lookup by edge ID.
-                 const endEdgeMap: Map<string, PrerenderEdge> = new Map<string, PrerenderEdge>();
-                 endEdgeFrame.forEach((prerenderEdge: PrerenderEdge): void => { endEdgeMap.set(prerenderEdge.edge.id, prerenderEdge); });
-
-                 // Track processed edge IDs.
-                 const processedEdgeIds: Set<string> = new Set<string>();
-
-                 // Interpolate from Start to End.
-                  startEdgeFrame.forEach((startEdge: PrerenderEdge): void => {
-                      const endEdge: PrerenderEdge | undefined = endEdgeMap.get(startEdge.edge.id);
-
-                      if (endEdge) {
-                          // Edge exists in both frames: Interpolate positions and curvature.
-                          const startCurvature: number = startEdge.curvature || 0;
-                          const endCurvature: number = endEdge.curvature || 0;
-                          const startOpacity: number = startEdge.opacity !== undefined ? startEdge.opacity : 1;
-                          const endOpacity: number = endEdge.opacity !== undefined ? endEdge.opacity : 1;
-
-                          displayedEdges.push({
-                              edge: startEdge.edge,
-                              startX: startEdge.startX + (endEdge.startX - startEdge.startX) * progress,
-                              startY: startEdge.startY + (endEdge.startY - startEdge.startY) * progress,
-                              endX: startEdge.endX + (endEdge.endX - startEdge.endX) * progress,
-                              endY: startEdge.endY + (endEdge.endY - startEdge.endY) * progress,
-                              labelPositionDivisions: endEdge.labelPositionDivisions,
-                              labelPositionIndex: endEdge.labelPositionIndex,
-                              curvature: startCurvature + (endCurvature - startCurvature) * progress,
-                              opacity: startOpacity + (endOpacity - startOpacity) * progress
-                          });
-                      } else {
-                          // Edge exists only in Start Frame: Fade out.
-                          const startOpacity: number = startEdge.opacity !== undefined ? startEdge.opacity : 1;
-
-                          displayedEdges.push({
-                              ...startEdge,
-                              opacity: startOpacity * (1 - progress)
-                          });
-                      }
-
-                     processedEdgeIds.add(startEdge.edge.id);
-                 });
-
-                 // Handle Edges that appear ONLY in End Frame.
-                  endEdgeFrame.forEach((endEdge: PrerenderEdge): void => {
-
-                      if (!processedEdgeIds.has(endEdge.edge.id)) {
-                          // New Edge: Fade in at End Position.
-                          const endOpacity: number = endEdge.opacity !== undefined ? endEdge.opacity : 1;
-
-                          displayedEdges.push({
-                              ...endEdge,
-                              opacity: endOpacity * progress
-                          });
-                      }
-                  });
-             } else {
-                 // Fallback: Use latest edges if no edge frames.
-                 displayedEdges.push(...prerenderEdges);
-             }
-        } else {
-            // Fallback: Use latest nodes if no frames.
-            displayedNodes.push(...latestNodes);
-            displayedEdges.push(...prerenderEdges);
-        }
+        const {
+            displayedNodes,
+            displayedEdges
+        }: { displayedNodes: PrerenderNode[]; displayedEdges: PrerenderEdge[] } = TimelineGraphProjector.project(
+            this._layoutResult,
+            timelineRawPosition
+        );
 
         const updateTimesLength: number = updateTimes?.length ?? 0;
         const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
         const isAtLatestSlice: boolean = Math.abs(timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
         const isOnTimelineTick: boolean = this._isOnTimelineTick(timelineRawPosition);
-        const hasEnoughNodesForRepulsion: boolean = displayedNodes.length > 1;
         const timelineTickIndex: number = this._resolveTimelineTickIndex(timelineRawPosition);
 
-        const shouldApplyRepulsionNow: boolean = hasEnoughNodesForRepulsion
-            && !timelineIsTransition
-            && isOnTimelineTick
-            && (isAtLatestSlice || this._repulsionAnchorTickIndex === timelineTickIndex);
+        const shouldApplyRepulsionNow: boolean = RenderRepulsionController.shouldApplyRepulsionNow(
+            timelineIsTransition,
+            isOnTimelineTick,
+            isAtLatestSlice,
+            this._timelineRepulsionScheduler.getAnchorTickIndex(),
+            timelineTickIndex,
+            displayedNodes.length
+        );
 
         const repulsedNodes: PrerenderNode[] = shouldApplyRepulsionNow
-            ? this._applyRenderRepulsion(displayedNodes)
+            ? RenderRepulsionController.apply({
+                nodes: displayedNodes,
+                legendBounds: this._legendBounds,
+                viewport: this._viewport,
+                nodeWidth: this._NODE_WIDTH,
+                nodeHeight: this._NODE_HEIGHT,
+                repulsionMargin: this._REPULSION_MARGIN
+            })
             : displayedNodes;
-
-        // Create a map for fast node position lookup.
-        const nodeMap: Map<string, PrerenderNode> = new Map<string, PrerenderNode>();
-        repulsedNodes.forEach((node: PrerenderNode): void => { nodeMap.set(node.node.id, node); });
 
         // Represents the current time point.
         const currentTime: string | undefined = updateTimes && updateTimes[timelineIndex];
@@ -623,110 +503,19 @@ class App extends Component<{}, AppState> {
         // Represents the next time point (if in transition).
         const nextTime: string | undefined = updateTimes && updateTimes[timelineIndex + 1];
 
-        return (
-            <>
-                {/* Render the edges behind the nodes. */}
-                {EdgeInteractionManager.renderEdges(
-                    displayedEdges,
-                    reanchoringEdge,
-                    currentTime,
-                    nextTime,
-                    timelineIsTransition,
-                    nodeMap,
-                    this._registry,
-                    this._edgeDrawerRef,
-                    this._menuManagerRef,
-                    (): void => this.forceUpdate()
-                )}
-
-                {/* Render the nodes on top of the edges. */}
-                {repulsedNodes.map((prerenderNode: PrerenderNode): ReactNode => (
-                    <NodeRectangle
-                        key={prerenderNode.node.id as string}
-                        node={prerenderNode.node}
-                        x={prerenderNode.x}
-                        y={prerenderNode.y}
-                        opacity={prerenderNode.opacity}
-                        backgroundColor={prerenderNode.backgroundColor}
-                        borderColor={prerenderNode.borderColor}
-                        onStartEdge={(nodeId: string): void => {
-                            if (!this._edgeDrawerRef) return;
-
-                            this._edgeDrawerRef.handleStartEdge(nodeId, { strokeColor: '#4CAF50', strokeDasharray: '5,5' });
-                        }}
-                        onCompleteEdge={(nodeId: string): void => {
-                            if (this._edgeDrawerRef) {
-                                this._edgeDrawerRef.handleCompleteEdge(nodeId);
-                            }
-                        }}
-                        onContextMenu={(event: MouseEvent): void => this._handleNodeContextMenu(event, prerenderNode.node.id as string)}
-                    />
-                ))}
-            </>
-        );
-    }
-
-    private _getDisplayedLayerGapCenters(): number[] {
-        if (!this._layoutResult) {
-            return [];
-        }
-
-        const { layerGapCenters, layerGapFrames, frames }: BlueprintPrerenderCombResult = this._layoutResult;
-        const { timelineRawPosition }: AppState = this.state;
-
-        // If layer gap frames exist, interpolate.
-        if (layerGapFrames && layerGapFrames.size > 0 && frames && frames.size > 0) {
-            const startIndex: number = Math.floor(timelineRawPosition);
-            const endIndex: number = Math.ceil(timelineRawPosition);
-            const progress: number = timelineRawPosition - startIndex;
-
-            const startGaps: number[] = layerGapFrames.get(startIndex) || layerGapCenters;
-            const endGaps: number[] = layerGapFrames.get(endIndex) || startGaps;
-
-            // Interpolate gap positions.
-            const maxLength: number = Math.max(startGaps.length, endGaps.length);
-            const displayedGaps: number[] = [];
-
-            for (let index: number = 0; index < maxLength; index++) {
-                const startValue: number = startGaps[index] ?? startGaps[startGaps.length - 1] ?? 0;
-                const endValue: number = endGaps[index] ?? endGaps[endGaps.length - 1] ?? 0;
-                displayedGaps.push(startValue + (endValue - startValue) * progress);
-            }
-
-            return displayedGaps;
-        }
-
-        // Fallback: Use latest layer gap centers.
-        return layerGapCenters;
-    }
-
-    private _parseColor(hexColor: string): { red: number; green: number; blue: number } {
-        // Parse hex color string to RGB components.
-        const hex: string = hexColor.replace('#', '');
-        const red: number = parseInt(hex.substring(0, 2), 16);
-        const green: number = parseInt(hex.substring(2, 4), 16);
-        const blue: number = parseInt(hex.substring(4, 6), 16);
-
-        return { red, green, blue };
-    }
-
-    private _interpolateColor(startColor: string, endColor: string, progress: number): string {
-        const start: { red: number; green: number; blue: number } = this._parseColor(startColor);
-        const end: { red: number; green: number; blue: number } = this._parseColor(endColor);
-
-        const red: number = Math.round(start.red + (end.red - start.red) * progress);
-        const green: number = Math.round(start.green + (end.green - start.green) * progress);
-        const blue: number = Math.round(start.blue + (end.blue - start.blue) * progress);
-
-        return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
-    }
-
-    private _getNodeColors(node: Node): { backgroundColor: string; borderColor: string } {
-        const metadata: Record<string, unknown> | undefined = node.status.metadata;
-        const backgroundColor: string = (metadata?.backgroundColor as string) || '#F5F5F5';
-        const borderColor: string = (metadata?.borderColor as string) || '#666666';
-
-        return { backgroundColor, borderColor };
+        return GraphLayerRenderer.render({
+            displayedEdges,
+            repulsedNodes,
+            reanchoringEdge,
+            currentTime,
+            nextTime,
+            timelineIsTransition,
+            registry: this._registry,
+            edgeDrawerRef: this._edgeDrawerRef,
+            menuManagerRef: this._menuManagerRef,
+            onForceUpdate: (): void => this.forceUpdate(),
+            onNodeContextMenu: (event: MouseEvent, nodeId: string): void => this._handleNodeContextMenu(event, nodeId)
+        });
     }
 
     private _hasEnoughNodesForRepulsionAtPosition(timelineRawPosition: number): boolean {
@@ -735,15 +524,13 @@ class App extends Component<{}, AppState> {
         }
 
         const { frames, prerenderNodes }: BlueprintPrerenderCombResult = this._layoutResult;
+        const timelineTickIndex: number = this._resolveTimelineTickIndex(timelineRawPosition);
 
-        if (frames && frames.size > 0) {
-            const timelineTickIndex: number = this._resolveTimelineTickIndex(timelineRawPosition);
-            const frameNodes: PrerenderNode[] = frames.get(timelineTickIndex) || prerenderNodes;
-            return frameNodes.length > 1;
-        }
-
-        const nodeCount: number = prerenderNodes.length;
-        return nodeCount > 1;
+        return RenderRepulsionController.hasEnoughNodesForRepulsionAtPosition(
+            frames,
+            prerenderNodes,
+            timelineTickIndex
+        );
     }
 
     private _canStartRepulsionTimer(
@@ -767,40 +554,19 @@ class App extends Component<{}, AppState> {
         canStartRepulsionTimer: boolean,
         timelineTickIndex: number | null
     ): void {
-        if (this._repulsionTimerId !== null) {
-            window.clearTimeout(this._repulsionTimerId);
-            this._repulsionTimerId = null;
-        }
-
-        if (!canStartRepulsionTimer || timelineTickIndex === null) {
-            this._repulsionAnchorTickIndex = null;
-            return;
-        }
-
-        if (isAtLatestSlice) {
-            this._repulsionAnchorTickIndex = timelineTickIndex;
-            return;
-        }
-
-        this._repulsionAnchorTickIndex = null;
-        const anchorTickIndex: number = timelineTickIndex;
-
-        this._repulsionTimerId = window.setTimeout((): void => {
-            this._repulsionTimerId = null;
-
-            const canStillStartRepulsion: boolean = this._canStartRepulsionTimer(
+        this._timelineRepulsionScheduler.schedule({
+            isAtLatestSlice,
+            canStartRepulsionTimer,
+            timelineTickIndex,
+            delayMilliseconds: this._TIMELINE_REPULSION_DELAY_MILLISECONDS,
+            canStillStartRepulsion: (): boolean => this._canStartRepulsionTimer(
                 this.state.timelineIsTransition,
                 this.state.timelineRawPosition,
                 this._hasEnoughNodesForRepulsionAtPosition(this.state.timelineRawPosition)
-            );
-
-            const currentTickIndex: number = this._resolveTimelineTickIndex(this.state.timelineRawPosition);
-
-            if (canStillStartRepulsion && currentTickIndex === anchorTickIndex) {
-                this._repulsionAnchorTickIndex = anchorTickIndex;
-                this.forceUpdate();
-            }
-        }, this._TIMELINE_REPULSION_DELAY_MILLISECONDS);
+            ),
+            getCurrentTickIndex: (): number => this._resolveTimelineTickIndex(this.state.timelineRawPosition),
+            onRepulsionAnchorReady: (): void => this.forceUpdate()
+        });
     }
 
     private _areLegendBoundsEqual(
@@ -821,116 +587,6 @@ class App extends Component<{}, AppState> {
             && Math.abs(firstBounds.right - secondBounds.right) < this._LEGEND_BOUNDS_EQUAL_THRESHOLD
             && Math.abs(firstBounds.bottom - secondBounds.bottom) < this._LEGEND_BOUNDS_EQUAL_THRESHOLD
         );
-    }
-
-    private _screenToWorldX(screenX: number): number {
-        return (screenX - this._viewport.x) / this._viewport.scale;
-    }
-
-    private _screenToWorldY(screenY: number): number {
-        return (screenY - this._viewport.y) / this._viewport.scale;
-    }
-
-    private _getLegendWorldBounds():
-        { left: number; top: number; right: number; bottom: number } | null {
-        if (!this._legendBounds) {
-            return null;
-        }
-
-        return {
-            left: this._screenToWorldX(this._legendBounds.left) - this._REPULSION_MARGIN,
-            top: this._screenToWorldY(this._legendBounds.top) - this._REPULSION_MARGIN,
-            right: this._screenToWorldX(this._legendBounds.right) + this._REPULSION_MARGIN,
-            bottom: this._screenToWorldY(this._legendBounds.bottom) + this._REPULSION_MARGIN
-        };
-    }
-
-    private _buildNodeRectangle(node: PrerenderNode):
-        { left: number; top: number; right: number; bottom: number } {
-        return {
-            left: node.x,
-            top: node.y,
-            right: node.x + this._NODE_WIDTH,
-            bottom: node.y + this._NODE_HEIGHT
-        };
-    }
-
-    private _rectanglesOverlap(
-        rectangleA: { left: number; top: number; right: number; bottom: number },
-        rectangleB: { left: number; top: number; right: number; bottom: number }
-    ): boolean {
-        return !(
-            rectangleA.right <= rectangleB.left ||
-            rectangleA.left >= rectangleB.right ||
-            rectangleA.bottom <= rectangleB.top ||
-            rectangleA.top >= rectangleB.bottom
-        );
-    }
-
-    private _applyRenderRepulsion(nodes: PrerenderNode[]): PrerenderNode[] {
-        const repulsedNodes: PrerenderNode[] = nodes
-            .map((node: PrerenderNode): PrerenderNode => ({ ...node }))
-            .sort((nodeA: PrerenderNode, nodeB: PrerenderNode): number => nodeA.y - nodeB.y);
-        const legendBounds: { left: number; top: number; right: number; bottom: number } | null = this._getLegendWorldBounds();
-        const movedNodeIds: Set<string> = new Set<string>();
-        const maxIterations: number = 8;
-
-        for (let iteration: number = 0; iteration < maxIterations; iteration++) {
-            let hasMovedInThisIteration: boolean = false;
-
-            for (let index: number = 0; index < repulsedNodes.length; index++) {
-                const currentNode: PrerenderNode = repulsedNodes[index];
-                let currentRectangle: { left: number; top: number; right: number; bottom: number } =
-                    this._buildNodeRectangle(currentNode);
-
-                if (legendBounds && this._rectanglesOverlap(currentRectangle, legendBounds)) {
-                    const pushDownDistance: number = legendBounds.bottom - currentRectangle.top;
-                    currentNode.y += pushDownDistance;
-                    movedNodeIds.add(currentNode.node.id);
-                    hasMovedInThisIteration = true;
-                    currentRectangle = this._buildNodeRectangle(currentNode);
-                }
-
-                for (let nextIndex: number = index + 1; nextIndex < repulsedNodes.length; nextIndex++) {
-                    const nextNode: PrerenderNode = repulsedNodes[nextIndex];
-                    const nextRectangle: { left: number; top: number; right: number; bottom: number } =
-                        this._buildNodeRectangle(nextNode);
-
-                    if (this._rectanglesOverlap(currentRectangle, nextRectangle)) {
-                        const pushDownDistance: number = currentRectangle.bottom - nextRectangle.top + this._REPULSION_MARGIN;
-                        nextNode.y += pushDownDistance;
-                        movedNodeIds.add(nextNode.node.id);
-                        hasMovedInThisIteration = true;
-                    }
-                }
-            }
-
-            if (!hasMovedInThisIteration) {
-                break;
-            }
-        }
-
-        return repulsedNodes.map((node: PrerenderNode): PrerenderNode => {
-            if (!movedNodeIds.has(node.node.id)) {
-                return node;
-            }
-
-            const originalNode: PrerenderNode | undefined = nodes.find(
-                (original: PrerenderNode): boolean => original.node.id === node.node.id
-            );
-
-            if (!originalNode) {
-                return node;
-            }
-
-            return {
-                ...node,
-                x: originalNode.x,
-                opacity: node.opacity !== undefined ? node.opacity : originalNode.opacity,
-                backgroundColor: node.backgroundColor || originalNode.backgroundColor,
-                borderColor: node.borderColor || originalNode.borderColor
-            };
-        });
     }
 
     private _updateViewportForTimeline(): void {

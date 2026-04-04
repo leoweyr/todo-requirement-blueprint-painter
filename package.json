@@ -1,7 +1,7 @@
 {
   "name": "todo-requirement-blueprint-painter",
   "private": true,
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "A bidirectional visual editor for TODO Requirement Blueprints (TRB). Render YAML into interactive graphs, mutate architecture visually, and sync back to code.",
   "bugs": "https://github.com/leoweyr/todo-requirement-blueprint-painter/issues",
   "type": "module",
