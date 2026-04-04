@@ -2,6 +2,89 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.0.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v1.1.1...v2.0.0) (2026-04-04)
+### License Change: MIT -> Apache-2.0
+
+Starting from this release(v2.0.0), this project is licensed under the Apache License 2.0.
+
+* Previous releases/tags remain under the MIT License.
+* Redistributors should preserve LICENSE and NOTICE files as required.
+
+
+### Bug Fixes
+
+* **serializer:** preserve original TAML anchor names on export ([6675547](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/6675547913ae686d81780cba67d1f454b59411b6)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** remove spa fallback and refine png export rewrite rules ([1be31e8](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/1be31e8f0cb98adc031c7b4347f98593252d602f)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** include source files in serverless function bundle to resolve import errors ([838fe82](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/838fe8212f35d05fb8e0f3b4ccd5433ff9e1e24b)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** improve chromium executable path resolution and launch args for Vercel ([0947a8e](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/0947a8ea6757fff83494774decb7b81a6f0ad830)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** configure chromium graphics mode and launch options for reliable Vercel execution ([c7a0af5](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/c7a0af52a32bc3e2c9dc53d1d01541fa916a650d)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** add diagnostic logging and path validation for chromium executable resolution in Vercel ([24fb20f](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/24fb20f961a16b28a20240550ea7862d11b7036d)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** bundle @sparticuz/chromium ([0e6a1c4](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/0e6a1c41e6ca6b7b2468abeb9a02361dbd565c23)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** switch to @sparticuz/chromium-min with remote binary ([5889bf2](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/5889bf2465a1ec962b72569d3927ca6d50a79cdd)) [@leoweyr](https://github.com/leoweyr)
+* preserve blueprint filename when loading and exporting ([f85d3fd](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/f85d3fd4bee9094be57da3d254f9e7312df22c98)) [@leoweyr](https://github.com/leoweyr)
+* **graph:** add edge-node repulsion to prevent edges crossing nodes ([26edb63](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/26edb63cc438c9efa381920decac92fdb7543ca0)) [@leoweyr](https://github.com/leoweyr)
+* **graph:** add edge-node repulsion with timeline curvature animation ([21cfa5e](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/21cfa5ec10a7421bd88abc242dba98533e2bd66f)) [@leoweyr](https://github.com/leoweyr)
+* **graph:** animate layer gap dividers during timeline scrubbing ([06f2898](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/06f2898e2d91fe15b0724ac8bd1e72939429f5ca)) [@leoweyr](https://github.com/leoweyr)
+* **graph:** add render-time repulsion for legend-node and node-node overlap ([e5eda69](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/e5eda690f57f33f05a5bd27eeae51790fd3b4a7d)) [@leoweyr](https://github.com/leoweyr)
+* **github:** apply readonly node interceptor to timeline history frames ([4e6abb1](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/4e6abb10bd5b12c3454cfaadba8a3559d25881a2)) [@leoweyr](https://github.com/leoweyr)
+* **graph:** skip render repulsion when blueprint has single node ([6c892de](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/6c892de0113b26f41102ee0e895503e4c08df665)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Features
+
+* **github:** add blueprint entry point to file open modal ([3ec555d](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/3ec555d7c52c2b88641c960d530b5e7b30311a36)) [@leoweyr](https://github.com/leoweyr)
+* **serializer:** format YAML export with proper spacing ([7717aea](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/7717aea82c38f58ee0b0e0625a21ac244e7689e1)) [@leoweyr](https://github.com/leoweyr)
+* **serializer:** preserve and restore YAML inline comments ([69fb9ea](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/69fb9ea1f3a390fffaeb3a68121d95b0c3ad0aba)) [@leoweyr](https://github.com/leoweyr)
+* **menus:** add evolution reason selection to edge creation menu ([97d708a](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/97d708a7e3bf182831698cddcc47ad51f2ada772)) [@leoweyr](https://github.com/leoweyr)
+* add url-based blueprint loading and png generation ([d6a8981](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/d6a8981932762573d90f69ecd21988f69465b4f1)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** direct PNG access via url-based blueprint loading ([7839c39](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/7839c39e14175b5ddc06558dae3bec6fd2c95a40)) [@leoweyr](https://github.com/leoweyr)
+* **readonly:** add read-only view mode with node interceptor support ([de94e4e](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/de94e4e695a482f837dbe0481a267735df4c095c)) [@leoweyr](https://github.com/leoweyr)
+* **graph:** keep canvas layout centered across timeline slices ([919bf47](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/919bf478310ec0d39fbe1d676c4da4bd7f114269)) [@leoweyr](https://github.com/leoweyr)
+* **node-history:** add GitHub commit-based node history playback ([a743d44](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/a743d44d878f61798343f7bb2fbd52b1e18d9fc4)) [@leoweyr](https://github.com/leoweyr)
+* **interceptor:** support TypeScript scripts with backward-compatible JavaScript execution ([e27b482](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/e27b4828f5a3d0f6fb5b59b55d5d72fe07ad1977)) [@leoweyr](https://github.com/leoweyr)
+* add git and spec metadata tags to index html ([9b5a53b](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/9b5a53ba5acdef686a36a7776c3ea7d4b48cf427)) [@leoweyr](https://github.com/leoweyr)
+* **canvas:** add timeline keyboard navigation shortcuts ([306a385](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/306a38570380165fa401e0563271de8be677160b)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Performance
+
+* **graph:** separate connected components in layout ([c639853](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/c639853a1f322dddc0445bd3ee0d2162e0b0dfb4)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Refactor
+
+* **domain:** consume @todo-requirement-blueprint/domain ([dab4fcd](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/dab4fcd26753a352d82c7cc97bb02993d72e9aca)) [@leoweyr](https://github.com/leoweyr)
+* split serializer and extract registry ([d4d69a5](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/d4d69a53c034526e6c03585a8c97049cd79f3088)) [@leoweyr](https://github.com/leoweyr)
+* consume @todo-requirement-blueprint/engine ([f32ade1](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/f32ade1822675358d13de389efa9a7ae474e7cef)) [@leoweyr](https://github.com/leoweyr)
+* extract timeline graph projection and repulsion orchestration ([b9b4f04](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/b9b4f04e37488a887cf39cac13f04a9968c32d46)) [@leoweyr](https://github.com/leoweyr)
+
+
+### DevOps
+
+* **ssr:** bundle serverless function with esbuild to fix Vercel function deployment ([6df82d8](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/6df82d8ccc8e8b92e8166f5d0eb001f76f886f45)) [@leoweyr](https://github.com/leoweyr)
+* **deploy-vercel:** pre-build ssr bundle before Vercel build to resolve function path error ([18cfcd1](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/18cfcd1314a3e27d8e3cfd7286419ab91fd7f5ec)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** use CommonJS format for bundle ([7bfd869](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/7bfd869d0eae58bff0b3edd71e9d8af120ed173b)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** use `.cjs` extension for CommonJS bundle ([f68b3c0](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/f68b3c0885514936a705b5718e6c7b42497beaa0)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** pin puppeteer-core version for Chromium compatibility ([7f7e7e7](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/7f7e7e7ba10a78554e19a15733f915b15176b5e7)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** include chromium-min and puppeteer-core in function bundle ([9ee9f6b](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/9ee9f6bedd07099a48f68f7e702590846c3d7c76)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** use CommonJS format with dedicated api/package.json ([8bc05e2](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/8bc05e23b48b71e1325c14c3085f349eda4bcc47)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** bundle puppeteer-core and chromium-min to lock versions ([b1ab566](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/b1ab566c3f3edd341307ac58c68c66fab7d835eb)) [@leoweyr](https://github.com/leoweyr)
+* **ssr:** detect Vercel environment via VERCEL env var ([b0427d0](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/b0427d05c6bae8505c813e52ffdd9030490713ea)) [@leoweyr](https://github.com/leoweyr)
+* **publish-release:** support bump TRB project node version ([0d20580](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/0d2058038e2ddc257c1092942eef8c37bbb5e0f1)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Documentation
+
+* add route-based access ([19d7438](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/19d743894c50f5536544270ed1b7af2025f4fe66)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Miscellaneous Tasks
+
+* **ssr:** remove diagnostic logging from browser service ([3791644](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/37916448d593479a748fcb9751c912765eca0e46)) [@leoweyr](https://github.com/leoweyr)
+* **license:** migrate project license from MIT to Apache-2.0 ([3912161](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/3912161d9c57d8300e421996045f8a9e18fa713c)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.1.1](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v1.1.0...v1.1.1) (2026-03-21)
 ### Bug Fixes
 
