@@ -1,5 +1,4 @@
-import { BlueprintRegistry } from './BlueprintRegistry';
-import { TrbVersionResolver } from './TrbVersionResolver';
+import { BlueprintRegistry, TrbVersionResolver } from '@todo-requirement-blueprint/engine';
 
 
 export class DomainRegistry extends BlueprintRegistry {

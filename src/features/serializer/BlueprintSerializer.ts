@@ -1,6 +1,6 @@
-import { type BlueprintRegistry } from '../registry/BlueprintRegistry';
+import { type BlueprintRegistry, BlueprintDocumentSerializer } from '@todo-requirement-blueprint/engine';
+
 import { DomainRegistry } from '../registry/DomainRegistry';
-import { BlueprintDocumentSerializer } from './BlueprintDocumentSerializer';
 
 
 export class BlueprintSerializer {
