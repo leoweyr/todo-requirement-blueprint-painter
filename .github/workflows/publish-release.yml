@@ -10,5 +10,8 @@ permissions:
 jobs:
   call-publish:
     uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@develop
+    with:
+      trb-repository: 'ODCLAB/odyssey-plan'
+      trb-project-node-name: 'TODO Requirement Blueprint Painter'
     secrets:
-      ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ACCESS_TOKEN: ${{ secrets.PUBLISH_GITHUB_TOKEN }}
