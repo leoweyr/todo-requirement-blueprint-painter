@@ -619,7 +619,12 @@ class App extends Component<{}, AppState> {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundImage: [
+                'linear-gradient(0deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.35))',
+                'repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0px, rgba(255, 255, 255, 0.2) 1.5px, transparent 1.5px, transparent 40px)',
+                'repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.2) 0px, rgba(255, 255, 255, 0.2) 1.5px, transparent 1.5px, transparent 40px)',
+                'linear-gradient(180deg, #2ca5fd 0%, #0273e1 100%)'
+            ].join(', '),
             backdropFilter: 'blur(5px)',
             zIndex: 2000,
             display: 'flex',
