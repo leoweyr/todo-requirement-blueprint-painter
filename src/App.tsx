@@ -601,37 +601,6 @@ class App extends Component<{}, AppState> {
             && Math.abs(firstBounds.right - secondBounds.right) < this._LEGEND_BOUNDS_EQUAL_THRESHOLD
             && Math.abs(firstBounds.bottom - secondBounds.bottom) < this._LEGEND_BOUNDS_EQUAL_THRESHOLD
         );
-
-        const repulsedNodes: PrerenderNode[] = shouldApplyRepulsionNow
-            ? RenderRepulsionController.apply({
-                nodes: displayedNodes,
-                legendBounds: this._legendBounds,
-                viewport: this._viewport,
-                nodeWidth: this._NODE_WIDTH,
-                nodeHeight: this._NODE_HEIGHT,
-                repulsionMargin: this._REPULSION_MARGIN
-            })
-            : displayedNodes;
-
-        // Represents the current time point.
-        const currentTime: string | undefined = updateTimes && updateTimes[timelineIndex];
-
-        // Represents the next time point (if in transition).
-        const nextTime: string | undefined = updateTimes && updateTimes[timelineIndex + 1];
-
-        return GraphLayerRenderer.render({
-            displayedEdges,
-            repulsedNodes,
-            reanchoringEdge,
-            currentTime,
-            nextTime,
-            timelineIsTransition,
-            registry: this._registry,
-            edgeDrawerRef: this._edgeDrawerRef,
-            menuManagerRef: this._menuManagerRef,
-            onForceUpdate: (): void => this.forceUpdate(),
-            onNodeContextMenu: (event: MouseEvent, nodeId: string): void => this._handleNodeContextMenu(event, nodeId)
-        });
     }
 
     private _updateViewportForTimeline(): void {
