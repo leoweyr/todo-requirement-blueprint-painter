@@ -94,6 +94,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
 
         const metadataEntries: [string, unknown][] = node.metadata ? Object.entries(node.metadata) : [];
         const nodeUrl: string | undefined = this._getNodeUrl();
+        const nodeVersionTooltipText: string = this._getNodeVersionTooltipText(node);
 
         return (
             <div 
@@ -114,6 +115,10 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
 
                 {isHovered && (
                     <>
+                        <div style={this._getNodeVersionTooltipStyle()}>
+                            {nodeVersionTooltipText}
+                        </div>
+
                         {/* Edge Creation Button (Left Center). */}
                         {/* Disable in read-only mode. */}
                         {!isReadOnly && (
@@ -240,6 +245,35 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             fontFamily: 'Helvetica, Arial, sans-serif',
             whiteSpace: 'nowrap',
             marginBottom: '2px'
+        };
+    }
+
+    private _getNodeVersionTooltipText(node: Node): string {
+        const nodeUpdatedDate: Date = new Date(node.updatedAt);
+        const nodeUpdatedTimestamp: number = nodeUpdatedDate.getTime();
+
+        if (Number.isNaN(nodeUpdatedTimestamp)) {
+            return node.version;
+        }
+
+        const nodeUpdatedYear: number = nodeUpdatedDate.getFullYear();
+        const nodeUpdatedMonth: number = nodeUpdatedDate.getMonth() + 1;
+        const nodeUpdatedDay: number = nodeUpdatedDate.getDate();
+        const nodeUpdatedDateText: string = `${nodeUpdatedYear}/${nodeUpdatedMonth}/${nodeUpdatedDay}`;
+
+        return `${node.version} (${nodeUpdatedDateText})`;
+    }
+
+    private _getNodeVersionTooltipStyle(): CSSProperties {
+        return {
+            marginTop: '4px',
+            backgroundColor: 'transparent',
+            color: '#666666',
+            fontSize: '9pt',
+            fontFamily: 'Helvetica, Arial, sans-serif',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            textAlign: 'center'
         };
     }
 
