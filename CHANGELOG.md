@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.0.1](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.0.0...v2.0.1) (2026-04-05)
+### Bug Fixes
+
+* **node-history:** resolve blueprint path via manifest at each commit ([89afbfa](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/89afbfaee7d582c813f048fcd3c6e6f071f09b24)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [2.0.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v1.1.1...v2.0.0) (2026-04-04)
 ### License Change: MIT -> Apache-2.0
 
