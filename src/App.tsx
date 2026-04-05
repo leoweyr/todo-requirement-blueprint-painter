@@ -31,6 +31,7 @@ import { ReadOnlyView } from './features/readonly/ReadOnlyView';
 
 interface AppState {
     isFileLoaded: boolean;
+    isLoadingFromGitHubRoute: boolean;
     timelineIndex: number;  // Current index on the timeline (versions).
     timelineIsTransition: boolean;  // Indicates if the timeline is in the transition state after the index.
     timelineRawPosition: number;  // Float value for smooth animation.
@@ -209,9 +210,12 @@ class App extends Component<{}, AppState> {
 
     public constructor(properties: {}) {
         super(properties);
+        const hasGitHubRouteParameter: boolean = typeof window !== 'undefined'
+            && new URLSearchParams(window.location.search).get('github') !== null;
 
         this.state = {
             isFileLoaded: false,
+            isLoadingFromGitHubRoute: hasGitHubRouteParameter,
             timelineIndex: 0,
             timelineIsTransition: false,
             timelineRawPosition: 0
@@ -257,7 +261,10 @@ class App extends Component<{}, AppState> {
                         (result) => this._handleLayoutUpdate(result)
                     );
                     
-                    this.setState({ isFileLoaded: true } as unknown as Pick<AppState, keyof AppState>);
+                    this.setState({
+                        isFileLoaded: true,
+                        isLoadingFromGitHubRoute: false
+                    } as unknown as Pick<AppState, keyof AppState>);
 
                     if (viewMode === 'png') {
                         // Wait for rendering to complete (e.g., fonts, layout).
@@ -266,7 +273,10 @@ class App extends Component<{}, AppState> {
                 } catch (error) {
                     console.error('Failed to load from GitHub:', error);
                     alert(`Failed to load from GitHub: ${(error as Error).message}`);
+                    this.setState({ isLoadingFromGitHubRoute: false } as unknown as Pick<AppState, keyof AppState>);
                 }
+            } else {
+                this.setState({ isLoadingFromGitHubRoute: false } as unknown as Pick<AppState, keyof AppState>);
             }
         }
     }
@@ -330,7 +340,7 @@ class App extends Component<{}, AppState> {
     }
 
     public render(): ReactNode {
-        const { isFileLoaded }: AppState = this.state;
+        const { isFileLoaded, isLoadingFromGitHubRoute }: AppState = this.state;
         const layoutResult: BlueprintPrerenderCombResult | null = this._layoutResult;
 
         return (
@@ -407,13 +417,17 @@ class App extends Component<{}, AppState> {
 
                 {!isFileLoaded && (
                     <div className="file-open-modal-overlay" style={this._getModalOverlayStyle()}>
-                        <FileOpenModal 
-                            onFileLoaded={(): void => this.setState({ isFileLoaded: true } as unknown as Pick<AppState, keyof AppState>)}
-                            registry={this._registry}
-                            layoutService={this._layoutService}
-                            viewport={this._viewport}
-                            onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)}
-                        />
+                        {isLoadingFromGitHubRoute ? (
+                            this._renderGitHubRouteLoading()
+                        ) : (
+                            <FileOpenModal 
+                                onFileLoaded={(): void => this.setState({ isFileLoaded: true } as unknown as Pick<AppState, keyof AppState>)}
+                                registry={this._registry}
+                                layoutService={this._layoutService}
+                                viewport={this._viewport}
+                                onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)}
+                            />
+                        )}
                     </div>
                 )}
                 
@@ -633,6 +647,48 @@ class App extends Component<{}, AppState> {
         };
     }
 
+    private _renderGitHubRouteLoading(): ReactNode {
+        return (
+            <div style={this._getGitHubRouteLoadingContainerStyle()}>
+                <svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+                    <circle
+                        cx="28"
+                        cy="28"
+                        r="22"
+                        stroke="rgba(255, 255, 255, 0.35)"
+                        strokeWidth="5"
+                        fill="none"
+                    />
+                    <path
+                        d="M 28 6 A 22 22 0 0 1 50 28"
+                        stroke="#ffffff"
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        fill="none"
+                    >
+                        <animateTransform
+                            attributeName="transform"
+                            type="rotate"
+                            from="0 28 28"
+                            to="360 28 28"
+                            dur="0.8s"
+                            repeatCount="indefinite"
+                        />
+                    </path>
+                </svg>
+            </div>
+        );
+    }
+
+    private _getGitHubRouteLoadingContainerStyle(): CSSProperties {
+        return {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%'
+        };
+    }
 }
 
 
