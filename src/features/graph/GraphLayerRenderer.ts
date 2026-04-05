@@ -45,10 +45,12 @@ export class GraphLayerRenderer {
                     strokeDasharray: '5,5'
                 });
             },
-            onCompleteEdge: (nodeId: string): void => {
+            onCompleteEdge: (nodeId: string): boolean => {
                 if (options.edgeDrawerRef) {
-                    options.edgeDrawerRef.handleCompleteEdge(nodeId);
+                    return options.edgeDrawerRef.handleCompleteEdge(nodeId);
                 }
+
+                return false;
             },
             onContextMenu: (event: MouseEvent): void => options.onNodeContextMenu(event, prerenderNode.node.id as string)
         }));

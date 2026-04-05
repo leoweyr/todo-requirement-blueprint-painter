@@ -15,7 +15,7 @@ export interface NodeRectangleProps {
     borderColor?: string;  // Overrides the status border color.
     versionTransition?: VersionTransition;  // Defines version animation state for timeline playback.
     onStartEdge?: (nodeId: string) => void;
-    onCompleteEdge?: (nodeId: string) => void;
+    onCompleteEdge?: (nodeId: string) => boolean;
     onContextMenu?: (event: MouseEvent, nodeId: string) => void;
 }
 
@@ -66,15 +66,19 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     private _handleNodeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.stopPropagation();
 
+        const didCompleteEdgeEditing: boolean = this.props.onCompleteEdge
+            ? this.props.onCompleteEdge(this.props.node.id)
+            : false;
+
+        if (didCompleteEdgeEditing) {
+            return;
+        }
+
         const nodeUrl: string | undefined = this._getNodeUrl();
 
         if (nodeUrl) {
             window.open(nodeUrl, '_blank', 'noopener,noreferrer');
             return;
-        }
-
-        if (this.props.onCompleteEdge) {
-            this.props.onCompleteEdge(this.props.node.id);
         }
     };
 

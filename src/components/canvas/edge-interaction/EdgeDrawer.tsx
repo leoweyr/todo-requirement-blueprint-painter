@@ -141,7 +141,7 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
         }
     }
 
-    public handleCompleteEdge(nodeId: string): void {
+    public handleCompleteEdge(nodeId: string): boolean {
         const isDrawing: boolean = this.state.isDrawing;
         const startNodeId: string | null = this.state.startNodeId;
         const onEdgeConnect: (sourceId: string, targetId: string) => void = this.props.onEdgeConnect;
@@ -149,7 +149,10 @@ class EdgeDrawer extends Component<EdgeDrawerProps, EdgeDrawerState> {
         if (isDrawing && startNodeId) {
             onEdgeConnect(startNodeId, nodeId);
             this._stopDrawing();
+            return true;
         }
+
+        return false;
     }
 
     public handleCanvasClick(): void {
