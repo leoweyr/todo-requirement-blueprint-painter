@@ -103,6 +103,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                     left: x,
                     top: y
                 }}
+                data-testid={`node-rectangle-${node.id}`}  // For testing.
                 onMouseEnter={this._handleMouseEnter}
                 onMouseLeave={this._handleMouseLeave}
                 onMouseMove={this._handleMouseMove}
