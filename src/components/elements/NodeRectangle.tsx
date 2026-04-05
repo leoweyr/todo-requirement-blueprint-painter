@@ -90,6 +90,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     public render(): ReactNode {
         const { node, x, y }: NodeRectangleProps = this.props;
         const { isHovered, tooltipPosition }: NodeRectangleState = this.state;
+        const isReadOnly: boolean = ReadOnlyView.instance.isReadOnly();
 
         const metadataEntries: [string, unknown][] = node.metadata ? Object.entries(node.metadata) : [];
         const nodeUrl: string | undefined = this._getNodeUrl();
@@ -115,7 +116,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                     <>
                         {/* Edge Creation Button (Left Center). */}
                         {/* Disable in read-only mode. */}
-                        {!ReadOnlyView.instance.isReadOnly() && (
+                        {!isReadOnly && (
                             <div 
                                 style={this._getEdgeButtonStyle()}
                                 onClick={this._handleStartEdgeClick}
@@ -128,7 +129,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                             </div>
                         )}
                         
-                        {metadataEntries.length > 0 && (
+                        {!isReadOnly && metadataEntries.length > 0 && (
                             <div style={this._getMetadataContainerStyle()}>
                                 {metadataEntries.map(([key, value]: [string, unknown]): ReactNode => {
                                     const displayValue: string = (typeof value === 'object' && value !== null)
