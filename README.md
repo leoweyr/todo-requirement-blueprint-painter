@@ -50,3 +50,7 @@ Example Usage in Markdown:
 <!-- Embed live blueprint image in your README -->
 ![Architecture Blueprint](https://your-deployment.vercel.app/api/render?github=owner/repo)
 ```
+
+## 🌐 Node URL Navigation
+
+Add a `url` field to a node's metadata in the blueprint, and the node link becomes directly clickable in the interactive view.

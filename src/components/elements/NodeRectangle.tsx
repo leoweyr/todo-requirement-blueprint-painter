@@ -19,6 +19,7 @@ export interface NodeRectangleProps {
 
 interface NodeRectangleState {
     isHovered: boolean;
+    tooltipPosition: { x: number; y: number } | null;
 }
 
 
@@ -28,7 +29,23 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     };
 
     private _handleMouseLeave: () => void = (): void => {
-        this.setState({ isHovered: false });
+        this.setState({ isHovered: false, tooltipPosition: null });
+    };
+
+    private _handleMouseMove: (event: MouseEvent) => void = (event: MouseEvent): void => {
+        const nodeUrl: string | undefined = this._getNodeUrl();
+
+        if (nodeUrl) {
+            const nodeElement: HTMLDivElement = event.currentTarget as HTMLDivElement;
+            const nodeBounds: DOMRect = nodeElement.getBoundingClientRect();
+
+            this.setState({
+                tooltipPosition: {
+                    x: event.clientX - nodeBounds.left,
+                    y: event.clientY - nodeBounds.top
+                }
+            });
+        }
     };
 
     private _handleStartEdgeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
@@ -41,6 +58,13 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
 
     private _handleNodeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.stopPropagation();
+
+        const nodeUrl: string | undefined = this._getNodeUrl();
+
+        if (nodeUrl) {
+            window.open(nodeUrl, '_blank', 'noopener,noreferrer');
+            return;
+        }
 
         if (this.props.onCompleteEdge) {
             this.props.onCompleteEdge(this.props.node.id);
@@ -58,15 +82,17 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     constructor(props: NodeRectangleProps) {
         super(props);
         this.state = {
-            isHovered: false
+            isHovered: false,
+            tooltipPosition: null
         };
     }
 
     public render(): ReactNode {
         const { node, x, y }: NodeRectangleProps = this.props;
-        const { isHovered }: NodeRectangleState = this.state;
+        const { isHovered, tooltipPosition }: NodeRectangleState = this.state;
 
-        const metadataEntries: [string, any][] = node.metadata ? Object.entries(node.metadata) : [];
+        const metadataEntries: [string, unknown][] = node.metadata ? Object.entries(node.metadata) : [];
+        const nodeUrl: string | undefined = this._getNodeUrl();
 
         return (
             <div 
@@ -77,6 +103,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 }}
                 onMouseEnter={this._handleMouseEnter}
                 onMouseLeave={this._handleMouseLeave}
+                onMouseMove={this._handleMouseMove}
                 onClick={this._handleNodeClick}
                 onContextMenu={this._handleContextMenu}
             >
@@ -103,7 +130,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                         
                         {metadataEntries.length > 0 && (
                             <div style={this._getMetadataContainerStyle()}>
-                                {metadataEntries.map(([key, value]: [string, any]): ReactNode => {
+                                {metadataEntries.map(([key, value]: [string, unknown]): ReactNode => {
                                     const displayValue: string = (typeof value === 'object' && value !== null)
                                         ? JSON.stringify(value)
                                         : String(value);
@@ -117,6 +144,12 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                             </div>
                         )}
                     </>
+                )}
+
+                {nodeUrl && tooltipPosition && (
+                    <div style={this._getUrlTooltipStyle(tooltipPosition)}>
+                        Click to visit
+                    </div>
                 )}
             </div>
         );
@@ -143,6 +176,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         
         const backgroundColor: string = overrideBackgroundColor || (metadata?.backgroundColor as string) || '#F5F5F5';
         const borderColor: string = overrideBorderColor || (metadata?.borderColor as string) || '#666666';
+        const nodeUrl: string | undefined = this._getNodeUrl();
 
         return {
             backgroundColor: backgroundColor,
@@ -160,7 +194,8 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             boxSizing: 'border-box',
             height: 'fit-content',
             position: 'absolute',
-            opacity: opacity !== undefined ? opacity : 1
+            opacity: opacity !== undefined ? opacity : 1,
+            cursor: nodeUrl ? 'pointer' : 'default'
         };
     }
 
@@ -204,6 +239,34 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             fontFamily: 'Helvetica, Arial, sans-serif',
             whiteSpace: 'nowrap',
             marginBottom: '2px'
+        };
+    }
+
+    private _getNodeUrl(): string | undefined {
+        const { node }: NodeRectangleProps = this.props;
+
+        if (node.metadata && typeof node.metadata.url === 'string') {
+            return node.metadata.url;
+        }
+
+        return undefined;
+    }
+
+    private _getUrlTooltipStyle(position: { x: number; y: number }): CSSProperties {
+        return {
+            position: 'absolute',
+            left: position.x,
+            top: position.y - 2,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: '#ffffff',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '10pt',
+            fontFamily: 'Helvetica, Arial, sans-serif',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            whiteSpace: 'nowrap'
         };
     }
 }
