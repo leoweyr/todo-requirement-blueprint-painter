@@ -55,9 +55,9 @@ class App extends Component<{}, AppState> {
     private readonly _NODE_HEIGHT: number = BlueprintPrerenderComb.NODE_HEIGHT;
     private readonly _ROW_HEIGHT: number = BlueprintPrerenderComb.ROW_HEIGHT;
     private readonly _REPULSION_MARGIN: number = this._ROW_HEIGHT - this._NODE_HEIGHT;
-    private readonly _TIMELINE_REPULSION_DELAY_MILLISECONDS: number = 220;
+    private readonly _TIMELINE_REPULSION_DELAY_MILLISECONDS: number = 2000;
     private readonly _LATEST_SLICE_THRESHOLD: number = 0.001;
-    private readonly _TIMELINE_TICK_THRESHOLD: number = 0.01;
+    private readonly _TIMELINE_TICK_THRESHOLD: number = 0.0001;
     private readonly _LEGEND_BOUNDS_EQUAL_THRESHOLD: number = 0.5;
     private readonly _NEUTRAL_AREA_KEY: string = '__neutral__';
     private readonly _NEUTRAL_AREA_COLOR: string = '#FFFFFF';
