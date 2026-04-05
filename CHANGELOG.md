@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.1.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.0.1...v2.1.0) (2026-04-05)
+### Bug Fixes
+
+* **readonly:** hide node metadata panel ([1ed93fe](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/1ed93fe9ad0ba6a9f94f504e2d9c72c9bffeb1ec)) [@leoweyr](https://github.com/leoweyr)
+* **elements:** restore node version tooltip on hover in all view modes ([7d05ac9](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/7d05ac9dc48941b02e8da78a9579bbc41b300717)) [@leoweyr](https://github.com/leoweyr)
+* show spinner overlay when loading blueprint from GitHub route ([f1a906b](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/f1a906b62475251ac9562f14cddb65c4958b1d43)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Features
+
+* **elements:** add clickable URL navigation for nodes ([0106c1d](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/0106c1dd4d5d5779a44fccffee47a367d98bfcb5)) [@leoweyr](https://github.com/leoweyr)
+* add blueprint-style background to file-open overlay ([e3ce31e](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/e3ce31ea84181b31d57e47f7c3274b0aef8b07bf)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Testing
+
+* **elements:** guard node version hover tooltip regression in edit and read-only modes ([f0a2cde](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/f0a2cde797821ee39eb706fdabefe7199cd3d91e)) [@leoweyr](https://github.com/leoweyr)
+
+
+### DevOps
+
+* add continuous integration workflow ([491a52d](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/491a52d7604328abaea09873bb1d0d261d5a01a8)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [2.0.1](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.0.0...v2.0.1) (2026-04-05)
 ### Bug Fixes
 
