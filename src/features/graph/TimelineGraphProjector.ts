@@ -5,6 +5,7 @@ import type { NodeColors } from './NodeColors';
 import type { PrerenderEdge } from './PrerenderEdge';
 import type { PrerenderNode } from './PrerenderNode';
 import type { TimelineGraphProjectionResult } from './TimelineGraphProjectionResult';
+import type { VersionTransition } from './VersionTransition';
 
 
 export class TimelineGraphProjector {
@@ -42,6 +43,26 @@ export class TimelineGraphProjector {
         };
     }
 
+    private static _getVersionTransition(
+        startNode: PrerenderNode,
+        endNode: PrerenderNode,
+        progress: number
+    ): VersionTransition | undefined {
+        const startVersion: string = startNode.node.version;
+        const endVersion: string = endNode.node.version;
+
+        // Only show version transition if version actually changes.
+        if (startVersion === endVersion) {
+            return undefined;
+        }
+
+        return {
+            startVersion,
+            endVersion,
+            progress
+        };
+    }
+
     public static project(
         layoutResult: BlueprintPrerenderCombResult,
         timelineRawPosition: number
@@ -74,6 +95,11 @@ export class TimelineGraphProjector {
                 if (endNode) {
                     const startColors: NodeColors = TimelineGraphProjector._getNodeColors(startNode.node);
                     const endColors: NodeColors = TimelineGraphProjector._getNodeColors(endNode.node);
+                    const versionTransition: VersionTransition | undefined = TimelineGraphProjector._getVersionTransition(
+                        startNode,
+                        endNode,
+                        progress
+                    );
 
                     displayedNodes.push({
                         node: endNode.node,
@@ -89,7 +115,8 @@ export class TimelineGraphProjector {
                             startColors.borderColor,
                             endColors.borderColor,
                             progress
-                        )
+                        ),
+                        versionTransition
                     });
                 } else {
                     const startColors: NodeColors = TimelineGraphProjector._getNodeColors(startNode.node);

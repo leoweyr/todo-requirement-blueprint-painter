@@ -34,6 +34,7 @@ export class GraphLayerRenderer {
             opacity: prerenderNode.opacity,
             backgroundColor: prerenderNode.backgroundColor,
             borderColor: prerenderNode.borderColor,
+            versionTransition: prerenderNode.versionTransition,
             onStartEdge: (nodeId: string): void => {
                 if (!options.edgeDrawerRef) {
                     return;
