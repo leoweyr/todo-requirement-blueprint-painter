@@ -2,6 +2,7 @@ import yaml from 'js-yaml';
 
 import { GitHubClient } from '../github/GitHubClient';
 import { type GitHubCommit } from '../github/GitHubCommit';
+import { type TrbManifest } from '../github/TrbManifest';
 import { type NodeHistorySnapshot } from './NodeHistorySnapshot';
 import { type NodeHistoryVersion } from './NodeHistoryVersion';
 import { type NodeTimeline } from './NodeTimeline';
@@ -165,27 +166,68 @@ export class NodeHistoryTracker {
         });
     }
 
+    private async _fetchBlueprintAtCommitViaManifest(
+        client: GitHubClient,
+        owner: string,
+        repository: string,
+        sha: string
+    ): Promise<string | null> {
+        // Read manifest file at this commit.
+        const manifestContent: string | null = await client.getFileContentAtCommit(
+            owner,
+            repository,
+            'trb.manifest.json',
+            sha
+        );
+
+        if (manifestContent === null) {
+            return null;
+        }
+
+        let blueprintPath: string | null = null;
+
+        try {
+            const manifest: TrbManifest = JSON.parse(manifestContent);
+
+            if (manifest.blueprint && manifest.blueprint.path) {
+                blueprintPath = manifest.blueprint.path;
+            }
+        } catch {
+            return null;
+        }
+
+        if (blueprintPath === null) {
+            return null;
+        }
+
+        // Fetch blueprint at the path specified in manifest.
+        return await client.getFileContentAtCommit(owner, repository, blueprintPath, sha);
+    }
+
     public async loadFromGitHub(
         owner: string,
         repository: string,
-        blueprintPath: string,
+        _blueprintPath: string,
         maxCommits: number = 100
     ): Promise<void> {
         const client: GitHubClient = GitHubClient.instance;
         this.clear();
 
-        // Fetch commits that modified the blueprint file.
-        const commits: GitHubCommit[] = await client.getCommits(owner, repository, blueprintPath, maxCommits);
+        // Fetch all commits for the repository (not filtered by path).
+        const commits: GitHubCommit[] = await client.getCommits(owner, repository, undefined, maxCommits);
 
-        // Reverse to process oldest first.
-        const reversedCommits: GitHubCommit[] = [...commits].reverse();
+        // Sort by commit date (oldest first).
+        const sortedCommits: GitHubCommit[] = [...commits].sort(
+            (commitA: GitHubCommit, commitB: GitHubCommit): number =>
+                new Date(commitA.commit.committer.date).getTime() - new Date(commitB.commit.committer.date).getTime()
+        );
 
-        // Fetch blueprint content at each commit.
-        for (const commit of reversedCommits) {
-            const content: string | null = await client.getFileContentAtCommit(
+        // Fetch blueprint content at each commit by reading manifest first.
+        for (const commit of sortedCommits) {
+            const content: string | null = await this._fetchBlueprintAtCommitViaManifest(
+                client,
                 owner,
                 repository,
-                blueprintPath,
                 commit.sha
             );
 
