@@ -7,6 +7,7 @@ import VerticalDivider from './VerticalDivider';
 
 export interface InfiniteCanvasProps {
     viewport: CanvasViewport;
+    backgroundLayer?: ReactNode;
     children?: ReactNode;
     className?: string;
     style?: CSSProperties;
@@ -139,7 +140,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
     }
 
     public render(): ReactNode {
-        const { viewport, children, style, className, layerGapCenters } = this.props;
+        const { viewport, backgroundLayer, children, style, className, layerGapCenters } = this.props;
         
         const containerStyle: CSSProperties = {
             width: '100vw',
@@ -182,6 +183,7 @@ class InfiniteCanvas extends Component<InfiniteCanvasProps, InfiniteCanvasState>
                 onClick={this.props.onClick}
             >
                 <div style={contentStyle}>
+                    {backgroundLayer}
                     {dividers}
                     {children}
                 </div>

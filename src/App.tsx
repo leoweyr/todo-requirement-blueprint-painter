@@ -2,6 +2,7 @@ import { Component, type ReactNode, type MouseEvent, type CSSProperties } from '
 import { Edge } from '@todo-requirement-blueprint/domain';
 import { Node } from '@todo-requirement-blueprint/domain';
 
+import AreaTerritoryBackdrop from './components/canvas/AreaTerritoryBackdrop';
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
 import InfiniteCanvas from './components/canvas/InfiniteCanvas';
@@ -16,6 +17,7 @@ import FileOpenModal from './components/menus/modals/FileOpenModal';
 import { EditorHistoryService } from './features/editor-history/EditorHistoryService';
 import { BlueprintPrerenderComb } from './features/graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from './features/graph/BlueprintPrerenderCombResult';
+import { type ContentBounds } from './features/graph/ContentBounds';
 import { GraphLayerRenderer } from './features/graph/GraphLayerRenderer';
 import { RenderRepulsionController } from './features/graph/RenderRepulsionController';
 import { TimelineGraphProjector } from './features/graph/TimelineGraphProjector';
@@ -38,6 +40,16 @@ interface AppState {
 }
 
 
+interface RenderedGraphState {
+    displayedEdges: PrerenderEdge[];
+    repulsedNodes: PrerenderNode[];
+    currentTime: string | undefined;
+    nextTime: string | undefined;
+    timelineIsTransition: boolean;
+    contentBounds: ContentBounds;
+}
+
+
 class App extends Component<{}, AppState> {
     private readonly _NODE_WIDTH: number = BlueprintPrerenderComb.NODE_WIDTH;
     private readonly _NODE_HEIGHT: number = BlueprintPrerenderComb.NODE_HEIGHT;
@@ -47,6 +59,13 @@ class App extends Component<{}, AppState> {
     private readonly _LATEST_SLICE_THRESHOLD: number = 0.001;
     private readonly _TIMELINE_TICK_THRESHOLD: number = 0.01;
     private readonly _LEGEND_BOUNDS_EQUAL_THRESHOLD: number = 0.5;
+    private readonly _NEUTRAL_AREA_KEY: string = '__neutral__';
+    private readonly _NEUTRAL_AREA_COLOR: string = '#FFFFFF';
+    private readonly _AREA_COLOR_SEED_OFFSET: number = Math.floor(Math.random() * 360);
+    private readonly _AREA_COLOR_MINIMUM_SATURATION: number = 68;
+    private readonly _AREA_COLOR_MINIMUM_LIGHTNESS: number = 66;
+    private readonly _AREA_COLOR_SATURATION_RANGE: number = 16;
+    private readonly _AREA_COLOR_LIGHTNESS_RANGE: number = 10;
 
     private readonly _viewport: CanvasViewport;
     private readonly _layoutService: BlueprintPrerenderComb;
@@ -62,6 +81,7 @@ class App extends Component<{}, AppState> {
     private _legendBounds: LegendScreenBounds | null = null;
     private _timelineRepulsionScheduler: TimelineRepulsionScheduler;
     private _isModalOpen: boolean = false;
+    private _areaColorMap: Map<string, string> = new Map<string, string>();
 
     private _handleLayoutUpdate: (result: BlueprintPrerenderCombResult) => void = (
         result: BlueprintPrerenderCombResult
@@ -228,6 +248,7 @@ class App extends Component<{}, AppState> {
         this._historyService = new EditorHistoryService(this._registry);
         this._timelineKeyboardController = new TimelineKeyboardController();
         this._timelineRepulsionScheduler = new TimelineRepulsionScheduler();
+        this._areaColorMap.set(this._NEUTRAL_AREA_KEY, this._NEUTRAL_AREA_COLOR);
 
         this._layoutResult = this._layoutService.calculateLayout(this._registry);
     }
@@ -342,11 +363,13 @@ class App extends Component<{}, AppState> {
     public render(): ReactNode {
         const { isFileLoaded, isLoadingFromGitHubRoute }: AppState = this.state;
         const layoutResult: BlueprintPrerenderCombResult | null = this._layoutResult;
+        const renderedGraphState: RenderedGraphState | null = this._resolveRenderedGraphState();
 
         return (
             <>
                 <InfiniteCanvas 
                     viewport={this._viewport}
+                    backgroundLayer={renderedGraphState ? this._renderAreaTerritoryBackdrop(renderedGraphState) : null}
                     layerGapCenters={this._getDisplayedLayerGapCenters()}
                     onContextMenu={(event: MouseEvent): void => this._handleContextMenu(event)}
                     onClick={(): void => {
@@ -362,7 +385,7 @@ class App extends Component<{}, AppState> {
                         }
                     }}
                 >
-                    {layoutResult && this._renderGraph()}
+                    {renderedGraphState && this._renderGraph(renderedGraphState)}
                     <EdgeDrawer 
                         ref={(ref: EdgeDrawer | null): void => { this._edgeDrawerRef = ref; }}
                         viewport={this._viewport}
@@ -468,22 +491,44 @@ class App extends Component<{}, AppState> {
         }
     }
 
-    private _renderGraph(): ReactNode {
+    private _renderGraph(renderedGraphState: RenderedGraphState): ReactNode {
+        const reanchoringEdge: Edge | null = this._menuManagerRef?.reanchoringEdge || null;
+
+        return GraphLayerRenderer.render({
+            displayedEdges: renderedGraphState.displayedEdges,
+            repulsedNodes: renderedGraphState.repulsedNodes,
+            reanchoringEdge,
+            currentTime: renderedGraphState.currentTime,
+            nextTime: renderedGraphState.nextTime,
+            timelineIsTransition: renderedGraphState.timelineIsTransition,
+            registry: this._registry,
+            edgeDrawerRef: this._edgeDrawerRef,
+            menuManagerRef: this._menuManagerRef,
+            onForceUpdate: (): void => this.forceUpdate(),
+            onNodeContextMenu: (event: MouseEvent, nodeId: string): void => this._handleNodeContextMenu(event, nodeId)
+        });
+    }
+
+    private _resolveRenderedGraphState(): RenderedGraphState | null {
         if (!this._layoutResult) {
             return null;
         }
 
         const { updateTimes }: BlueprintPrerenderCombResult = this._layoutResult;
-        const reanchoringEdge: Edge | null = this._menuManagerRef?.reanchoringEdge || null;
-        const { timelineIndex, timelineIsTransition, timelineRawPosition }: AppState = this.state;
+
+        const {
+            timelineIndex,
+            timelineIsTransition,
+            timelineRawPosition
+        }: AppState = this.state;
 
         const {
             displayedNodes,
             displayedEdges
-        }: { displayedNodes: PrerenderNode[]; displayedEdges: PrerenderEdge[] } = TimelineGraphProjector.project(
-            this._layoutResult,
-            timelineRawPosition
-        );
+        }: {
+            displayedNodes: PrerenderNode[];
+            displayedEdges: PrerenderEdge[];
+        } = TimelineGraphProjector.project(this._layoutResult, timelineRawPosition);
 
         const updateTimesLength: number = updateTimes?.length ?? 0;
         const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
@@ -511,25 +556,71 @@ class App extends Component<{}, AppState> {
             })
             : displayedNodes;
 
-        // Represents the current time point.
         const currentTime: string | undefined = updateTimes && updateTimes[timelineIndex];
-
-        // Represents the next time point (if in transition).
         const nextTime: string | undefined = updateTimes && updateTimes[timelineIndex + 1];
+        const contentBounds: ContentBounds = TimelineViewportBoundsResolver.resolve(this._layoutResult, timelineRawPosition);
 
-        return GraphLayerRenderer.render({
+        return {
             displayedEdges,
             repulsedNodes,
-            reanchoringEdge,
             currentTime,
             nextTime,
             timelineIsTransition,
-            registry: this._registry,
-            edgeDrawerRef: this._edgeDrawerRef,
-            menuManagerRef: this._menuManagerRef,
-            onForceUpdate: (): void => this.forceUpdate(),
-            onNodeContextMenu: (event: MouseEvent, nodeId: string): void => this._handleNodeContextMenu(event, nodeId)
-        });
+            contentBounds
+        };
+    }
+
+    private _renderAreaTerritoryBackdrop(renderedGraphState: RenderedGraphState): ReactNode {
+        if (renderedGraphState.repulsedNodes.length === 0) {
+            return null;
+        }
+
+        return (
+            <AreaTerritoryBackdrop
+                nodes={renderedGraphState.repulsedNodes}
+                contentBounds={renderedGraphState.contentBounds}
+                viewport={this._viewport}
+                nodeWidth={this._NODE_WIDTH}
+                nodeHeight={this._NODE_HEIGHT}
+                neutralAreaKey={this._NEUTRAL_AREA_KEY}
+                resolveAreaColor={(areaKey: string): string => this._resolveAreaColor(areaKey)}
+            />
+        );
+    }
+
+    private _resolveAreaColor(areaKey: string): string {
+        if (areaKey === this._NEUTRAL_AREA_KEY) {
+            return this._NEUTRAL_AREA_COLOR;
+        }
+
+        const existingColor: string | undefined = this._areaColorMap.get(areaKey);
+
+        if (existingColor) {
+            return existingColor;
+        }
+
+        const areaHashValue: number = this._hashAreaKey(areaKey);
+        const hue: number = (areaHashValue + this._AREA_COLOR_SEED_OFFSET) % 360;
+        const saturation: number = this._AREA_COLOR_MINIMUM_SATURATION + (areaHashValue % this._AREA_COLOR_SATURATION_RANGE);
+
+        const lightness: number = this._AREA_COLOR_MINIMUM_LIGHTNESS
+            + (Math.floor(areaHashValue / this._AREA_COLOR_SATURATION_RANGE) % this._AREA_COLOR_LIGHTNESS_RANGE);
+
+        const randomBrightColor: string = `hsl(${hue} ${saturation}% ${lightness}%)`;
+        this._areaColorMap.set(areaKey, randomBrightColor);
+        return randomBrightColor;
+    }
+
+    private _hashAreaKey(areaKey: string): number {
+        let hashValue: number = 0;
+
+        for (let characterIndex: number = 0; characterIndex < areaKey.length; characterIndex += 1) {
+            const characterCode: number = areaKey.charCodeAt(characterIndex);
+            hashValue = ((hashValue << 5) - hashValue) + characterCode;
+            hashValue |= 0;
+        }
+
+        return Math.abs(hashValue);
     }
 
     private _hasEnoughNodesForRepulsionAtPosition(timelineRawPosition: number): boolean {

@@ -83,8 +83,21 @@ export class CanvasViewport {
     }
 
     public setContainerSize(width: number, height: number): void {
+        const previousX: number = this._x;
+        const previousY: number = this._y;
+        const previousScale: number = this._scale;
         this._containerSize = { width, height };
         this._recalculateConstraints(false);
+
+        const hasViewportTransformChanged: boolean = (
+            Math.abs(previousX - this._x) > 0.0001
+            || Math.abs(previousY - this._y) > 0.0001
+            || Math.abs(previousScale - this._scale) > 0.0001
+        );
+
+        if (!hasViewportTransformChanged) {
+            this._notifyObservers();
+        }
     }
 
     public get x(): number {
@@ -97,6 +110,14 @@ export class CanvasViewport {
 
     public get scale(): number {
         return this._scale;
+    }
+
+    public get containerWidth(): number {
+        return this._containerSize?.width ?? 0;
+    }
+
+    public get containerHeight(): number {
+        return this._containerSize?.height ?? 0;
     }
 
     public pan(deltaX: number, deltaY: number): void {
