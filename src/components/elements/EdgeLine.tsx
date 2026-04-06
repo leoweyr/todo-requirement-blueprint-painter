@@ -4,6 +4,7 @@ import { type EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
 import { EdgeType } from '@todo-requirement-blueprint/domain';
 import { EdgeStatus } from '@todo-requirement-blueprint/domain';
 
+import { type EdgeWaypoint } from '../../features/graph/prerender/EdgeWaypoint';
 import { type PrerenderNode } from '../../features/graph/prerender/PrerenderNode';
 import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
@@ -19,6 +20,7 @@ export interface EdgeLineProps {
     labelPositionDivisions?: number;
     labelPositionIndex?: number;
     curvature?: number;
+    waypoints?: EdgeWaypoint[];
     opacity?: number;
     historyIndex?: number;  // Optional index to force rendering a specific history version.
     overrideColor?: string;  // Optional color override (e.g., for diff view).
@@ -68,6 +70,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
             labelPositionDivisions = 2,
             labelPositionIndex = 1,
             curvature = 0,
+            waypoints = [],
             opacity = 1,
             historyIndex,
             overrideColor,
@@ -145,58 +148,102 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
              return null;
         }
 
-        // Calculate Control Point for Quadratic Bezier Curve.
-        // Midpoint + Normal Vector * Curvature.
-        const middleX: number = (startX + endX) / 2;
-        const middleY: number = (startY + endY) / 2;
-        const differenceX: number = endX - startX;
-        const differenceY: number = endY - startY;
-        const length: number = Math.sqrt(differenceX * differenceX + differenceY * differenceY);
-
-        let controlPointX: number = middleX;
-        let controlPointY: number = middleY;
-
-        if (length > 0 && curvature !== 0) {
-            const normalX: number = -differenceY / length;
-            const normalY: number = differenceX / length;
-            controlPointX = middleX + normalX * curvature;
-            controlPointY = middleY + normalY * curvature;
-        }
-
         const padding: number = 20;
-
-        // Bounding Box.
-        const minimumX: number = Math.min(startX, endX, controlPointX);
-        const minimumY: number = Math.min(startY, endY, controlPointY);
-        const maximumX: number = Math.max(startX, endX, controlPointX);
-        const maximumY: number = Math.max(startY, endY, controlPointY);
-        const width: number = maximumX - minimumX;
-        const height: number = maximumY - minimumY;
-
-        const totalWidth: number = width + padding * 2;
-        const totalHeight: number = height + padding * 2;
-
-        const localStartX: number = startX - minimumX + padding;
-        const localStartY: number = startY - minimumY + padding;
-        const localEndX: number = endX - minimumX + padding;
-        const localEndY: number = endY - minimumY + padding;
-        const localControlPointX: number = controlPointX - minimumX + padding;
-        const localControlPointY: number = controlPointY - minimumY + padding;
-
-        const left: number = minimumX - padding;
-        const top: number = minimumY - padding;
-
-        // Calculate label position based on Bezier curve formula.
         const validDivisions: number = Math.max(1, labelPositionDivisions);
         const interpolationRatio: number = labelPositionIndex / validDivisions;
-        const inverseInterpolationRatio: number = 1 - interpolationRatio;
-        
-        // Quadratic Bezier: (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2.
-        const labelX: number = (inverseInterpolationRatio * inverseInterpolationRatio * localStartX) + (2 * inverseInterpolationRatio * interpolationRatio * localControlPointX) + (interpolationRatio * interpolationRatio * localEndX);
-        const labelY: number = (inverseInterpolationRatio * inverseInterpolationRatio * localStartY) + (2 * inverseInterpolationRatio * interpolationRatio * localControlPointY) + (interpolationRatio * interpolationRatio * localEndY);
+        const normalizedWaypoints: EdgeWaypoint[] = this._normalizeWaypoints(waypoints, startX, startY, endX, endY);
+        const hasWaypoints: boolean = normalizedWaypoints.length > 0;
 
-        // Path Data.
-        const pathData: string = `M ${localStartX} ${localStartY} Q ${localControlPointX} ${localControlPointY} ${localEndX} ${localEndY}`;
+        let pathData: string = '';
+        let localStartX: number = 0;
+        let localStartY: number = 0;
+        let localEndX: number = 0;
+        let localEndY: number = 0;
+        let labelX: number = 0;
+        let labelY: number = 0;
+        let left: number = 0;
+        let top: number = 0;
+        let totalWidth: number = 0;
+        let totalHeight: number = 0;
+
+        if (hasWaypoints) {
+            const routePoints: EdgeWaypoint[] = [
+                { x: startX, y: startY },
+                ...normalizedWaypoints,
+                { x: endX, y: endY }
+            ];
+
+            const routePointXValues: number[] = routePoints.map((routePoint: EdgeWaypoint): number => routePoint.x);
+            const routePointYValues: number[] = routePoints.map((routePoint: EdgeWaypoint): number => routePoint.y);
+            const minimumX: number = Math.min(...routePointXValues);
+            const minimumY: number = Math.min(...routePointYValues);
+            const maximumX: number = Math.max(...routePointXValues);
+            const maximumY: number = Math.max(...routePointYValues);
+            const width: number = maximumX - minimumX;
+            const height: number = maximumY - minimumY;
+
+            const localRoutePoints: EdgeWaypoint[] = routePoints.map((routePoint: EdgeWaypoint): EdgeWaypoint => ({
+                x: routePoint.x - minimumX + padding,
+                y: routePoint.y - minimumY + padding
+            }));
+
+            const labelPoint: EdgeWaypoint = this._getPolylinePointByRatio(localRoutePoints, interpolationRatio);
+
+            totalWidth = width + padding * 2;
+            totalHeight = height + padding * 2;
+            localStartX = localRoutePoints[0].x;
+            localStartY = localRoutePoints[0].y;
+            localEndX = localRoutePoints[localRoutePoints.length - 1].x;
+            localEndY = localRoutePoints[localRoutePoints.length - 1].y;
+            labelX = labelPoint.x;
+            labelY = labelPoint.y;
+            left = minimumX - padding;
+            top = minimumY - padding;
+
+            pathData = `M ${localRoutePoints[0].x} ${localRoutePoints[0].y}` +
+                localRoutePoints.slice(1).map((routePoint: EdgeWaypoint): string => ` L ${routePoint.x} ${routePoint.y}`).join('');
+        } else {
+            // Calculate Control Point for Quadratic Bezier Curve.
+            // Midpoint + Normal Vector * Curvature.
+            const middleX: number = (startX + endX) / 2;
+            const middleY: number = (startY + endY) / 2;
+            const differenceX: number = endX - startX;
+            const differenceY: number = endY - startY;
+            const length: number = Math.sqrt(differenceX * differenceX + differenceY * differenceY);
+
+            let controlPointX: number = middleX;
+            let controlPointY: number = middleY;
+
+            if (length > 0 && curvature !== 0) {
+                const normalX: number = -differenceY / length;
+                const normalY: number = differenceX / length;
+                controlPointX = middleX + normalX * curvature;
+                controlPointY = middleY + normalY * curvature;
+            }
+
+            // Bounding Box.
+            const minimumX: number = Math.min(startX, endX, controlPointX);
+            const minimumY: number = Math.min(startY, endY, controlPointY);
+            const maximumX: number = Math.max(startX, endX, controlPointX);
+            const maximumY: number = Math.max(startY, endY, controlPointY);
+            const width: number = maximumX - minimumX;
+            const height: number = maximumY - minimumY;
+            const localControlPointX: number = controlPointX - minimumX + padding;
+            const localControlPointY: number = controlPointY - minimumY + padding;
+            const inverseInterpolationRatio: number = 1 - interpolationRatio;
+
+            totalWidth = width + padding * 2;
+            totalHeight = height + padding * 2;
+            localStartX = startX - minimumX + padding;
+            localStartY = startY - minimumY + padding;
+            localEndX = endX - minimumX + padding;
+            localEndY = endY - minimumY + padding;
+            labelX = (inverseInterpolationRatio * inverseInterpolationRatio * localStartX) + (2 * inverseInterpolationRatio * interpolationRatio * localControlPointX) + (interpolationRatio * interpolationRatio * localEndX);
+            labelY = (inverseInterpolationRatio * inverseInterpolationRatio * localStartY) + (2 * inverseInterpolationRatio * interpolationRatio * localControlPointY) + (interpolationRatio * interpolationRatio * localEndY);
+            left = minimumX - padding;
+            top = minimumY - padding;
+            pathData = `M ${localStartX} ${localStartY} Q ${localControlPointX} ${localControlPointY} ${localEndX} ${localEndY}`;
+        }
 
         return (
             <div 
@@ -306,6 +353,91 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
                 )}
             </div>
         );
+    }
+
+    private _normalizeWaypoints(
+        waypoints: EdgeWaypoint[],
+        startX: number,
+        startY: number,
+        endX: number,
+        endY: number
+    ): EdgeWaypoint[] {
+        const normalizedWaypoints: EdgeWaypoint[] = [];
+
+        waypoints.forEach((waypoint: EdgeWaypoint): void => {
+            if (
+                waypoint.x === startX &&
+                waypoint.y === startY
+            ) {
+                return;
+            }
+
+            if (
+                waypoint.x === endX &&
+                waypoint.y === endY
+            ) {
+                return;
+            }
+
+            normalizedWaypoints.push(waypoint);
+        });
+
+        return normalizedWaypoints;
+    }
+
+    private _getPolylinePointByRatio(routePoints: EdgeWaypoint[], ratio: number): EdgeWaypoint {
+        if (routePoints.length === 0) {
+            return { x: 0, y: 0 };
+        }
+
+        if (routePoints.length === 1) {
+            return routePoints[0];
+        }
+
+        const clampedRatio: number = Math.max(0, Math.min(1, ratio));
+        const segmentLengths: number[] = [];
+        let totalLength: number = 0;
+
+        for (let index: number = 0; index < routePoints.length - 1; index++) {
+            const startPoint: EdgeWaypoint = routePoints[index];
+            const endPoint: EdgeWaypoint = routePoints[index + 1];
+            const deltaX: number = endPoint.x - startPoint.x;
+            const deltaY: number = endPoint.y - startPoint.y;
+            const segmentLength: number = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            segmentLengths.push(segmentLength);
+            totalLength += segmentLength;
+        }
+
+        if (totalLength === 0) {
+            return routePoints[0];
+        }
+
+        const targetLength: number = totalLength * clampedRatio;
+        let traversedLength: number = 0;
+
+        for (let index: number = 0; index < segmentLengths.length; index++) {
+            const segmentLength: number = segmentLengths[index];
+            const nextTraversedLength: number = traversedLength + segmentLength;
+
+            if (targetLength <= nextTraversedLength) {
+                const localRatio: number = segmentLength === 0
+                    ? 0
+                    : (targetLength - traversedLength) / segmentLength;
+
+                const startPoint: EdgeWaypoint = routePoints[index];
+                const endPoint: EdgeWaypoint = routePoints[index + 1];
+
+                return {
+                    x: startPoint.x + (endPoint.x - startPoint.x) * localRatio,
+                    y: startPoint.y + (endPoint.y - startPoint.y) * localRatio
+                };
+            }
+
+            traversedLength = nextTraversedLength;
+        }
+
+        return routePoints[routePoints.length - 1];
     }
 
     private _getLabelContainerStyle(centerX: number, centerY: number): CSSProperties {

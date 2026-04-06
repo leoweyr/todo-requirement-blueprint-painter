@@ -10,6 +10,7 @@ import { type NodeTimeline } from '../../node-history/NodeTimeline';
 import { type BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResult';
 import { type ContentBounds } from './ContentBounds';
 import { type PrerenderNode } from '../prerender/PrerenderNode';
+import { type EdgeWaypoint } from '../prerender/EdgeWaypoint';
 import { type PrerenderEdge } from '../prerender/PrerenderEdge';
 import { type GraphNode } from './GraphNode';
 
@@ -509,17 +510,40 @@ export class BlueprintPrerenderComb {
                 });
             });
 
-            // Calculate max nodes in any layer for this component.
-            let maximumNodesInLayer: number = 0;
+            // Step A: Analyze cross-layer edges that pass through each layer.
+            const layerCrossingEdges: Map<number, Array<{ sourceY: number; targetY: number; edgeId: string }>> = this._analyzeLayerCrossings(
+                componentNodes,
+                graphNodes,
+                componentLayers,
+                nodeIndices,
+                sortedLayerIndices,
+                timeLimit
+            );
 
-            componentLayers.forEach((layerNodes: GraphNode[]): void => {
-                maximumNodesInLayer = Math.max(maximumNodesInLayer, layerNodes.length);
+            // Step B: Compute vertical slots for each layer (nodes + edge channels).
+            const layerSlotAssignments: Map<number, {
+                nodeSlots: Map<string, number>;
+                edgeSlots: Map<string, number>;
+                totalSlots: number;
+            }> = this._computeVerticalSlots(
+                componentLayers,
+                layerCrossingEdges,
+                nodeIndices,
+                sortedLayerIndices
+            );
+
+            // Calculate max slots in any layer for this component.
+            let maximumSlotsInLayer: number = 0;
+
+            layerSlotAssignments.forEach((slotAssignment: { nodeSlots: Map<string, number>; edgeSlots: Map<string, number>; totalSlots: number }): void => {
+                maximumSlotsInLayer = Math.max(maximumSlotsInLayer, slotAssignment.totalSlots);
             });
 
-            const totalComponentHeight: number = maximumNodesInLayer * this._ROW_HEIGHT;
+            const totalComponentHeight: number = maximumSlotsInLayer * this._ROW_HEIGHT;
 
-            // Calculate Y coordinates for this component.
+            // Calculate Y coordinates for this component using slot assignments.
             const resultNodes: Map<string, { x: number; y: number }> = new Map<string, { x: number; y: number }>();
+            const edgeChannelYPositions: Map<string, Map<number, number>> = new Map<string, Map<number, number>>();
 
             sortedLayerIndices.forEach((layerIndex: number): void => {
                 const layerNodes: GraphNode[] | undefined = componentLayers.get(layerIndex);
@@ -528,13 +552,20 @@ export class BlueprintPrerenderComb {
                     return;
                 }
 
-                const currentLayerHeight: number = layerNodes.length * this._ROW_HEIGHT;
-                const startY: number = (totalComponentHeight - currentLayerHeight) / 2 + currentYOffset;
+                const slotAssignment: { nodeSlots: Map<string, number>; edgeSlots: Map<string, number>; totalSlots: number } | undefined = layerSlotAssignments.get(layerIndex);
+
+                if (!slotAssignment) {
+                    return;
+                }
+
+                const currentLayerSlots: number = slotAssignment.totalSlots;
+                const startY: number = (totalComponentHeight - currentLayerSlots * this._ROW_HEIGHT) / 2 + currentYOffset;
                 const layerX: number = layerXPositions.get(layerIndex) || 0;
 
-                layerNodes.forEach((graphNode: GraphNode, index: number): void => {
+                layerNodes.forEach((graphNode: GraphNode): void => {
+                    const slotIndex: number = slotAssignment.nodeSlots.get(graphNode.id) ?? 0;
                     const xCoordinate: number = layerX;
-                    const yCoordinate: number = startY + (index * this._ROW_HEIGHT);
+                    const yCoordinate: number = startY + (slotIndex * this._ROW_HEIGHT);
 
                     resultNodes.set(graphNode.id, { x: xCoordinate, y: yCoordinate });
 
@@ -553,6 +584,17 @@ export class BlueprintPrerenderComb {
                     if (yCoordinate > maximumY) {
                         maximumY = yCoordinate;
                     }
+                });
+
+                // Record edge channel Y positions for this layer.
+                slotAssignment.edgeSlots.forEach((slotIndex: number, edgeId: string): void => {
+                    const channelY: number = startY + (slotIndex * this._ROW_HEIGHT) + this._NODE_HEIGHT / 2;
+
+                    if (!edgeChannelYPositions.has(edgeId)) {
+                        edgeChannelYPositions.set(edgeId, new Map<number, number>());
+                    }
+
+                    edgeChannelYPositions.get(edgeId)!.set(layerIndex, channelY);
                 });
             });
 
@@ -610,18 +652,33 @@ export class BlueprintPrerenderComb {
                     const edgeEndX: number = endPosition.x + this._NODE_WIDTH;
                     const edgeEndY: number = endPosition.y + centerY;
 
-                    // Calculate repulsion curvature to avoid intermediate nodes.
-                    const repulsionCurvature: number = this._calculateRepulsionCurvature(
-                        edgeStartX,
-                        edgeStartY,
-                        edgeEndX,
-                        edgeEndY,
-                        downstreamGraphNode.layer,
+                    // Build waypoints for cross-layer edges using assigned channel positions.
+                    const waypoints: EdgeWaypoint[] = this._buildEdgeWaypoints(
+                        edge.id,
                         upstreamGraphNode.layer,
+                        downstreamGraphNode.layer,
                         sortedLayerIndices,
-                        componentLayers,
-                        resultNodes
+                        layerXPositions,
+                        edgeChannelYPositions
                     );
+
+                    // Calculate repulsion curvature only if no waypoints are available.
+                    // Waypoints provide precise routing through channels.
+                    let repulsionCurvature: number = 0;
+
+                    if (waypoints.length === 0) {
+                        repulsionCurvature = this._calculateRepulsionCurvature(
+                            edgeStartX,
+                            edgeStartY,
+                            edgeEndX,
+                            edgeEndY,
+                            downstreamGraphNode.layer,
+                            upstreamGraphNode.layer,
+                            sortedLayerIndices,
+                            componentLayers,
+                            resultNodes
+                        );
+                    }
 
                     const prerenderEdge: PrerenderEdge = {
                         edge: edge,
@@ -631,7 +688,8 @@ export class BlueprintPrerenderComb {
                         endY: edgeEndY,
                         labelPositionDivisions: divisions,
                         labelPositionIndex: 1,
-                        curvature: repulsionCurvature
+                        curvature: repulsionCurvature,
+                        waypoints: waypoints.length > 0 ? waypoints : undefined
                     };
 
                     const key: string = [downstreamNode.id, upstreamNode.id].sort().join('-');
@@ -654,6 +712,11 @@ export class BlueprintPrerenderComb {
                     prerenderEdges.push(group[0]);
                 } else {
                     group.forEach((prerenderEdge: PrerenderEdge, index: number): void => {
+                        if (prerenderEdge.waypoints && prerenderEdge.waypoints.length > 0) {
+                            prerenderEdges.push(prerenderEdge);
+                            return;
+                        }
+
                         const overlapOffset: number = (index - (count - 1) / 2) * CURVATURE_GAP;
                         prerenderEdge.curvature = (prerenderEdge.curvature || 0) + overlapOffset;
                         prerenderEdges.push(prerenderEdge);
@@ -925,6 +988,220 @@ export class BlueprintPrerenderComb {
         }
 
         return 0;
+    }
+
+    private _analyzeLayerCrossings(
+        componentNodes: Node[],
+        graphNodes: Map<string, GraphNode>,
+        _componentLayers: Map<number, GraphNode[]>,
+        nodeIndices: Map<string, number>,
+        sortedLayerIndices: number[],
+        timeLimit?: string
+    ): Map<number, Array<{ sourceY: number; targetY: number; edgeId: string }>> {
+        // Parameter _componentLayers reserved for future use in edge routing optimization.
+        void _componentLayers;
+
+        const layerCrossings: Map<number, Array<{ sourceY: number; targetY: number; edgeId: string }>> = new Map<number, Array<{ sourceY: number; targetY: number; edgeId: string }>>();
+
+        // Initialize empty arrays for all layers.
+        sortedLayerIndices.forEach((layerIndex: number): void => {
+            layerCrossings.set(layerIndex, []);
+        });
+
+        // Collect all cross-layer edges and determine which layers they pass through.
+        componentNodes.forEach((downstreamNode: Node): void => {
+            const downstreamGraphNode: GraphNode | undefined = graphNodes.get(downstreamNode.id);
+
+            if (!downstreamGraphNode) {
+                return;
+            }
+
+            const sourceIndex: number = nodeIndices.get(downstreamNode.id) ?? 0;
+
+            downstreamNode.edges.forEach((edge: Edge): void => {
+                const latestRecord: EdgeHistoryRecord | null = this._getEffectiveRecord(edge, timeLimit);
+
+                if (!latestRecord || latestRecord.status === EdgeStatus.CUT) {
+                    return;
+                }
+
+                const upstreamNode: Node = latestRecord.targetUpstream;
+                const upstreamGraphNode: GraphNode | undefined = graphNodes.get(upstreamNode.id);
+
+                if (!upstreamGraphNode) {
+                    return;
+                }
+
+                const targetIndex: number = nodeIndices.get(upstreamNode.id) ?? 0;
+                const sourceLayer: number = downstreamGraphNode.layer;
+                const targetLayer: number = upstreamGraphNode.layer;
+
+                // Check if this edge crosses any intermediate layers.
+                if (sourceLayer - targetLayer <= 1) {
+                    return;
+                }
+
+                // This edge crosses layers between targetLayer and sourceLayer.
+                for (let crossedLayer: number = targetLayer + 1; crossedLayer < sourceLayer; crossedLayer++) {
+                    const crossings: Array<{ sourceY: number; targetY: number; edgeId: string }> = layerCrossings.get(crossedLayer) || [];
+
+                    crossings.push({
+                        sourceY: sourceIndex,
+                        targetY: targetIndex,
+                        edgeId: edge.id
+                    });
+
+                    layerCrossings.set(crossedLayer, crossings);
+                }
+            });
+        });
+
+        return layerCrossings;
+    }
+
+    private _computeVerticalSlots(
+        componentLayers: Map<number, GraphNode[]>,
+        layerCrossingEdges: Map<number, Array<{ sourceY: number; targetY: number; edgeId: string }>>,
+        _nodeIndices: Map<string, number>,
+        sortedLayerIndices: number[]
+    ): Map<number, { nodeSlots: Map<string, number>; edgeSlots: Map<string, number>; totalSlots: number }> {
+        // Parameter _nodeIndices reserved for future slot optimization strategies.
+        void _nodeIndices;
+
+        const slotAssignments: Map<number, { nodeSlots: Map<string, number>; edgeSlots: Map<string, number>; totalSlots: number }> = new Map<number, { nodeSlots: Map<string, number>; edgeSlots: Map<string, number>; totalSlots: number }>();
+
+        sortedLayerIndices.forEach((layerIndex: number): void => {
+            const layerNodes: GraphNode[] = componentLayers.get(layerIndex) || [];
+            const crossingEdges: Array<{ sourceY: number; targetY: number; edgeId: string }> = layerCrossingEdges.get(layerIndex) || [];
+
+            const nodeSlots: Map<string, number> = new Map<string, number>();
+            const edgeSlots: Map<string, number> = new Map<string, number>();
+
+            if (layerNodes.length === 0) {
+                slotAssignments.set(layerIndex, { nodeSlots, edgeSlots, totalSlots: 0 });
+                return;
+            }
+
+            // Sort nodes by their Barycenter index (already sorted in layerNodes).
+            // Each node needs a slot, and edges need to fit between nodes.
+
+            // Calculate target Y positions for each crossing edge (interpolated based on source/target indices).
+            const edgeTargetPositions: Array<{ edgeId: string; targetY: number }> = [];
+
+            crossingEdges.forEach((crossing: { sourceY: number; targetY: number; edgeId: string }): void => {
+                // Interpolate the Y position where this edge wants to pass through this layer.
+                // Use the average of source and target Y indices as the ideal position.
+                const idealY: number = (crossing.sourceY + crossing.targetY) / 2;
+
+                edgeTargetPositions.push({
+                    edgeId: crossing.edgeId,
+                    targetY: idealY
+                });
+            });
+
+            // Sort edges by their target Y position.
+            edgeTargetPositions.sort((firstEdge: { edgeId: string; targetY: number }, secondEdge: { edgeId: string; targetY: number }): number => firstEdge.targetY - secondEdge.targetY);
+
+            // Interleave nodes and edges into slots.
+            // Strategy: Place nodes at their indices, and fit edges between them.
+            const slotItems: Array<{ type: 'node' | 'edge'; id: string; idealPosition: number }> = [];
+
+            layerNodes.forEach((graphNode: GraphNode, index: number): void => {
+                slotItems.push({
+                    type: 'node',
+                    id: graphNode.id,
+                    idealPosition: index
+                });
+            });
+
+            edgeTargetPositions.forEach((edgePosition: { edgeId: string; targetY: number }): void => {
+                slotItems.push({
+                    type: 'edge',
+                    id: edgePosition.edgeId,
+                    idealPosition: edgePosition.targetY
+                });
+            });
+
+            // Sort all items by their ideal position.
+            slotItems.sort((firstItem: { type: 'node' | 'edge'; id: string; idealPosition: number }, secondItem: { type: 'node' | 'edge'; id: string; idealPosition: number }): number => {
+                if (firstItem.idealPosition !== secondItem.idealPosition) {
+                    return firstItem.idealPosition - secondItem.idealPosition;
+                }
+
+                // Nodes come before edges at the same position.
+                if (firstItem.type === 'node' && secondItem.type === 'edge') {
+                    return -1;
+                }
+
+                if (firstItem.type === 'edge' && secondItem.type === 'node') {
+                    return 1;
+                }
+
+                return 0;
+            });
+
+            // Assign slots sequentially.
+            let currentSlot: number = 0;
+
+            slotItems.forEach((item: { type: 'node' | 'edge'; id: string; idealPosition: number }): void => {
+                if (item.type === 'node') {
+                    nodeSlots.set(item.id, currentSlot);
+                } else {
+                    edgeSlots.set(item.id, currentSlot);
+                }
+
+                currentSlot++;
+            });
+
+            slotAssignments.set(layerIndex, {
+                nodeSlots,
+                edgeSlots,
+                totalSlots: currentSlot
+            });
+        });
+
+        return slotAssignments;
+    }
+
+    private _buildEdgeWaypoints(
+        edgeId: string,
+        targetLayer: number,
+        sourceLayer: number,
+        sortedLayerIndices: number[],
+        layerXPositions: Map<number, number>,
+        edgeChannelYPositions: Map<string, Map<number, number>>
+    ): EdgeWaypoint[] {
+        if (sourceLayer - targetLayer <= 1) {
+            return [];
+        }
+
+        const edgeLayerYMap: Map<number, number> | undefined = edgeChannelYPositions.get(edgeId);
+
+        if (!edgeLayerYMap || edgeLayerYMap.size === 0) {
+            return [];
+        }
+
+        const intermediateLayers: number[] = sortedLayerIndices.filter(
+            (layerIndex: number): boolean => layerIndex > targetLayer && layerIndex < sourceLayer
+        ).sort((firstLayer: number, secondLayer: number): number => secondLayer - firstLayer);
+
+        const waypoints: EdgeWaypoint[] = [];
+
+        intermediateLayers.forEach((layerIndex: number): void => {
+            const layerY: number | undefined = edgeLayerYMap.get(layerIndex);
+            const layerX: number | undefined = layerXPositions.get(layerIndex);
+
+            if (layerY === undefined || layerX === undefined) {
+                return;
+            }
+
+            waypoints.push({
+                x: layerX + this._NODE_WIDTH / 2,
+                y: layerY
+            });
+        });
+
+        return waypoints;
     }
 
     public calculateLayout(
