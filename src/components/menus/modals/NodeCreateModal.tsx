@@ -2,8 +2,8 @@ import { Component, type ChangeEvent, type CSSProperties, type ReactNode } from 
 import { NodeStatus } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb';
-import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
+import { BlueprintPrerenderComb } from '../../../features/graph/layout/BlueprintPrerenderComb';
+import { type BlueprintPrerenderCombResult } from '../../../features/graph/layout/BlueprintPrerenderCombResult';
 import { NodeCreator } from '../node-edit/NodeCreator';
 
 

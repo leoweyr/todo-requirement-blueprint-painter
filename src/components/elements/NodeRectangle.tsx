@@ -2,6 +2,8 @@ import { Component, type CSSProperties, type ReactNode, type MouseEvent } from '
 import { Node } from '@todo-requirement-blueprint/domain';
 
 import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
+import type { VersionTransition } from '../../features/graph/prerender/VersionTransition';
+import VersionRoller from './VersionRoller';
 
 
 export interface NodeRectangleProps {
@@ -11,41 +13,30 @@ export interface NodeRectangleProps {
     opacity?: number;  // Defines node opacity in the [0, 1] range for transition animations.
     backgroundColor?: string;  // Overrides the status background color.
     borderColor?: string;  // Overrides the status border color.
+    versionTransition?: VersionTransition;  // Defines version animation state for timeline playback.
     onStartEdge?: (nodeId: string) => void;
-    onCompleteEdge?: (nodeId: string) => void;
+    onCompleteEdge?: (nodeId: string) => boolean;
     onContextMenu?: (event: MouseEvent, nodeId: string) => void;
 }
 
 
 interface NodeRectangleState {
     isHovered: boolean;
-    tooltipPosition: { x: number; y: number } | null;
+    recentVersionTransition: VersionTransition | null;
 }
 
 
 class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
+    private readonly _VERSION_TOOLTIP_HIDE_DELAY_MILLISECONDS: number = 2000;
+    private readonly _VERSION_TRANSITION_PROGRESS_EPSILON: number = 0.001;
+    private _versionTooltipHideTimeoutId: number | null = null;
+
     private _handleMouseEnter: () => void = (): void => {
         this.setState({ isHovered: true });
     };
 
     private _handleMouseLeave: () => void = (): void => {
-        this.setState({ isHovered: false, tooltipPosition: null });
-    };
-
-    private _handleMouseMove: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        const nodeUrl: string | undefined = this._getNodeUrl();
-
-        if (nodeUrl) {
-            const nodeElement: HTMLDivElement = event.currentTarget as HTMLDivElement;
-            const nodeBounds: DOMRect = nodeElement.getBoundingClientRect();
-
-            this.setState({
-                tooltipPosition: {
-                    x: event.clientX - nodeBounds.left,
-                    y: event.clientY - nodeBounds.top
-                }
-            });
-        }
+        this.setState({ isHovered: false });
     };
 
     private _handleStartEdgeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
@@ -59,15 +50,19 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     private _handleNodeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
         event.stopPropagation();
 
+        const didCompleteEdgeEditing: boolean = this.props.onCompleteEdge
+            ? this.props.onCompleteEdge(this.props.node.id)
+            : false;
+
+        if (didCompleteEdgeEditing) {
+            return;
+        }
+
         const nodeUrl: string | undefined = this._getNodeUrl();
 
         if (nodeUrl) {
             window.open(nodeUrl, '_blank', 'noopener,noreferrer');
             return;
-        }
-
-        if (this.props.onCompleteEdge) {
-            this.props.onCompleteEdge(this.props.node.id);
         }
     };
 
@@ -83,18 +78,51 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         super(props);
         this.state = {
             isHovered: false,
-            tooltipPosition: null
+            recentVersionTransition: null
         };
     }
 
+    public componentDidUpdate(previousProps: NodeRectangleProps): void {
+        const previousVersionTransition: VersionTransition | undefined = this._normalizeVersionTransition(previousProps.versionTransition);
+        const currentVersionTransition: VersionTransition | undefined = this._normalizeVersionTransition(this.props.versionTransition);
+
+        if (currentVersionTransition) {
+            this._clearVersionTooltipHideTimer();
+
+            if (this.state.recentVersionTransition !== null) {
+                this.setState({ recentVersionTransition: null });
+            }
+
+            return;
+        }
+
+        if (previousVersionTransition) {
+            const settledVersionTransition: VersionTransition = this._resolveSettledVersionTransition(
+                previousVersionTransition,
+                this.props.node.version
+            );
+
+            this._scheduleVersionTooltipHide(settledVersionTransition);
+        }
+    }
+
+    public componentWillUnmount(): void {
+        this._clearVersionTooltipHideTimer();
+    }
+
     public render(): ReactNode {
-        const { node, x, y }: NodeRectangleProps = this.props;
-        const { isHovered, tooltipPosition }: NodeRectangleState = this.state;
+        const { node, x, y, versionTransition }: NodeRectangleProps = this.props;
+        const { isHovered, recentVersionTransition }: NodeRectangleState = this.state;
         const isReadOnly: boolean = ReadOnlyView.instance.isReadOnly();
+
+        const activeVersionTransition: VersionTransition | undefined =
+            this._normalizeVersionTransition(versionTransition) || recentVersionTransition || undefined;
+
+        const shouldShowVersionTooltip: boolean = isHovered || Boolean(activeVersionTransition);
+        const canStartEdgeEditing: boolean = !isReadOnly && this.props.onStartEdge !== undefined;
 
         const metadataEntries: [string, unknown][] = node.metadata ? Object.entries(node.metadata) : [];
         const nodeUrl: string | undefined = this._getNodeUrl();
-        const nodeVersionTooltipText: string = this._getNodeVersionTooltipText(node);
 
         return (
             <div 
@@ -106,7 +134,6 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 data-testid={`node-rectangle-${node.id}`}  // For testing.
                 onMouseEnter={this._handleMouseEnter}
                 onMouseLeave={this._handleMouseLeave}
-                onMouseMove={this._handleMouseMove}
                 onClick={this._handleNodeClick}
                 onContextMenu={this._handleContextMenu}
             >
@@ -114,15 +141,17 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                     {node.description}
                 </span>
 
+                {shouldShowVersionTooltip && (
+                    <div style={this._getNodeVersionTooltipStyle()}>
+                        {this._renderNodeVersionTooltip(node, activeVersionTransition)}
+                    </div>
+                )}
+
                 {isHovered && (
                     <>
-                        <div style={this._getNodeVersionTooltipStyle()}>
-                            {nodeVersionTooltipText}
-                        </div>
-
                         {/* Edge Creation Button (Left Center). */}
                         {/* Disable in read-only mode. */}
-                        {!isReadOnly && (
+                        {canStartEdgeEditing && (
                             <div 
                                 style={this._getEdgeButtonStyle()}
                                 onClick={this._handleStartEdgeClick}
@@ -153,8 +182,8 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                     </>
                 )}
 
-                {nodeUrl && tooltipPosition && (
-                    <div style={this._getUrlTooltipStyle(tooltipPosition)}>
+                {nodeUrl && isHovered && (
+                    <div style={this._getUrlTooltipStyle()}>
                         Click to visit
                     </div>
                 )}
@@ -175,6 +204,73 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             justifyContent: 'center',
             filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.2))'
         };
+    }
+
+    private _scheduleVersionTooltipHide(versionTransition: VersionTransition): void {
+        this._clearVersionTooltipHideTimer();
+        this.setState({ recentVersionTransition: versionTransition });
+
+        this._versionTooltipHideTimeoutId = window.setTimeout((): void => {
+            this._versionTooltipHideTimeoutId = null;
+            this.setState({ recentVersionTransition: null });
+        }, this._VERSION_TOOLTIP_HIDE_DELAY_MILLISECONDS);
+    }
+
+    private _resolveSettledVersionTransition(
+        previousVersionTransition: VersionTransition,
+        currentNodeVersion: string
+    ): VersionTransition {
+        if (previousVersionTransition.endVersion === currentNodeVersion) {
+            return {
+                startVersion: previousVersionTransition.startVersion,
+                endVersion: previousVersionTransition.endVersion,
+                progress: 1
+            };
+        }
+
+        if (previousVersionTransition.startVersion === currentNodeVersion) {
+            return {
+                startVersion: previousVersionTransition.endVersion,
+                endVersion: previousVersionTransition.startVersion,
+                progress: 1
+            };
+        }
+
+        return {
+            startVersion: currentNodeVersion,
+            endVersion: currentNodeVersion,
+            progress: 1
+        };
+    }
+
+    private _clearVersionTooltipHideTimer(): void {
+        if (this._versionTooltipHideTimeoutId !== null) {
+            window.clearTimeout(this._versionTooltipHideTimeoutId);
+            this._versionTooltipHideTimeoutId = null;
+        }
+    }
+
+    private _normalizeVersionTransition(versionTransition: VersionTransition | undefined): VersionTransition | undefined {
+        if (!versionTransition) {
+            return undefined;
+        }
+
+        if (versionTransition.startVersion === versionTransition.endVersion) {
+            return undefined;
+        }
+
+        if (!Number.isFinite(versionTransition.progress)) {
+            return undefined;
+        }
+
+        const isNearStart: boolean = versionTransition.progress <= this._VERSION_TRANSITION_PROGRESS_EPSILON;
+        const isNearEnd: boolean = versionTransition.progress >= (1 - this._VERSION_TRANSITION_PROGRESS_EPSILON);
+
+        if (isNearStart || isNearEnd) {
+            return undefined;
+        }
+
+        return versionTransition;
     }
 
     private _getContainerStyle(): CSSProperties {
@@ -265,6 +361,20 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         return `${node.version} (${nodeUpdatedDateText})`;
     }
 
+    private _renderNodeVersionTooltip(node: Node, versionTransition: VersionTransition | undefined): ReactNode {
+        if (versionTransition) {
+            return (
+                <VersionRoller
+                    startVersion={versionTransition.startVersion}
+                    endVersion={versionTransition.endVersion}
+                    progress={versionTransition.progress}
+                />
+            );
+        }
+
+        return this._getNodeVersionTooltipText(node);
+    }
+
     private _getNodeVersionTooltipStyle(): CSSProperties {
         return {
             marginTop: '4px',
@@ -288,11 +398,11 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         return undefined;
     }
 
-    private _getUrlTooltipStyle(position: { x: number; y: number }): CSSProperties {
+    private _getUrlTooltipStyle(): CSSProperties {
         return {
             position: 'absolute',
-            left: position.x,
-            top: position.y - 2,
+            left: '50%',
+            top: '-8px',
             transform: 'translate(-50%, -100%)',
             backgroundColor: 'rgba(0, 0, 0, 0.8)',
             color: '#ffffff',
@@ -302,7 +412,8 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             fontFamily: 'Helvetica, Arial, sans-serif',
             pointerEvents: 'none',
             zIndex: 1000,
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            willChange: 'auto'
         };
     }
 }

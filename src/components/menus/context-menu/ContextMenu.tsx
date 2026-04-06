@@ -10,6 +10,9 @@ export interface ContextMenuProps {
     onCreateEdgeEvolutionReason: () => void;
     onPaste: () => void;
     onSave: () => void;
+    canCreateNode: boolean;
+    canPaste: boolean;
+    canSave: boolean;
 }
 
 
@@ -35,7 +38,16 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
 
     public render(): ReactNode {
         const { isOpen, x, y }: ContextMenuState = this.state;
-        const { onCreateNode, onCreateNodeStatus, onCreateEdgeEvolutionReason, onPaste, onSave }: ContextMenuProps = this.props;
+        const {
+            onCreateNode,
+            onCreateNodeStatus,
+            onCreateEdgeEvolutionReason,
+            onPaste,
+            onSave,
+            canCreateNode,
+            canPaste,
+            canSave
+        }: ContextMenuProps = this.props;
 
         if (!isOpen) {
             return null;
@@ -48,13 +60,38 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
             return null;
         }
 
-        const items: Record<string, () => void> = {
-            'New Node': onCreateNode,
-            'New Node Status': onCreateNodeStatus,
-            'New Evolution Reason': onCreateEdgeEvolutionReason,
-            'Paste': onPaste,
-            'Save': onSave
-        };
+        const items: Array<{ label: string; callback: () => void }> = [];
+
+        if (canCreateNode) {
+            items.push({
+                label: 'New Node',
+                callback: onCreateNode
+            });
+        }
+
+        items.push({
+            label: 'New Node Status',
+            callback: onCreateNodeStatus
+        });
+
+        items.push({
+            label: 'New Evolution Reason',
+            callback: onCreateEdgeEvolutionReason
+        });
+
+        if (canPaste) {
+            items.push({
+                label: 'Paste',
+                callback: onPaste
+            });
+        }
+
+        if (canSave) {
+            items.push({
+                label: 'Save',
+                callback: onSave
+            });
+        }
 
         return (
             <div 
@@ -64,11 +101,11 @@ class ContextMenu extends Component<ContextMenuProps, ContextMenuState> {
                 onContextMenu={(event: MouseEvent): void => this._handleContextMenuOnMenu(event)}
             >
                 <div style={this._getMenuContainerStyle(x, y)}>
-                    {Object.entries(items).map(([label, callback]: [string, () => void]): ReactNode => (
+                    {items.map((item: { label: string; callback: () => void }): ReactNode => (
                         <ContextMenuItem
-                            key={label}
-                            label={label}
-                            onClick={(): void => this._handleItemClick(callback)}
+                            key={item.label}
+                            label={item.label}
+                            onClick={(): void => this._handleItemClick(item.callback)}
                         />
                     ))}
                 </div>

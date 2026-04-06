@@ -3,13 +3,15 @@ import { Node } from '@todo-requirement-blueprint/domain';
 import { Edge } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
-import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderComb';
-import { CanvasViewport } from '../canvas/CanvasViewport';
+import { BlueprintPrerenderComb } from '../../features/graph/layout/BlueprintPrerenderComb';
+import { CanvasViewport } from '../canvas/viewport/CanvasViewport';
 import { EdgeInteractionManager } from '../canvas/edge-interaction/EdgeInteractionManager';
 import type { EdgeMenuHandler } from '../canvas/edge-interaction/EdgeMenuHandler';
 import { BlueprintPaster } from './blueprint-edit/BlueprintPaster';
 import { BlueprintSaver } from './blueprint-edit/BlueprintSaver';
-import { type BlueprintPrerenderCombResult } from '../../features/graph/BlueprintPrerenderCombResult';
+import { type BlueprintPrerenderCombResult } from '../../features/graph/layout/BlueprintPrerenderCombResult';
+import { type PrerenderEdge } from '../../features/graph/prerender/PrerenderEdge';
+import { type PrerenderNode } from '../../features/graph/prerender/PrerenderNode';
 import ContextMenu from './context-menu/ContextMenu';
 import BackdropBlur from './BackdropBlur';
 import NodeCreateModal from './modals/NodeCreateModal';
@@ -28,6 +30,11 @@ export interface MenuManagerProps {
     registry: DomainRegistry;
     layoutService: BlueprintPrerenderComb;
     viewport: CanvasViewport;
+    isHistoricalSliceLocked: boolean;
+    isTimelineTransition: boolean;
+    timelineCurrentTime: string | undefined;
+    timelineSliceNodes: PrerenderNode[];
+    timelineSliceEdges: PrerenderEdge[];
     onLayoutRefresh: () => void;
     onLayoutUpdate: (result: BlueprintPrerenderCombResult) => void;
     onModalStateChange: (isOpen: boolean) => void;
@@ -86,6 +93,10 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
     // The following methods are internal handlers.
     private handleEvolutionConfirm: (reasonName: string) => void = (reasonName: string): void => {
         const { reanchoringEdge, evolutionTargetNode }: MenuManagerState = this.state;
+
+        if (this.props.isHistoricalSliceLocked) {
+            return;
+        }
         
         if (!reanchoringEdge) return;
 
@@ -229,7 +240,26 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
         };
     }
 
-    public componentDidUpdate(_prevProps: MenuManagerProps, prevState: MenuManagerState): void {
+    public componentDidUpdate(previousProps: MenuManagerProps, prevState: MenuManagerState): void {
+        if (!previousProps.isHistoricalSliceLocked && this.props.isHistoricalSliceLocked) {
+            const shouldCloseRestrictedEditors: boolean = this.state.isNodeCreateModalOpen
+                || this.state.isEdgeCreateModalOpen
+                || this.state.isEdgeEvolutionModalOpen
+                || this.state.reanchoringEdge !== null;
+
+            if (shouldCloseRestrictedEditors) {
+                this.setState({
+                    isNodeCreateModalOpen: false,
+                    isEdgeCreateModalOpen: false,
+                    edgeCreateSourceNode: null,
+                    edgeCreateTargetNode: null,
+                    isEdgeEvolutionModalOpen: false,
+                    reanchoringEdge: null,
+                    evolutionTargetNode: null
+                });
+            }
+        }
+
         const wasOpen: boolean = this._checkIsAnyModalOpen(prevState);
         const isOpen: boolean = this._checkIsAnyModalOpen(this.state);
 
@@ -239,16 +269,36 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
     }
 
     public render(): ReactNode {
-        const { registry, layoutService, viewport, onLayoutUpdate } = this.props;
+        const {
+            registry,
+            layoutService,
+            viewport,
+            isHistoricalSliceLocked,
+            isTimelineTransition,
+            timelineCurrentTime,
+            timelineSliceNodes,
+            timelineSliceEdges,
+            onLayoutUpdate
+        } = this.props;
 
         return (
             <>
                 <ContextMenu
                     ref={(contextMenu: ContextMenu | null): void => { this._contextMenuRef = contextMenu; }}
-                    onCreateNode={(): void => this.setState({ isNodeCreateModalOpen: true })}
+                    onCreateNode={(): void => {
+                        if (isHistoricalSliceLocked) {
+                            return;
+                        }
+
+                        this.setState({ isNodeCreateModalOpen: true });
+                    }}
                     onCreateNodeStatus={(): void => this.setState({ isNodeStatusCreateModalOpen: true })}
                     onCreateEdgeEvolutionReason={(): void => this.setState({ isEdgeEvolutionReasonCreateModalOpen: true })}
                     onPaste={(): void => {
+                        if (isHistoricalSliceLocked) {
+                            return;
+                        }
+
                         BlueprintPaster.paste(
                             registry,
                             layoutService,
@@ -256,7 +306,21 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
                             onLayoutUpdate
                         );
                     }}
-                    onSave={(): void => BlueprintSaver.save(registry)}
+                    onSave={(): void => {
+                        if (isTimelineTransition) {
+                            return;
+                        }
+
+                        BlueprintSaver.save(registry, {
+                            timelineIsTransition: isTimelineTransition,
+                            timelineCurrentTime: timelineCurrentTime,
+                            timelineSliceNodes: timelineSliceNodes,
+                            timelineSliceEdges: timelineSliceEdges
+                        });
+                    }}
+                    canCreateNode={!isHistoricalSliceLocked}
+                    canPaste={!isHistoricalSliceLocked}
+                    canSave={!isTimelineTransition}
                 />
 
                 {this.state.isNodeCreateModalOpen && (
@@ -458,6 +522,10 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
     }
 
     public openEdgeCreateModal(sourceNode: Node, targetNode: Node): void {
+        if (this.props.isHistoricalSliceLocked) {
+            return;
+        }
+
         this.setState({
             isEdgeCreateModalOpen: true,
             edgeCreateSourceNode: sourceNode,
@@ -466,6 +534,10 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
     }
 
     public openEdgeEvolutionModal(reanchoringEdge: Edge, evolutionTargetNode: Node | null): void {
+        if (this.props.isHistoricalSliceLocked) {
+            return;
+        }
+
         this.setState({
             isEdgeEvolutionModalOpen: true,
             reanchoringEdge: reanchoringEdge,
@@ -482,6 +554,10 @@ class MenuManager extends Component<MenuManagerProps, MenuManagerState> implemen
     }
 
     public startEdgeCut(edge: Edge): void {
+        if (this.props.isHistoricalSliceLocked) {
+            return;
+        }
+
         EdgeInteractionManager.initiateCut(edge, (reanchoringEdge: Edge, evolutionTargetNode: Node | null, isModalOpen: boolean): void => {
             this.setState({
                 isEdgeEvolutionModalOpen: isModalOpen,

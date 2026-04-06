@@ -1,8 +1,8 @@
 import { createElement, Fragment, type MouseEvent, type ReactNode } from 'react';
 
-import { EdgeInteractionManager } from '../../components/canvas/edge-interaction/EdgeInteractionManager';
-import NodeRectangle from '../../components/elements/NodeRectangle';
-import type { PrerenderNode } from './PrerenderNode';
+import { EdgeInteractionManager } from '../../../components/canvas/edge-interaction/EdgeInteractionManager';
+import NodeRectangle from '../../../components/elements/NodeRectangle';
+import type { PrerenderNode } from '../prerender/PrerenderNode';
 import type { GraphLayerRendererOptions } from './GraphLayerRendererOptions';
 
 
@@ -16,6 +16,7 @@ export class GraphLayerRenderer {
         const renderedEdges: ReactNode = EdgeInteractionManager.renderEdges(
             options.displayedEdges,
             options.reanchoringEdge,
+            options.isHistoricalSliceLocked,
             options.currentTime,
             options.nextTime,
             options.timelineIsTransition,
@@ -34,7 +35,8 @@ export class GraphLayerRenderer {
             opacity: prerenderNode.opacity,
             backgroundColor: prerenderNode.backgroundColor,
             borderColor: prerenderNode.borderColor,
-            onStartEdge: (nodeId: string): void => {
+            versionTransition: prerenderNode.versionTransition,
+            onStartEdge: options.isHistoricalSliceLocked ? undefined : (nodeId: string): void => {
                 if (!options.edgeDrawerRef) {
                     return;
                 }
@@ -44,10 +46,12 @@ export class GraphLayerRenderer {
                     strokeDasharray: '5,5'
                 });
             },
-            onCompleteEdge: (nodeId: string): void => {
+            onCompleteEdge: options.isHistoricalSliceLocked ? undefined : (nodeId: string): boolean => {
                 if (options.edgeDrawerRef) {
-                    options.edgeDrawerRef.handleCompleteEdge(nodeId);
+                    return options.edgeDrawerRef.handleCompleteEdge(nodeId);
                 }
+
+                return false;
             },
             onContextMenu: (event: MouseEvent): void => options.onNodeContextMenu(event, prerenderNode.node.id as string)
         }));

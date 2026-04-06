@@ -1,5 +1,5 @@
-import { type BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResult';
-import { type ContentBounds } from './ContentBounds';
+import { type BlueprintPrerenderCombResult } from '../layout/BlueprintPrerenderCombResult';
+import { type ContentBounds } from '../layout/ContentBounds';
 
 
 export class TimelineViewportBoundsResolver {

@@ -1,4 +1,6 @@
 import { Node } from '@todo-requirement-blueprint/domain';
+import type { VersionTransition } from './VersionTransition';
+
 
 export interface PrerenderNode {
     node: Node;
@@ -7,4 +9,5 @@ export interface PrerenderNode {
     opacity?: number;  // Defines node opacity in the [0, 1] range for transition animations.
     backgroundColor?: string;  // Defines interpolated background color for status transitions.
     borderColor?: string;  // Defines interpolated border color for status transitions.
+    versionTransition?: VersionTransition;  // Defines version animation state for timeline playback.
 }

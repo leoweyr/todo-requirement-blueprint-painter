@@ -54,3 +54,7 @@ Example Usage in Markdown:
 ## 🌐 Node URL Navigation
 
 Add a `url` field to a node's metadata in the blueprint, and the node link becomes directly clickable in the interactive view.
+
+## 🗺️ Area Territory Background
+
+Add an `area` field to a node's metadata to enable domain territory rendering on the canvas background.

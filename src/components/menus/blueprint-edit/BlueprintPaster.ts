@@ -1,7 +1,7 @@
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb';
-import { CanvasViewport } from '../../canvas/CanvasViewport';
-import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
+import { BlueprintPrerenderComb } from '../../../features/graph/layout/BlueprintPrerenderComb';
+import { CanvasViewport } from '../../canvas/viewport/CanvasViewport';
+import { type BlueprintPrerenderCombResult } from '../../../features/graph/layout/BlueprintPrerenderCombResult';
 import { BlueprintSerializer } from '../../../features/serializer/BlueprintSerializer';
 
 
