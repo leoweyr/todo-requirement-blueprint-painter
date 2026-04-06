@@ -36,6 +36,9 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
     private readonly _NEUTRAL_FILL_OPACITY: number = 0.92;
     private readonly _MINIMUM_LABEL_FONT_SIZE: number = 18;
     private readonly _MAXIMUM_LABEL_FONT_SIZE: number = 36;
+    private readonly _LABEL_NODE_GAP: number = 14;
+    private readonly _LABEL_WIDTH_FACTOR: number = 0.62;
+    private readonly _LABEL_HEIGHT_FACTOR: number = 1.25;
     private _unsubscribe: (() => void) | null = null;
 
     public componentDidMount(): void {
@@ -69,7 +72,7 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
             return null;
         }
 
-        const labels: AreaTerritoryBackdropLabel[] = this._buildLabels(gridPlan.gridRows);
+        const labels: AreaTerritoryBackdropLabel[] = this._buildLabels(gridPlan.gridRows, gridPlan.bounds);
         const boundsWidth: number = Math.max(1, gridPlan.bounds.maximumX - gridPlan.bounds.minimumX);
         const boundsHeight: number = Math.max(1, gridPlan.bounds.maximumY - gridPlan.bounds.minimumY);
         const svgStyle: CSSProperties = this._resolveSvgStyle(gridPlan.bounds);
@@ -104,23 +107,32 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
                 })}
 
                 {labels.map((label: AreaTerritoryBackdropLabel): ReactNode => (
-                    <text
+                    <g
                         key={`area-label-${label.areaKey}`}
-                        data-area-label={label.areaKey}
-                        x={label.x}
-                        y={label.y}
-                        fill="#FFFFFF"
-                        stroke="rgba(0, 0, 0, 0.4)"
-                        strokeWidth={2}
-                        paintOrder="stroke"
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fontSize={label.fontSize}
-                        fontWeight={700}
-                        style={{ transition: 'transform 140ms linear' }}
+                        data-area-label-group={label.areaKey}
+                        style={{
+                            transform: `translate(${label.x}px, ${label.y}px)`,
+                            transition: 'transform 220ms ease-out',
+                            willChange: 'transform'
+                        }}
                     >
-                        {label.areaKey}
-                    </text>
+                        <text
+                            data-area-label={label.areaKey}
+                            x={0}
+                            y={0}
+                            fill="#FFFFFF"
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fontSize={label.fontSize}
+                            fontWeight={700}
+                            style={{
+                                userSelect: 'none',
+                                caretColor: 'transparent'
+                            }}
+                        >
+                            {label.areaKey}
+                        </text>
+                    </g>
                 ))}
             </svg>
         );
@@ -498,7 +510,10 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
         return (deltaX * deltaX) + (deltaY * deltaY);
     }
 
-    private _buildLabels(gridRows: AreaTerritoryBackdropGridCell[][]): AreaTerritoryBackdropLabel[] {
+    private _buildLabels(
+        gridRows: AreaTerritoryBackdropGridCell[][],
+        bounds: ContentBounds
+    ): AreaTerritoryBackdropLabel[] {
         const labels: AreaTerritoryBackdropLabel[] = [];
         const areaKeys: string[] = this._resolveAreaKeysFromGrid(gridRows);
 
@@ -527,8 +542,8 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
                 totalCenterY += typedGridCell.centerY;
             }
 
-            const labelX: number = totalCenterX / largestComponent.count;
-            const labelY: number = totalCenterY / largestComponent.count;
+            const labelCenterX: number = totalCenterX / largestComponent.count;
+            const labelCenterY: number = totalCenterY / largestComponent.count;
             const rawFontSize: number = Math.sqrt(largestComponent.count) * 3.8;
 
             const fontSize: number = Math.max(
@@ -536,15 +551,111 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
                 Math.min(this._MAXIMUM_LABEL_FONT_SIZE, rawFontSize)
             );
 
+            const nonOverlappingLabelCell: AreaTerritoryBackdropGridCell | null = this._resolveNonOverlappingLabelCell(
+                largestComponent.cells,
+                labelCenterX,
+                labelCenterY,
+                typedAreaKey,
+                fontSize,
+                bounds.minimumX,
+                bounds.minimumY
+            );
+
+            if (!nonOverlappingLabelCell) {
+                continue;
+            }
+
             labels.push({
                 areaKey: typedAreaKey,
-                x: labelX,
-                y: labelY,
+                x: nonOverlappingLabelCell.centerX,
+                y: nonOverlappingLabelCell.centerY,
                 fontSize
             });
         }
 
         return labels;
+    }
+
+    private _resolveNonOverlappingLabelCell(
+        candidateCells: AreaTerritoryBackdropGridCell[],
+        fallbackCenterX: number,
+        fallbackCenterY: number,
+        areaKey: string,
+        fontSize: number,
+        boundsMinimumX: number,
+        boundsMinimumY: number
+    ): AreaTerritoryBackdropGridCell | null {
+        let bestCandidateCell: AreaTerritoryBackdropGridCell | null = null;
+        let bestCandidateScore: number = Number.POSITIVE_INFINITY;
+
+        for (const candidateCell of candidateCells) {
+            const typedCandidateCell: AreaTerritoryBackdropGridCell = candidateCell;
+            const overlapsNode: boolean = this._doesLabelOverlapAnyNode(
+                typedCandidateCell.centerX,
+                typedCandidateCell.centerY,
+                areaKey,
+                fontSize,
+                boundsMinimumX,
+                boundsMinimumY
+            );
+
+            if (overlapsNode) {
+                continue;
+            }
+
+            const score: number = this._resolveDistanceSquared(
+                typedCandidateCell.centerX,
+                typedCandidateCell.centerY,
+                fallbackCenterX,
+                fallbackCenterY
+            );
+
+            if (score < bestCandidateScore) {
+                bestCandidateScore = score;
+                bestCandidateCell = typedCandidateCell;
+            }
+        }
+
+        return bestCandidateCell;
+    }
+
+    private _doesLabelOverlapAnyNode(
+        labelCenterX: number,
+        labelCenterY: number,
+        labelText: string,
+        fontSize: number,
+        boundsMinimumX: number,
+        boundsMinimumY: number
+    ): boolean {
+        const labelCenterWorldX: number = boundsMinimumX + labelCenterX;
+        const labelCenterWorldY: number = boundsMinimumY + labelCenterY;
+
+        const estimatedLabelWidth: number = Math.max(
+            fontSize,
+            (labelText.length * fontSize * this._LABEL_WIDTH_FACTOR)
+        );
+
+        const estimatedLabelHeight: number = fontSize * this._LABEL_HEIGHT_FACTOR;
+        const labelLeft: number = labelCenterWorldX - (estimatedLabelWidth / 2);
+        const labelRight: number = labelCenterWorldX + (estimatedLabelWidth / 2);
+        const labelTop: number = labelCenterWorldY - (estimatedLabelHeight / 2);
+        const labelBottom: number = labelCenterWorldY + (estimatedLabelHeight / 2);
+
+        for (const prerenderNode of this.props.nodes) {
+            const typedPrerenderNode: PrerenderNode = prerenderNode;
+            const nodeLeft: number = typedPrerenderNode.x - this._LABEL_NODE_GAP;
+            const nodeRight: number = typedPrerenderNode.x + this.props.nodeWidth + this._LABEL_NODE_GAP;
+            const nodeTop: number = typedPrerenderNode.y - this._LABEL_NODE_GAP;
+            const nodeBottom: number = typedPrerenderNode.y + this.props.nodeHeight + this._LABEL_NODE_GAP;
+            const overlapsHorizontally: boolean = labelLeft <= nodeRight && labelRight >= nodeLeft;
+            const overlapsVertically: boolean = labelTop <= nodeBottom && labelBottom >= nodeTop;
+
+            if (overlapsHorizontally && overlapsVertically) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private _resolveAreaKeysFromGrid(gridRows: AreaTerritoryBackdropGridCell[][]): string[] {
