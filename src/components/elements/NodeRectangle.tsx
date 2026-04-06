@@ -29,6 +29,7 @@ interface NodeRectangleState {
 
 class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     private readonly _VERSION_TOOLTIP_HIDE_DELAY_MILLISECONDS: number = 2000;
+    private readonly _VERSION_TRANSITION_PROGRESS_EPSILON: number = 0.001;
     private _versionTooltipHideTimeoutId: number | null = null;
 
     private _handleMouseEnter: () => void = (): void => {
@@ -100,8 +101,8 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     }
 
     public componentDidUpdate(previousProps: NodeRectangleProps): void {
-        const previousVersionTransition: VersionTransition | undefined = previousProps.versionTransition;
-        const currentVersionTransition: VersionTransition | undefined = this.props.versionTransition;
+        const previousVersionTransition: VersionTransition | undefined = this._normalizeVersionTransition(previousProps.versionTransition);
+        const currentVersionTransition: VersionTransition | undefined = this._normalizeVersionTransition(this.props.versionTransition);
 
         if (currentVersionTransition) {
             this._clearVersionTooltipHideTimer();
@@ -131,7 +132,10 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         const { node, x, y, versionTransition }: NodeRectangleProps = this.props;
         const { isHovered, tooltipPosition, recentVersionTransition }: NodeRectangleState = this.state;
         const isReadOnly: boolean = ReadOnlyView.instance.isReadOnly();
-        const activeVersionTransition: VersionTransition | undefined = versionTransition || recentVersionTransition || undefined;
+
+        const activeVersionTransition: VersionTransition | undefined =
+            this._normalizeVersionTransition(versionTransition) || recentVersionTransition || undefined;
+
         const shouldShowVersionTooltip: boolean = isHovered || Boolean(activeVersionTransition);
 
         const metadataEntries: [string, unknown][] = node.metadata ? Object.entries(node.metadata) : [];
@@ -262,6 +266,29 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             window.clearTimeout(this._versionTooltipHideTimeoutId);
             this._versionTooltipHideTimeoutId = null;
         }
+    }
+
+    private _normalizeVersionTransition(versionTransition: VersionTransition | undefined): VersionTransition | undefined {
+        if (!versionTransition) {
+            return undefined;
+        }
+
+        if (versionTransition.startVersion === versionTransition.endVersion) {
+            return undefined;
+        }
+
+        if (!Number.isFinite(versionTransition.progress)) {
+            return undefined;
+        }
+
+        const isNearStart: boolean = versionTransition.progress <= this._VERSION_TRANSITION_PROGRESS_EPSILON;
+        const isNearEnd: boolean = versionTransition.progress >= (1 - this._VERSION_TRANSITION_PROGRESS_EPSILON);
+
+        if (isNearStart || isNearEnd) {
+            return undefined;
+        }
+
+        return versionTransition;
     }
 
     private _getContainerStyle(): CSSProperties {
