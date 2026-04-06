@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.2.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.1.0...v2.2.0) (2026-04-06)
+### Bug Fixes
+
+* **edge-interaction:** prevent URL navigation when selecting edge target node ([fd4a1c0](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/fd4a1c088e2ded058be937999f9199f95c0dd83d)) [@leoweyr](https://github.com/leoweyr)
+* start repulsion delay only at non-transition timeline ticks ([ad68a15](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/ad68a153abb918bb0a42cc7345762d99fdcb6281)) [@leoweyr](https://github.com/leoweyr)
+* **canvas:** refine area-label rendering by avoiding node overlap, removing cursor, and smoothing timeline translate transitions ([01c25ce](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/01c25ceeac49f468ad68f2a42358d8e9b150afee)) [@leoweyr](https://github.com/leoweyr)
+* **elements:** ensure version transition tooltip hides after delay by filtering near-tick pseudo transitions ([33b67a0](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/33b67a0df55abd2e56e164045430c4f1430e0579)) [@leoweyr](https://github.com/leoweyr)
+* **canvas:** stabilize timeline transitions with anchored sticky grid and waterlike spread animation ([24a9511](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/24a951185e5c64bcd4b402a6c094ac10ddd907c3)) [@leoweyr](https://github.com/leoweyr)
+* **canvas:** keep cursor locked to mouse during abrupt drag movement ([11a923d](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/11a923d5481a0df92117a264cc739180591a631c)) [@leoweyr](https://github.com/leoweyr)
+* **elements:** stop URL hover ghosting by anchoring tooltip above node ([ba99b74](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/ba99b74cd3203b5de47a01d98206ae317e5be624)) [@leoweyr](https://github.com/leoweyr)
+* lock historical-slice editing and export slice-based save ([5c1d0a7](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/5c1d0a7fff8a4e678a67cacfafb7f8d5c296b23a)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Features
+
+* **graph:** add SemVer roller animation for node version transitions ([10cd239](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/10cd23924dc9f682e0a2eb78eea5382ed84ab52f)) [@leoweyr](https://github.com/leoweyr)
+* **canvas:** add metadata-driven territory background ([7ec6e95](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/7ec6e95d90791d1043847a144f22264998d20613)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Performance
+
+* **canvas:** enforce rectangular node influence zones for cleaner territory occupation ([4db3753](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/4db3753cd64e6c0afd54a37e5f7e994760dd3360)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Refactor
+
+* **canvas:** reorganize canvas components into cohesive subdirectories ([a5b4ef9](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/a5b4ef963ccda89d6043096334c1773accf23523)) [@leoweyr](https://github.com/leoweyr)
+* **graph:** reorganize modules into cohesive subdirectories ([1916aaa](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/1916aaadbfed6332671b0fec37ccfa5db2856c9f)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Styling
+
+* replace loop index abbreviations ([3c831f1](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/3c831f1290ef5f3396268d14fefe8ae244bef4e9)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [2.1.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.0.1...v2.1.0) (2026-04-05)
 ### Bug Fixes
 
