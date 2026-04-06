@@ -12,6 +12,7 @@ import type { AreaTerritoryBackdropAreaNodePoint } from './AreaTerritoryBackdrop
 import type { AreaTerritoryBackdropGridCell } from './AreaTerritoryBackdropGridCell';
 import type { AreaTerritoryBackdropLargestComponent } from './AreaTerritoryBackdropLargestComponent';
 import type { AreaTerritoryBackdropNodePoint } from './AreaTerritoryBackdropNodePoint';
+import type { AreaTerritoryBackdropNodeInfluenceRegion } from './AreaTerritoryBackdropNodeInfluenceRegion';
 
 
 export interface AreaTerritoryBackdropProps {
@@ -30,8 +31,8 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
     private readonly _BOUNDS_PADDING: number = 360;
     private readonly _VIEWPORT_BOUNDS_PADDING: number = 160;
     private readonly _CENTROID_DISTANCE_WEIGHT: number = 0.35;
-    private readonly _NODE_AREA_ENFORCEMENT_RADIUS_RATIO: number = 0.7;
-    private readonly _NODE_AREA_ENFORCEMENT_MINIMUM_RADIUS: number = 96;
+    private readonly _NODE_AREA_ENFORCEMENT_EXTENSION_RATIO: number = 0.75;
+    private readonly _NODE_AREA_ENFORCEMENT_MINIMUM_EXTENSION: number = 132;
     private readonly _AREA_FILL_OPACITY: number = 0.38;
     private readonly _NEUTRAL_FILL_OPACITY: number = 0.92;
     private readonly _MINIMUM_LABEL_FONT_SIZE: number = 18;
@@ -143,7 +144,7 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
         const areaGrouping: AreaTerritoryBackdropAreaGrouping = this._resolveAreaGroups();
         const areaGroups: AreaTerritoryBackdropAreaGroup[] = areaGrouping.areaGroups;
         const allNodePoints: AreaTerritoryBackdropAreaNodePoint[] = areaGrouping.allNodePoints;
-        const enforcementRadiusSquared: number = this._resolveEnforcementRadiusSquared();
+        const nodeInfluenceRegions: AreaTerritoryBackdropNodeInfluenceRegion[] = areaGrouping.nodeInfluenceRegions;
         const totalWidth: number = Math.max(1, expandedBounds.maximumX - expandedBounds.minimumX);
         const totalHeight: number = Math.max(1, expandedBounds.maximumY - expandedBounds.minimumY);
         const columnCount: number = Math.max(1, Math.ceil(totalWidth / this._GRID_CELL_SIZE));
@@ -159,15 +160,23 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
                 const top: number = rowIndex * this._GRID_CELL_SIZE;
                 const width: number = Math.max(1, Math.min(this._GRID_CELL_SIZE, totalWidth - left));
                 const height: number = Math.max(1, Math.min(this._GRID_CELL_SIZE, totalHeight - top));
+                const cellWorldMinimumX: number = expandedBounds.minimumX + left;
+                const cellWorldMinimumY: number = expandedBounds.minimumY + top;
+                const cellWorldMaximumX: number = cellWorldMinimumX + width;
+                const cellWorldMaximumY: number = cellWorldMinimumY + height;
                 const centerX: number = expandedBounds.minimumX + left + (width / 2);
                 const centerY: number = expandedBounds.minimumY + top + (height / 2);
 
                 const areaKey: string = this._resolveCellAreaKey(
+                    cellWorldMinimumX,
+                    cellWorldMinimumY,
+                    cellWorldMaximumX,
+                    cellWorldMaximumY,
                     centerX,
                     centerY,
                     areaGroups,
                     allNodePoints,
-                    enforcementRadiusSquared
+                    nodeInfluenceRegions
                 );
 
                 const gridCell: AreaTerritoryBackdropGridCell = {
@@ -218,11 +227,11 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
         };
     }
 
-    private _resolveEnforcementRadiusSquared(): number {
-        const scaledRadius: number = Math.max(this.props.nodeWidth, this.props.nodeHeight)
-            * this._NODE_AREA_ENFORCEMENT_RADIUS_RATIO;
-        const radius: number = Math.max(this._NODE_AREA_ENFORCEMENT_MINIMUM_RADIUS, scaledRadius);
-        return radius * radius;
+    private _resolveEnforcementRectangleExtensionDistance(): number {
+        const scaledExtensionDistance: number = Math.max(this.props.nodeWidth, this.props.nodeHeight)
+            * this._NODE_AREA_ENFORCEMENT_EXTENSION_RATIO;
+
+        return Math.max(this._NODE_AREA_ENFORCEMENT_MINIMUM_EXTENSION, scaledExtensionDistance);
     }
 
     private _resolveViewportVisibleBounds(): ContentBounds | null {
@@ -250,20 +259,34 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
     private _resolveAreaGroups(): AreaTerritoryBackdropAreaGrouping {
         const pointsByAreaKey: Map<string, AreaTerritoryBackdropNodePoint[]> = new Map<string, AreaTerritoryBackdropNodePoint[]>();
         const allNodePoints: AreaTerritoryBackdropAreaNodePoint[] = [];
+        const nodeInfluenceRegions: AreaTerritoryBackdropNodeInfluenceRegion[] = [];
+        const enforcementRectangleExtensionDistance: number = this._resolveEnforcementRectangleExtensionDistance();
 
         for (const prerenderNode of this.props.nodes) {
             const typedPrerenderNode: PrerenderNode = prerenderNode;
             const areaKey: string = this._resolveNodeAreaKey(typedPrerenderNode);
+            const nodeCenterX: number = typedPrerenderNode.x + (this.props.nodeWidth / 2);
+            const nodeCenterY: number = typedPrerenderNode.y + (this.props.nodeHeight / 2);
 
             const centerPoint: AreaTerritoryBackdropNodePoint = {
-                x: typedPrerenderNode.x + (this.props.nodeWidth / 2),
-                y: typedPrerenderNode.y + (this.props.nodeHeight / 2)
+                x: nodeCenterX,
+                y: nodeCenterY
             };
 
             allNodePoints.push({
                 areaKey,
                 x: centerPoint.x,
                 y: centerPoint.y
+            });
+
+            nodeInfluenceRegions.push({
+                areaKey,
+                centerX: nodeCenterX,
+                centerY: nodeCenterY,
+                minimumX: typedPrerenderNode.x - enforcementRectangleExtensionDistance,
+                minimumY: typedPrerenderNode.y - enforcementRectangleExtensionDistance,
+                maximumX: typedPrerenderNode.x + this.props.nodeWidth + enforcementRectangleExtensionDistance,
+                maximumY: typedPrerenderNode.y + this.props.nodeHeight + enforcementRectangleExtensionDistance
             });
 
             const existingPoints: AreaTerritoryBackdropNodePoint[] | undefined = pointsByAreaKey.get(areaKey);
@@ -300,7 +323,8 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
 
         return {
             areaGroups,
-            allNodePoints
+            allNodePoints,
+            nodeInfluenceRegions
         };
     }
 
@@ -320,17 +344,24 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
     }
 
     private _resolveCellAreaKey(
+        cellWorldMinimumX: number,
+        cellWorldMinimumY: number,
+        cellWorldMaximumX: number,
+        cellWorldMaximumY: number,
         centerX: number,
         centerY: number,
         areaGroups: AreaTerritoryBackdropAreaGroup[],
         allNodePoints: AreaTerritoryBackdropAreaNodePoint[],
-        enforcementRadiusSquared: number
+        nodeInfluenceRegions: AreaTerritoryBackdropNodeInfluenceRegion[]
     ): string {
         const forcedAreaKey: string | null = this._resolveForcedAreaKey(
+            cellWorldMinimumX,
+            cellWorldMinimumY,
+            cellWorldMaximumX,
+            cellWorldMaximumY,
             centerX,
             centerY,
-            allNodePoints,
-            enforcementRadiusSquared
+            nodeInfluenceRegions
         );
 
         if (forcedAreaKey) {
@@ -342,16 +373,6 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
 
         for (const areaGroup of areaGroups) {
             const typedAreaGroup: AreaTerritoryBackdropAreaGroup = areaGroup;
-
-            if (this._isAreaBlockedByForeignNodes(
-                typedAreaGroup.areaKey,
-                centerX,
-                centerY,
-                allNodePoints,
-                enforcementRadiusSquared
-            )) {
-                continue;
-            }
 
             const nearestDistanceSquared: number = this._resolveNearestDistanceSquared(
                 centerX,
@@ -390,59 +411,66 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
     }
 
     private _resolveForcedAreaKey(
+        cellWorldMinimumX: number,
+        cellWorldMinimumY: number,
+        cellWorldMaximumX: number,
+        cellWorldMaximumY: number,
         centerX: number,
         centerY: number,
-        allNodePoints: AreaTerritoryBackdropAreaNodePoint[],
-        enforcementRadiusSquared: number
+        nodeInfluenceRegions: AreaTerritoryBackdropNodeInfluenceRegion[]
     ): string | null {
         let nearestAreaKey: string | null = null;
         let nearestDistanceSquared: number = Number.POSITIVE_INFINITY;
 
-        for (const nodePoint of allNodePoints) {
-            const typedNodePoint: AreaTerritoryBackdropAreaNodePoint = nodePoint;
-            const distanceSquared: number = this._resolveDistanceSquared(
-                centerX,
-                centerY,
-                typedNodePoint.x,
-                typedNodePoint.y
+        for (const nodeInfluenceRegion of nodeInfluenceRegions) {
+            const typedNodeInfluenceRegion: AreaTerritoryBackdropNodeInfluenceRegion = nodeInfluenceRegion;
+
+            const intersectsInfluenceRegion: boolean = this._doesCellIntersectInfluenceRegion(
+                cellWorldMinimumX,
+                cellWorldMinimumY,
+                cellWorldMaximumX,
+                cellWorldMaximumY,
+                typedNodeInfluenceRegion
             );
 
-            if (distanceSquared <= enforcementRadiusSquared && distanceSquared < nearestDistanceSquared) {
-                nearestDistanceSquared = distanceSquared;
-                nearestAreaKey = typedNodePoint.areaKey;
-            }
-        }
-
-        return nearestAreaKey;
-    }
-
-    private _isAreaBlockedByForeignNodes(
-        areaKey: string,
-        centerX: number,
-        centerY: number,
-        allNodePoints: AreaTerritoryBackdropAreaNodePoint[],
-        enforcementRadiusSquared: number
-    ): boolean {
-        for (const nodePoint of allNodePoints) {
-            const typedNodePoint: AreaTerritoryBackdropAreaNodePoint = nodePoint;
-
-            if (typedNodePoint.areaKey === areaKey) {
+            if (!intersectsInfluenceRegion) {
                 continue;
             }
 
             const distanceSquared: number = this._resolveDistanceSquared(
                 centerX,
                 centerY,
-                typedNodePoint.x,
-                typedNodePoint.y
+                typedNodeInfluenceRegion.centerX,
+                typedNodeInfluenceRegion.centerY
             );
 
-            if (distanceSquared <= enforcementRadiusSquared) {
-                return true;
+            if (distanceSquared < nearestDistanceSquared) {
+                nearestDistanceSquared = distanceSquared;
+                nearestAreaKey = typedNodeInfluenceRegion.areaKey;
             }
         }
 
-        return false;
+        return nearestAreaKey;
+    }
+
+    private _doesCellIntersectInfluenceRegion(
+        cellWorldMinimumX: number,
+        cellWorldMinimumY: number,
+        cellWorldMaximumX: number,
+        cellWorldMaximumY: number,
+        nodeInfluenceRegion: AreaTerritoryBackdropNodeInfluenceRegion
+    ): boolean {
+        const overlapsHorizontally: boolean = (
+            cellWorldMinimumX < nodeInfluenceRegion.maximumX
+            && cellWorldMaximumX > nodeInfluenceRegion.minimumX
+        );
+
+        const overlapsVertically: boolean = (
+            cellWorldMinimumY < nodeInfluenceRegion.maximumY
+            && cellWorldMaximumY > nodeInfluenceRegion.minimumY
+        );
+
+        return overlapsHorizontally && overlapsVertically;
     }
 
     private _resolveNearestAreaKey(
