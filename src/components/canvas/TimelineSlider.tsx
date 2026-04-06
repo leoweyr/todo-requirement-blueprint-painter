@@ -45,11 +45,19 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
     private readonly _TICK_SPACING: number = 80;  // Increased to prevent text overlap.
     private readonly _EDGE_SCROLL_ZONE: number = 50;  // Pixels from the edge to trigger scroll.
 
+    private _containerRef: HTMLDivElement | null = null;
+    private _dragMouseToCursorOffsetPixels: number = 0;
+
     private _handleMouseDown: (event: ReactMouseEvent<HTMLDivElement>) => void = (event: ReactMouseEvent<HTMLDivElement>): void => {
         if (event.button !== 0) return;  // Only allow left click.
         
         event.preventDefault();
         event.stopPropagation();
+
+        const containerLeft: number = this._resolveContainerLeft();
+        const cursorLeft: number = this._resolveCursorLeft(this.state.currentPosition, this.state.viewOffset);
+        const cursorScreenX: number = containerLeft + cursorLeft;
+        this._dragMouseToCursorOffsetPixels = event.clientX - cursorScreenX;
         
         this.setState({
             isDragging: true,
@@ -61,9 +69,10 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
         if (this.state.isDragging) {
              const { currentPosition } = this.state;
              const snapped: number = Math.round(currentPosition * 2) / 2;
-             
+              
              this._updatePosition(snapped - currentPosition);
-             
+             this._dragMouseToCursorOffsetPixels = 0;
+              
              this.setState({ isDragging: false });
         }
     };
@@ -80,17 +89,16 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
         if (!this.state.isDragging) return;
 
         event.preventDefault();
-        
-        const deltaX: number = event.clientX - this.state.startX;
-        const pxPerUnit: number = 2 * this._TICK_SPACING;
-        
-        const deltaPos: number = deltaX / pxPerUnit;  // Dragging right increases the position.
-        
-        this._updatePosition(deltaPos, true);  // True indicates dragging.
 
-        this.setState({
-            startX: event.clientX
-        });
+        const containerLeft: number = this._resolveContainerLeft();
+        const desiredCursorScreenX: number = event.clientX - this._dragMouseToCursorOffsetPixels;
+        const desiredCursorLeft: number = desiredCursorScreenX - containerLeft;
+        const pxPerUnit: number = 2 * this._TICK_SPACING;
+        const tickOffset: number = this._TICK_SPACING / 2;
+        const desiredPosition: number = (desiredCursorLeft + this.state.viewOffset - tickOffset) / pxPerUnit;
+        const deltaPosition: number = desiredPosition - this.state.currentPosition;
+
+        this._updatePosition(deltaPosition, true);  // True indicates dragging.
     };
     
     constructor(props: TimelineSliderProps) {
@@ -132,6 +140,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
 
         return (
             <div
+                ref={(ref: HTMLDivElement | null): void => { this._containerRef = ref; }}
                 style={this._getContainerStyle()}
                 onWheel={this._handleWheel}
                 onMouseDown={this._handleMouseDown}
@@ -292,12 +301,10 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             if (isDragging) {
                 // If dragging, check edge constraints and auto-scroll.
                 if (cursorScreenX < leftZone) {
-                    const scrollAmount: number = (leftZone - cursorScreenX) * 0.2;  // Dampen.
-                    newViewOffset -= scrollAmount;
+                    newViewOffset = (newPos * pxPerUnit) + tickOffset - leftZone;
                     isLeftEdgeActive = true;
                 } else if (cursorScreenX > rightZone) {
-                    const scrollAmount: number = (cursorScreenX - rightZone) * 0.2;
-                    newViewOffset += scrollAmount;
+                    newViewOffset = (newPos * pxPerUnit) + tickOffset - rightZone;
                     isRightEdgeActive = true;
                 }
             } else if (isKeyboardDriven) {
@@ -593,6 +600,19 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
             pointerEvents: 'none',
             boxShadow: '0 2px 5px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9)'
         };
+    }
+
+    private _resolveContainerLeft(): number {
+        if (!this._containerRef) {
+            return 0;
+        }
+
+        return this._containerRef.getBoundingClientRect().left;
+    }
+
+    private _resolveCursorLeft(currentPosition: number, viewOffset: number): number {
+        const pxPerUnit: number = 2 * this._TICK_SPACING;
+        return (currentPosition * pxPerUnit) - viewOffset + (this._TICK_SPACING / 2);
     }
 
     public getCurrentPosition(): number {
