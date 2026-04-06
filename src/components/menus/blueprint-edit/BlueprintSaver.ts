@@ -78,6 +78,7 @@ export class BlueprintSaver {
         timelineSliceRegistry.trbVersion = sourceRegistry.trbVersion;
         timelineSliceRegistry.schema = sourceRegistry.schema;
 
+        this._copyElementOrders(sourceRegistry, timelineSliceRegistry);
         this._registerClonedNodeStatuses(sourceRegistry, timelineSliceRegistry);
         this._registerClonedEdgeEvolutionReasons(sourceRegistry, timelineSliceRegistry);
         this._copyYamlComments(sourceRegistry, timelineSliceRegistry);
@@ -134,17 +135,23 @@ export class BlueprintSaver {
         });
     }
 
+    private static _copyElementOrders(sourceRegistry: DomainRegistry, timelineSliceRegistry: BlueprintRegistry): void {
+        timelineSliceRegistry.nodeStatusOrder = [...sourceRegistry.nodeStatusOrder];
+        timelineSliceRegistry.edgeEvolutionReasonOrder = [...sourceRegistry.edgeEvolutionReasonOrder];
+        timelineSliceRegistry.nodeOrder = [...sourceRegistry.nodeOrder];
+
+        sourceRegistry.allNodeEdgeOrders.forEach((edgeOrder: string[], nodeId: string): void => {
+            timelineSliceRegistry.setNodeEdgeOrder(nodeId, [...edgeOrder]);
+        });
+    }
+
     private static _buildTimelineNodeMap(
         timelineSliceNodes: PrerenderNode[],
         timelineSliceRegistry: BlueprintRegistry
     ): Map<string, Node> {
         const clonedNodeMap: Map<string, Node> = new Map<string, Node>();
 
-        const sortedTimelineSliceNodes: PrerenderNode[] = [...timelineSliceNodes].sort(
-            (firstNode: PrerenderNode, secondNode: PrerenderNode): number => firstNode.node.id.localeCompare(secondNode.node.id)
-        );
-
-        sortedTimelineSliceNodes.forEach((timelineSliceNode: PrerenderNode): void => {
+        timelineSliceNodes.forEach((timelineSliceNode: PrerenderNode): void => {
             const sourceNode: Node = timelineSliceNode.node;
 
             if (clonedNodeMap.has(sourceNode.id)) {
@@ -205,9 +212,7 @@ export class BlueprintSaver {
             }
         });
 
-        const uniqueTimelineSliceEdges: PrerenderEdge[] = Array.from(uniqueTimelineSliceEdgesById.values()).sort(
-            (firstEdge: PrerenderEdge, secondEdge: PrerenderEdge): number => firstEdge.edge.id.localeCompare(secondEdge.edge.id)
-        );
+        const uniqueTimelineSliceEdges: PrerenderEdge[] = Array.from(uniqueTimelineSliceEdgesById.values());
 
         uniqueTimelineSliceEdges.forEach((timelineSliceEdge: PrerenderEdge): void => {
             const sourceNodeId: string | undefined = edgeSourceNodeIdMap.get(timelineSliceEdge.edge.id);
