@@ -4,13 +4,13 @@ import { NodeStatus } from '@todo-requirement-blueprint/domain';
 import { Edge } from '@todo-requirement-blueprint/domain';
 import { type EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
 
-import { DomainRegistry } from '../registry/DomainRegistry';
-import { type NodeHistoryVersion } from '../node-history/NodeHistoryVersion';
-import { type NodeTimeline } from '../node-history/NodeTimeline';
+import { DomainRegistry } from '../../registry/DomainRegistry';
+import { type NodeHistoryVersion } from '../../node-history/NodeHistoryVersion';
+import { type NodeTimeline } from '../../node-history/NodeTimeline';
 import { type BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResult';
 import { type ContentBounds } from './ContentBounds';
-import { type PrerenderNode } from './PrerenderNode';
-import { type PrerenderEdge } from './PrerenderEdge';
+import { type PrerenderNode } from '../prerender/PrerenderNode';
+import { type PrerenderEdge } from '../prerender/PrerenderEdge';
 import { type GraphNode } from './GraphNode';
 
 

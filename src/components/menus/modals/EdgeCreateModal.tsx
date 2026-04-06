@@ -5,8 +5,8 @@ import { EdgeStatus } from '@todo-requirement-blueprint/domain';
 import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb';
-import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
+import { BlueprintPrerenderComb } from '../../../features/graph/layout/BlueprintPrerenderComb';
+import { type BlueprintPrerenderCombResult } from '../../../features/graph/layout/BlueprintPrerenderCombResult';
 import { EdgeCreator } from '../edge-edit/EdgeCreator';
 
 

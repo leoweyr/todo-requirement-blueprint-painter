@@ -1,5 +1,5 @@
-import { type PrerenderNode } from './PrerenderNode';
-import { type PrerenderEdge } from './PrerenderEdge';
+import { type PrerenderNode } from '../prerender/PrerenderNode';
+import { type PrerenderEdge } from '../prerender/PrerenderEdge';
 import { type ContentBounds } from './ContentBounds';
 
 

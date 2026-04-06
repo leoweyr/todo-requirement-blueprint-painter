@@ -1,4 +1,4 @@
-import type { ContentBounds } from '../../../features/graph/ContentBounds';
+import type { ContentBounds } from '../../../features/graph/layout/ContentBounds';
 import type { AreaTerritoryBackdropGridCell } from './AreaTerritoryBackdropGridCell';
 
 

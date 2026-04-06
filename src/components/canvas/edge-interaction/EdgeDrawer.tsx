@@ -2,7 +2,7 @@ import { Component, type ReactNode, type CSSProperties } from 'react';
 
 import { CanvasViewport } from '../viewport/CanvasViewport';
 import { ReadOnlyView } from '../../../features/readonly/ReadOnlyView';
-import { type PrerenderNode } from '../../../features/graph/PrerenderNode';
+import { type PrerenderNode } from '../../../features/graph/prerender/PrerenderNode';
 
 
 export interface EdgeDrawerProps {

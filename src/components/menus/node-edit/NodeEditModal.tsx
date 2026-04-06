@@ -3,7 +3,7 @@ import { NodeStatus } from '@todo-requirement-blueprint/domain';
 import { Node } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
+import { type BlueprintPrerenderCombResult } from '../../../features/graph/layout/BlueprintPrerenderCombResult';
 
 
 export interface NodeEditModalProps {

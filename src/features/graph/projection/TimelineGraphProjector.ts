@@ -1,11 +1,11 @@
 import type { Node } from '@todo-requirement-blueprint/domain';
 
-import type { BlueprintPrerenderCombResult } from './BlueprintPrerenderCombResult';
-import type { NodeColors } from './NodeColors';
-import type { PrerenderEdge } from './PrerenderEdge';
-import type { PrerenderNode } from './PrerenderNode';
+import type { BlueprintPrerenderCombResult } from '../layout/BlueprintPrerenderCombResult';
+import type { NodeColors } from '../prerender/NodeColors';
+import type { PrerenderEdge } from '../prerender/PrerenderEdge';
+import type { PrerenderNode } from '../prerender/PrerenderNode';
 import type { TimelineGraphProjectionResult } from './TimelineGraphProjectionResult';
-import type { VersionTransition } from './VersionTransition';
+import type { VersionTransition } from '../prerender/VersionTransition';
 
 
 export class TimelineGraphProjector {

@@ -1,8 +1,8 @@
 import { createElement, Fragment, type MouseEvent, type ReactNode } from 'react';
 
-import { EdgeInteractionManager } from '../../components/canvas/edge-interaction/EdgeInteractionManager';
-import NodeRectangle from '../../components/elements/NodeRectangle';
-import type { PrerenderNode } from './PrerenderNode';
+import { EdgeInteractionManager } from '../../../components/canvas/edge-interaction/EdgeInteractionManager';
+import NodeRectangle from '../../../components/elements/NodeRectangle';
+import type { PrerenderNode } from '../prerender/PrerenderNode';
 import type { GraphLayerRendererOptions } from './GraphLayerRendererOptions';
 
 

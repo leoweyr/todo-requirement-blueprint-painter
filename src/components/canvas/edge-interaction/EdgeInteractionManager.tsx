@@ -6,8 +6,8 @@ import { EdgeType } from '@todo-requirement-blueprint/domain';
 import { Node } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
-import type { PrerenderEdge } from '../../../features/graph/PrerenderEdge';
-import type { PrerenderNode } from '../../../features/graph/PrerenderNode';
+import type { PrerenderEdge } from '../../../features/graph/prerender/PrerenderEdge';
+import type { PrerenderNode } from '../../../features/graph/prerender/PrerenderNode';
 import EdgeLine from '../../elements/EdgeLine';
 import { EdgeCreator } from '../../menus/edge-edit/EdgeCreator';
 import EdgeDrawer from './EdgeDrawer';

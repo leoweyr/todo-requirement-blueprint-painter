@@ -2,7 +2,7 @@ import { Component, type CSSProperties, type ReactNode, type MouseEvent } from '
 import { Node } from '@todo-requirement-blueprint/domain';
 
 import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
-import type { VersionTransition } from '../../features/graph/VersionTransition';
+import type { VersionTransition } from '../../features/graph/prerender/VersionTransition';
 import VersionRoller from './VersionRoller';
 
 

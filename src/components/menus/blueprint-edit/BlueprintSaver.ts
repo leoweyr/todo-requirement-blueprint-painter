@@ -1,8 +1,8 @@
 import { Edge, EdgeEvolutionReason, EdgeHistoryRecord, Node, NodeStatus } from '@todo-requirement-blueprint/domain';
 import { BlueprintRegistry } from '@todo-requirement-blueprint/engine';
 
-import type { PrerenderEdge } from '../../../features/graph/PrerenderEdge';
-import type { PrerenderNode } from '../../../features/graph/PrerenderNode';
+import type { PrerenderEdge } from '../../../features/graph/prerender/PrerenderEdge';
+import type { PrerenderNode } from '../../../features/graph/prerender/PrerenderNode';
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
 import { BlueprintSerializer } from '../../../features/serializer/BlueprintSerializer';
 

@@ -4,7 +4,7 @@ import { type EdgeHistoryRecord } from '@todo-requirement-blueprint/domain';
 import { EdgeType } from '@todo-requirement-blueprint/domain';
 import { EdgeStatus } from '@todo-requirement-blueprint/domain';
 
-import { type PrerenderNode } from '../../features/graph/PrerenderNode';
+import { type PrerenderNode } from '../../features/graph/prerender/PrerenderNode';
 import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
 
 
