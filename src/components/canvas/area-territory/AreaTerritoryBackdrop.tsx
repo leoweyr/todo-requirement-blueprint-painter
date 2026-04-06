@@ -1,9 +1,9 @@
 import { Component, type CSSProperties, type ReactNode } from 'react';
 
-import { CanvasViewport } from './CanvasViewport';
-import { type ViewportObserver } from './ViewportObserver';
-import type { ContentBounds } from '../../features/graph/ContentBounds';
-import type { PrerenderNode } from '../../features/graph/PrerenderNode';
+import { CanvasViewport } from '../viewport/CanvasViewport';
+import { type ViewportObserver } from '../viewport/ViewportObserver';
+import type { ContentBounds } from '../../../features/graph/ContentBounds';
+import type { PrerenderNode } from '../../../features/graph/PrerenderNode';
 import type { AreaTerritoryBackdropGridPlan } from './AreaTerritoryBackdropGridPlan';
 import type { AreaTerritoryBackdropLabel } from './AreaTerritoryBackdropLabel';
 import type { AreaTerritoryBackdropAreaGrouping } from './AreaTerritoryBackdropAreaGrouping';

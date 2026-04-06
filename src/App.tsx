@@ -2,14 +2,14 @@ import { Component, type ReactNode, type MouseEvent, type CSSProperties } from '
 import { Edge } from '@todo-requirement-blueprint/domain';
 import { Node } from '@todo-requirement-blueprint/domain';
 
-import AreaTerritoryBackdrop from './components/canvas/AreaTerritoryBackdrop';
-import { CanvasViewport } from './components/canvas/CanvasViewport';
+import AreaTerritoryBackdrop from './components/canvas/area-territory/AreaTerritoryBackdrop';
+import { CanvasViewport } from './components/canvas/viewport/CanvasViewport';
 import EdgeDrawer from './components/canvas/edge-interaction/EdgeDrawer';
-import InfiniteCanvas from './components/canvas/InfiniteCanvas';
-import Legend from './components/canvas/Legend';
-import { type LegendScreenBounds } from './components/canvas/LegendScreenBounds';
-import { TimelineKeyboardController } from './components/canvas/TimelineKeyboardController';
-import { TimelineSlider } from './components/canvas/TimelineSlider';
+import InfiniteCanvas from './components/canvas/infinite-canvas/InfiniteCanvas';
+import Legend from './components/canvas/legend/Legend';
+import { type LegendScreenBounds } from './components/canvas/legend/LegendScreenBounds';
+import { TimelineKeyboardController } from './components/canvas/timeline/TimelineKeyboardController';
+import { TimelineSlider } from './components/canvas/timeline/TimelineSlider';
 import { BlueprintPaster } from './components/menus/blueprint-edit/BlueprintPaster';
 import { EdgeCreator } from './components/menus/edge-edit/EdgeCreator';
 import MenuManager from './components/menus/MenuManager';

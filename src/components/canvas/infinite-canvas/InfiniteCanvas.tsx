@@ -1,7 +1,7 @@
 import { Component, type ReactNode, type CSSProperties, type MouseEvent } from 'react';
 
-import { CanvasViewport } from './CanvasViewport';
-import { type ViewportObserver } from './ViewportObserver';
+import { CanvasViewport } from '../viewport/CanvasViewport';
+import { type ViewportObserver } from '../viewport/ViewportObserver';
 import VerticalDivider from './VerticalDivider';
 
 

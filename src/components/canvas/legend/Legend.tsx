@@ -2,8 +2,8 @@ import { Component, type CSSProperties, type ReactNode, type MouseEvent } from '
 import { NodeStatus } from '@todo-requirement-blueprint/domain';
 import { EdgeEvolutionReason } from '@todo-requirement-blueprint/domain';
 
-import { DomainRegistry } from '../../features/registry/DomainRegistry';
-import { ReadOnlyView } from '../../features/readonly/ReadOnlyView';
+import { DomainRegistry } from '../../../features/registry/DomainRegistry';
+import { ReadOnlyView } from '../../../features/readonly/ReadOnlyView';
 import { type LegendScreenBounds } from './LegendScreenBounds';
 
 

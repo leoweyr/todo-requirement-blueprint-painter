@@ -4,7 +4,7 @@ import { Edge } from '@todo-requirement-blueprint/domain';
 
 import { DomainRegistry } from '../../features/registry/DomainRegistry';
 import { BlueprintPrerenderComb } from '../../features/graph/BlueprintPrerenderComb';
-import { CanvasViewport } from '../canvas/CanvasViewport';
+import { CanvasViewport } from '../canvas/viewport/CanvasViewport';
 import { EdgeInteractionManager } from '../canvas/edge-interaction/EdgeInteractionManager';
 import type { EdgeMenuHandler } from '../canvas/edge-interaction/EdgeMenuHandler';
 import { BlueprintPaster } from './blueprint-edit/BlueprintPaster';

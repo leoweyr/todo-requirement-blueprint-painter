@@ -1,6 +1,6 @@
 import { DomainRegistry } from '../../../features/registry/DomainRegistry';
 import { BlueprintPrerenderComb } from '../../../features/graph/BlueprintPrerenderComb';
-import { CanvasViewport } from '../../canvas/CanvasViewport';
+import { CanvasViewport } from '../../canvas/viewport/CanvasViewport';
 import { type BlueprintPrerenderCombResult } from '../../../features/graph/BlueprintPrerenderCombResult';
 import { BlueprintSerializer } from '../../../features/serializer/BlueprintSerializer';
 

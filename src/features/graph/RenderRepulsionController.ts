@@ -1,6 +1,6 @@
 import type { PrerenderNode } from './PrerenderNode';
-import type { LegendScreenBounds } from '../../components/canvas/LegendScreenBounds';
-import { type CanvasViewport } from '../../components/canvas/CanvasViewport';
+import type { LegendScreenBounds } from '../../components/canvas/legend/LegendScreenBounds';
+import { type CanvasViewport } from '../../components/canvas/viewport/CanvasViewport';
 import type { Rectangle } from './Rectangle';
 import type { RenderRepulsionApplyOptions } from './RenderRepulsionApplyOptions';
 

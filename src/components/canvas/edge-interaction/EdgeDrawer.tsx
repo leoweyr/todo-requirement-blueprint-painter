@@ -1,6 +1,6 @@
 import { Component, type ReactNode, type CSSProperties } from 'react';
 
-import { CanvasViewport } from '../CanvasViewport';
+import { CanvasViewport } from '../viewport/CanvasViewport';
 import { ReadOnlyView } from '../../../features/readonly/ReadOnlyView';
 import { type PrerenderNode } from '../../../features/graph/PrerenderNode';
 

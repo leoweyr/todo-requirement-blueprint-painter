@@ -1,7 +1,7 @@
 import { Node } from '@todo-requirement-blueprint/domain';
 import { NodeStatus } from '@todo-requirement-blueprint/domain';
 
-import { CanvasViewport } from '../../components/canvas/CanvasViewport';
+import { CanvasViewport } from '../../components/canvas/viewport/CanvasViewport';
 import { BlueprintPrerenderComb } from '../graph/BlueprintPrerenderComb';
 import { type BlueprintPrerenderCombResult } from '../graph/BlueprintPrerenderCombResult';
 import { InterceptorLoader } from '../interceptor/InterceptorLoader';
