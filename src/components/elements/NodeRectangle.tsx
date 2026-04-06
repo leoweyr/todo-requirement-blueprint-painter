@@ -22,7 +22,6 @@ export interface NodeRectangleProps {
 
 interface NodeRectangleState {
     isHovered: boolean;
-    tooltipPosition: { x: number; y: number } | null;
     recentVersionTransition: VersionTransition | null;
 }
 
@@ -37,23 +36,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
     };
 
     private _handleMouseLeave: () => void = (): void => {
-        this.setState({ isHovered: false, tooltipPosition: null });
-    };
-
-    private _handleMouseMove: (event: MouseEvent) => void = (event: MouseEvent): void => {
-        const nodeUrl: string | undefined = this._getNodeUrl();
-
-        if (nodeUrl) {
-            const nodeElement: HTMLDivElement = event.currentTarget as HTMLDivElement;
-            const nodeBounds: DOMRect = nodeElement.getBoundingClientRect();
-
-            this.setState({
-                tooltipPosition: {
-                    x: event.clientX - nodeBounds.left,
-                    y: event.clientY - nodeBounds.top
-                }
-            });
-        }
+        this.setState({ isHovered: false });
     };
 
     private _handleStartEdgeClick: (event: MouseEvent) => void = (event: MouseEvent): void => {
@@ -95,7 +78,6 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         super(props);
         this.state = {
             isHovered: false,
-            tooltipPosition: null,
             recentVersionTransition: null
         };
     }
@@ -130,7 +112,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
 
     public render(): ReactNode {
         const { node, x, y, versionTransition }: NodeRectangleProps = this.props;
-        const { isHovered, tooltipPosition, recentVersionTransition }: NodeRectangleState = this.state;
+        const { isHovered, recentVersionTransition }: NodeRectangleState = this.state;
         const isReadOnly: boolean = ReadOnlyView.instance.isReadOnly();
 
         const activeVersionTransition: VersionTransition | undefined =
@@ -151,7 +133,6 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 data-testid={`node-rectangle-${node.id}`}  // For testing.
                 onMouseEnter={this._handleMouseEnter}
                 onMouseLeave={this._handleMouseLeave}
-                onMouseMove={this._handleMouseMove}
                 onClick={this._handleNodeClick}
                 onContextMenu={this._handleContextMenu}
             >
@@ -200,8 +181,8 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                     </>
                 )}
 
-                {nodeUrl && tooltipPosition && (
-                    <div style={this._getUrlTooltipStyle(tooltipPosition)}>
+                {nodeUrl && isHovered && (
+                    <div style={this._getUrlTooltipStyle()}>
                         Click to visit
                     </div>
                 )}
@@ -416,11 +397,11 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
         return undefined;
     }
 
-    private _getUrlTooltipStyle(position: { x: number; y: number }): CSSProperties {
+    private _getUrlTooltipStyle(): CSSProperties {
         return {
             position: 'absolute',
-            left: position.x,
-            top: position.y - 2,
+            left: '50%',
+            top: '-8px',
             transform: 'translate(-50%, -100%)',
             backgroundColor: 'rgba(0, 0, 0, 0.8)',
             color: '#ffffff',
@@ -430,7 +411,8 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             fontFamily: 'Helvetica, Arial, sans-serif',
             pointerEvents: 'none',
             zIndex: 1000,
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            willChange: 'auto'
         };
     }
 }
