@@ -40,7 +40,12 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
     private readonly _LABEL_NODE_GAP: number = 14;
     private readonly _LABEL_WIDTH_FACTOR: number = 0.62;
     private readonly _LABEL_HEIGHT_FACTOR: number = 1.25;
+    private readonly _AREA_TRANSITION_DURATION_MILLISECONDS: number = 220;
+    private readonly _AREA_TRANSITION_MAX_DELAY_MILLISECONDS: number = 180;
+    private readonly _AREA_TRANSITION_DELAY_DISTANCE_FACTOR: number = 0.12;
+
     private _unsubscribe: (() => void) | null = null;
+    private _stickyAlignedGridBounds: ContentBounds | null = null;
 
     public componentDidMount(): void {
         this._subscribeViewport();
@@ -55,6 +60,7 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
 
     public componentWillUnmount(): void {
         this._unsubscribeViewport();
+        this._stickyAlignedGridBounds = null;
     }
 
     public onViewportChanged(viewport: CanvasViewport): void {
@@ -87,22 +93,26 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
                 viewBox={`0 0 ${boundsWidth} ${boundsHeight}`}
                 preserveAspectRatio="none"
             >
-                {gridPlan.cells.map((gridCell: AreaTerritoryBackdropGridCell, cellIndex: number): ReactNode => {
+                {gridPlan.cells.map((gridCell: AreaTerritoryBackdropGridCell): ReactNode => {
                     const cellColor: string = this.props.resolveAreaColor(gridCell.areaKey);
                     const isNeutralArea: boolean = gridCell.areaKey === this.props.neutralAreaKey;
                     const fillOpacity: number = isNeutralArea ? this._NEUTRAL_FILL_OPACITY : this._AREA_FILL_OPACITY;
 
                     return (
                         <rect
-                            key={`area-cell-${cellIndex}`}
+                            key={gridCell.coordinateKey}
                             data-area-key={gridCell.areaKey}
+                            data-cell-coordinate={gridCell.coordinateKey}
                             x={gridCell.left}
                             y={gridCell.top}
                             width={gridCell.width}
                             height={gridCell.height}
                             fill={cellColor}
                             fillOpacity={fillOpacity}
-                            style={{ transition: 'fill 140ms linear, fill-opacity 140ms linear' }}
+                            style={{
+                                transition: `fill ${this._AREA_TRANSITION_DURATION_MILLISECONDS}ms ease-out, fill-opacity ${this._AREA_TRANSITION_DURATION_MILLISECONDS}ms ease-out`,
+                                transitionDelay: `${gridCell.transitionDelayMilliseconds}ms`
+                            }}
                         />
                     );
                 })}
@@ -141,31 +151,30 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
 
     private _buildGridPlan(): AreaTerritoryBackdropGridPlan {
         const expandedBounds: ContentBounds = this._resolveExpandedBounds(this.props.contentBounds);
+        const alignedGridBounds: ContentBounds = this._resolveAlignedGridBounds(expandedBounds);
         const areaGrouping: AreaTerritoryBackdropAreaGrouping = this._resolveAreaGroups();
         const areaGroups: AreaTerritoryBackdropAreaGroup[] = areaGrouping.areaGroups;
         const allNodePoints: AreaTerritoryBackdropAreaNodePoint[] = areaGrouping.allNodePoints;
         const nodeInfluenceRegions: AreaTerritoryBackdropNodeInfluenceRegion[] = areaGrouping.nodeInfluenceRegions;
-        const totalWidth: number = Math.max(1, expandedBounds.maximumX - expandedBounds.minimumX);
-        const totalHeight: number = Math.max(1, expandedBounds.maximumY - expandedBounds.minimumY);
-        const columnCount: number = Math.max(1, Math.ceil(totalWidth / this._GRID_CELL_SIZE));
-        const rowCount: number = Math.max(1, Math.ceil(totalHeight / this._GRID_CELL_SIZE));
         const cells: AreaTerritoryBackdropGridCell[] = [];
         const gridRows: AreaTerritoryBackdropGridCell[][] = [];
 
-        for (let rowIndex: number = 0; rowIndex < rowCount; rowIndex += 1) {
+        for (let cellWorldTop: number = alignedGridBounds.minimumY; cellWorldTop < alignedGridBounds.maximumY; cellWorldTop += this._GRID_CELL_SIZE) {
             const rowCells: AreaTerritoryBackdropGridCell[] = [];
+            const rowIndex: number = Math.round((cellWorldTop - alignedGridBounds.minimumY) / this._GRID_CELL_SIZE);
 
-            for (let columnIndex: number = 0; columnIndex < columnCount; columnIndex += 1) {
-                const left: number = columnIndex * this._GRID_CELL_SIZE;
-                const top: number = rowIndex * this._GRID_CELL_SIZE;
-                const width: number = Math.max(1, Math.min(this._GRID_CELL_SIZE, totalWidth - left));
-                const height: number = Math.max(1, Math.min(this._GRID_CELL_SIZE, totalHeight - top));
-                const cellWorldMinimumX: number = expandedBounds.minimumX + left;
-                const cellWorldMinimumY: number = expandedBounds.minimumY + top;
+            for (let cellWorldLeft: number = alignedGridBounds.minimumX; cellWorldLeft < alignedGridBounds.maximumX; cellWorldLeft += this._GRID_CELL_SIZE) {
+                const columnIndex: number = Math.round((cellWorldLeft - alignedGridBounds.minimumX) / this._GRID_CELL_SIZE);
+                const left: number = cellWorldLeft - alignedGridBounds.minimumX;
+                const top: number = cellWorldTop - alignedGridBounds.minimumY;
+                const width: number = Math.max(1, Math.min(this._GRID_CELL_SIZE, alignedGridBounds.maximumX - cellWorldLeft));
+                const height: number = Math.max(1, Math.min(this._GRID_CELL_SIZE, alignedGridBounds.maximumY - cellWorldTop));
+                const cellWorldMinimumX: number = cellWorldLeft;
+                const cellWorldMinimumY: number = cellWorldTop;
                 const cellWorldMaximumX: number = cellWorldMinimumX + width;
                 const cellWorldMaximumY: number = cellWorldMinimumY + height;
-                const centerX: number = expandedBounds.minimumX + left + (width / 2);
-                const centerY: number = expandedBounds.minimumY + top + (height / 2);
+                const centerX: number = cellWorldMinimumX + (width / 2);
+                const centerY: number = cellWorldMinimumY + (height / 2);
 
                 const areaKey: string = this._resolveCellAreaKey(
                     cellWorldMinimumX,
@@ -179,14 +188,23 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
                     nodeInfluenceRegions
                 );
 
+                const transitionDelayMilliseconds: number = this._resolveCellTransitionDelayMilliseconds(
+                    areaKey,
+                    centerX,
+                    centerY,
+                    areaGroups
+                );
+
                 const gridCell: AreaTerritoryBackdropGridCell = {
+                    coordinateKey: `${columnIndex}:${rowIndex}`,
                     areaKey,
                     left,
                     top,
                     width,
                     height,
                     centerX: left + (width / 2),
-                    centerY: top + (height / 2)
+                    centerY: top + (height / 2),
+                    transitionDelayMilliseconds
                 };
 
                 rowCells.push(gridCell);
@@ -199,8 +217,53 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
         return {
             cells,
             gridRows,
-            bounds: expandedBounds
+            bounds: alignedGridBounds
         };
+    }
+
+    private _resolveAlignedGridBounds(expandedBounds: ContentBounds): ContentBounds {
+        const idealAlignedGridBounds: ContentBounds = {
+            minimumX: Math.floor(expandedBounds.minimumX / this._GRID_CELL_SIZE) * this._GRID_CELL_SIZE,
+            minimumY: Math.floor(expandedBounds.minimumY / this._GRID_CELL_SIZE) * this._GRID_CELL_SIZE,
+            maximumX: Math.ceil(expandedBounds.maximumX / this._GRID_CELL_SIZE) * this._GRID_CELL_SIZE,
+            maximumY: Math.ceil(expandedBounds.maximumY / this._GRID_CELL_SIZE) * this._GRID_CELL_SIZE
+        };
+
+        if (!this._stickyAlignedGridBounds) {
+            this._stickyAlignedGridBounds = idealAlignedGridBounds;
+            return idealAlignedGridBounds;
+        }
+
+        let minimumX: number = this._stickyAlignedGridBounds.minimumX;
+        let minimumY: number = this._stickyAlignedGridBounds.minimumY;
+        let maximumX: number = this._stickyAlignedGridBounds.maximumX;
+        let maximumY: number = this._stickyAlignedGridBounds.maximumY;
+
+        if (idealAlignedGridBounds.minimumX < minimumX || idealAlignedGridBounds.minimumX > minimumX + this._GRID_CELL_SIZE) {
+            minimumX = idealAlignedGridBounds.minimumX;
+        }
+
+        if (idealAlignedGridBounds.minimumY < minimumY || idealAlignedGridBounds.minimumY > minimumY + this._GRID_CELL_SIZE) {
+            minimumY = idealAlignedGridBounds.minimumY;
+        }
+
+        if (idealAlignedGridBounds.maximumX > maximumX || idealAlignedGridBounds.maximumX < maximumX - this._GRID_CELL_SIZE) {
+            maximumX = idealAlignedGridBounds.maximumX;
+        }
+
+        if (idealAlignedGridBounds.maximumY > maximumY || idealAlignedGridBounds.maximumY < maximumY - this._GRID_CELL_SIZE) {
+            maximumY = idealAlignedGridBounds.maximumY;
+        }
+
+        const stickyAlignedGridBounds: ContentBounds = {
+            minimumX,
+            minimumY,
+            maximumX,
+            maximumY
+        };
+
+        this._stickyAlignedGridBounds = stickyAlignedGridBounds;
+        return stickyAlignedGridBounds;
     }
 
     private _resolveExpandedBounds(contentBounds: ContentBounds): ContentBounds {
@@ -525,6 +588,31 @@ class AreaTerritoryBackdrop extends Component<AreaTerritoryBackdropProps> implem
         }
 
         return nearestDistanceSquared;
+    }
+
+    private _resolveCellTransitionDelayMilliseconds(
+        areaKey: string,
+        centerX: number,
+        centerY: number,
+        areaGroups: AreaTerritoryBackdropAreaGroup[]
+    ): number {
+        if (areaKey === this.props.neutralAreaKey) {
+            return 0;
+        }
+
+        const areaGroup: AreaTerritoryBackdropAreaGroup | undefined = areaGroups.find((candidateAreaGroup: AreaTerritoryBackdropAreaGroup): boolean => {
+            return candidateAreaGroup.areaKey === areaKey;
+        });
+
+        if (!areaGroup || areaGroup.nodePoints.length === 0) {
+            return 0;
+        }
+
+        const nearestDistanceSquared: number = this._resolveNearestDistanceSquared(centerX, centerY, areaGroup.nodePoints);
+        const nearestDistance: number = Math.sqrt(nearestDistanceSquared);
+        const delayMilliseconds: number = nearestDistance * this._AREA_TRANSITION_DELAY_DISTANCE_FACTOR;
+
+        return Math.max(0, Math.min(this._AREA_TRANSITION_MAX_DELAY_MILLISECONDS, Math.round(delayMilliseconds)));
     }
 
     private _resolveDistanceSquared(

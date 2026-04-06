@@ -1,4 +1,5 @@
 export interface AreaTerritoryBackdropGridCell {
+    coordinateKey: string;
     areaKey: string;
     left: number;
     top: number;
@@ -6,4 +7,5 @@ export interface AreaTerritoryBackdropGridCell {
     height: number;
     centerX: number;
     centerY: number;
+    transitionDelayMilliseconds: number;
 }
