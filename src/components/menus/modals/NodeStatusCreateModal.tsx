@@ -205,9 +205,9 @@ class NodeStatusCreateModal extends Component<NodeStatusCreateModalProps, NodeSt
         const v1: number[] = currentVersion.split('.').map(Number);
         const v2: number[] = [1, 1, 0];
 
-        for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
-            const num1: number = v1[i] || 0;
-            const num2: number = v2[i] || 0;
+        for (let index: number = 0; index < Math.max(v1.length, v2.length); index++) {
+            const num1: number = v1[index] || 0;
+            const num2: number = v2[index] || 0;
 
             if (num1 > num2) return true;
 

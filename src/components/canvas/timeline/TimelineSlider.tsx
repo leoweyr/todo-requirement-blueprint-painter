@@ -200,11 +200,11 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
         const { updateTimes } = this.props;
         const ticks: ReactNode[] = [];
 
-        for (let i: number = 0; i < updateTimes.length; i++) {
-            ticks.push(this._renderMajorTick(i));
+        for (let index: number = 0; index < updateTimes.length; index++) {
+            ticks.push(this._renderMajorTick(index));
 
-            if (i < updateTimes.length - 1) {
-                ticks.push(this._renderMinorTick(i));
+            if (index < updateTimes.length - 1) {
+                ticks.push(this._renderMinorTick(index));
             }
         }
 
@@ -221,12 +221,12 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
 
         const labels: ReactNode[] = [];
 
-        for (let i: number = 0; i < updateTimes.length; i++) {
-            labels.push(this._renderMajorLabel(i));
+        for (let index: number = 0; index < updateTimes.length; index++) {
+            labels.push(this._renderMajorLabel(index));
 
             // Add spacer for minor tick to keep alignment.
-            if (i < updateTimes.length - 1) {
-                labels.push(<div key={`spacer-${i}`} style={{ width: `${this._TICK_SPACING}px`, flexShrink: 0 }} />);
+            if (index < updateTimes.length - 1) {
+                labels.push(<div key={`spacer-${index}`} style={{ width: `${this._TICK_SPACING}px`, flexShrink: 0 }} />);
             }
         }
 
