@@ -41,6 +41,7 @@ interface AppState {
 
 
 interface RenderedGraphState {
+    displayedNodes: PrerenderNode[];
     displayedEdges: PrerenderEdge[];
     repulsedNodes: PrerenderNode[];
     currentTime: string | undefined;
@@ -131,8 +132,7 @@ class App extends Component<{}, AppState> {
         }
 
         this._legendBounds = bounds;
-        const updateTimesLength: number = this._layoutResult?.updateTimes?.length ?? 0;
-        const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
+        const latestTimelinePosition: number = this._resolveLatestTimelinePosition();
         const isAtLatestSlice: boolean = Math.abs(this.state.timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
 
         const canStartRepulsionTimer: boolean = this._canStartRepulsionTimer(
@@ -153,13 +153,10 @@ class App extends Component<{}, AppState> {
             BlueprintPaster.unbind(window);
             this._timelineKeyboardController.unbind(window);
         } else if (this.state.isFileLoaded) {
-            BlueprintPaster.bind(
-                window,
-                this._registry,
-                this._layoutService,
-                this._viewport,
-                this._handleLayoutUpdate
-            );
+            if (!ReadOnlyView.instance.isReadOnly() && !this._isHistoricalSliceLocked()) {
+                this._bindBlueprintPaster();
+            }
+
             this._bindTimelineKeyboardController();
         }
     };
@@ -307,9 +304,10 @@ class App extends Component<{}, AppState> {
         const { isFileLoaded: wasFileLoaded }: AppState = prevState;
         const hasTimelineChanged: boolean = prevState.timelineRawPosition !== this.state.timelineRawPosition;
         const hasTransitionStateChanged: boolean = prevState.timelineIsTransition !== this.state.timelineIsTransition;
-        const updateTimesLength: number = this._layoutResult?.updateTimes?.length ?? 0;
-        const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
+        const latestTimelinePosition: number = this._resolveLatestTimelinePosition();
         const isAtLatestSlice: boolean = Math.abs(this.state.timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
+        const wasHistoricalSliceLocked: boolean = this._isHistoricalSliceLockedAtPosition(prevState.timelineRawPosition);
+        const isHistoricalSliceLocked: boolean = this._isHistoricalSliceLocked();
 
         const canStartRepulsionTimer: boolean = this._canStartRepulsionTimer(
             this.state.timelineIsTransition,
@@ -322,6 +320,16 @@ class App extends Component<{}, AppState> {
         if (hasTimelineChanged || hasTransitionStateChanged) {
             this._updateViewportForTimeline();
             this._scheduleRenderRepulsion(isAtLatestSlice, canStartRepulsionTimer, timelineTickIndex);
+
+            if (isHistoricalSliceLocked) {
+                if (this._menuManagerRef?.reanchoringEdge) {
+                    this._menuManagerRef.cancelReanchoring();
+                }
+
+                if (this._edgeDrawerRef) {
+                    this._edgeDrawerRef.handleCanvasClick();
+                }
+            }
         }
 
         // Timeline keyboard controller should work in both edit and read-only modes.
@@ -336,14 +344,12 @@ class App extends Component<{}, AppState> {
             return;
         }
 
-        if (isFileLoaded && !wasFileLoaded) {
-            BlueprintPaster.bind(
-                window,
-                this._registry,
-                this._layoutService,
-                this._viewport,
-                (result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)
-            );
+        if (isFileLoaded && (!wasFileLoaded || wasHistoricalSliceLocked !== isHistoricalSliceLocked)) {
+            if (isHistoricalSliceLocked || this._isModalOpen) {
+                BlueprintPaster.unbind(window);
+            } else {
+                this._bindBlueprintPaster();
+            }
         } else if (!isFileLoaded && wasFileLoaded) {
             BlueprintPaster.unbind(window);
         }
@@ -391,6 +397,10 @@ class App extends Component<{}, AppState> {
                         viewport={this._viewport}
                         prerenderNodes={layoutResult?.prerenderNodes || []}
                         onEdgeConnect={(sourceId: string, targetId: string): void => {
+                            if (this._isHistoricalSliceLocked()) {
+                                return;
+                            }
+
                             const reanchoringEdge: Edge | null | undefined = this._menuManagerRef?.reanchoringEdge;
 
                             if (reanchoringEdge) {
@@ -432,6 +442,11 @@ class App extends Component<{}, AppState> {
                             registry={this._registry}
                             layoutService={this._layoutService}
                             viewport={this._viewport}
+                            isHistoricalSliceLocked={this._isHistoricalSliceLocked()}
+                            isTimelineTransition={this.state.timelineIsTransition}
+                            timelineCurrentTime={renderedGraphState?.currentTime}
+                            timelineSliceNodes={renderedGraphState?.displayedNodes || []}
+                            timelineSliceEdges={renderedGraphState?.displayedEdges || []}
                             onLayoutRefresh={(): void => this._handleLayoutRefresh()}
                             onLayoutUpdate={(result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)}
                             onModalStateChange={(isOpen: boolean): void => this._handleModalStateChange(isOpen)}
@@ -491,6 +506,17 @@ class App extends Component<{}, AppState> {
         }
     }
 
+    private _bindBlueprintPaster(): void {
+        BlueprintPaster.unbind(window);
+        BlueprintPaster.bind(
+            window,
+            this._registry,
+            this._layoutService,
+            this._viewport,
+            (result: BlueprintPrerenderCombResult): void => this._handleLayoutUpdate(result)
+        );
+    }
+
     private _renderGraph(renderedGraphState: RenderedGraphState): ReactNode {
         const reanchoringEdge: Edge | null = this._menuManagerRef?.reanchoringEdge || null;
 
@@ -498,6 +524,7 @@ class App extends Component<{}, AppState> {
             displayedEdges: renderedGraphState.displayedEdges,
             repulsedNodes: renderedGraphState.repulsedNodes,
             reanchoringEdge,
+            isHistoricalSliceLocked: this._isHistoricalSliceLocked(),
             currentTime: renderedGraphState.currentTime,
             nextTime: renderedGraphState.nextTime,
             timelineIsTransition: renderedGraphState.timelineIsTransition,
@@ -530,8 +557,7 @@ class App extends Component<{}, AppState> {
             displayedEdges: PrerenderEdge[];
         } = TimelineGraphProjector.project(this._layoutResult, timelineRawPosition);
 
-        const updateTimesLength: number = updateTimes?.length ?? 0;
-        const latestTimelinePosition: number = updateTimesLength > 0 ? updateTimesLength - 1 : 0;
+        const latestTimelinePosition: number = this._resolveLatestTimelinePosition();
         const isAtLatestSlice: boolean = Math.abs(timelineRawPosition - latestTimelinePosition) < this._LATEST_SLICE_THRESHOLD;
         const isOnTimelineTick: boolean = this._isOnTimelineTick(timelineRawPosition);
         const timelineTickIndex: number = this._resolveTimelineTickIndex(timelineRawPosition);
@@ -561,6 +587,7 @@ class App extends Component<{}, AppState> {
         const contentBounds: ContentBounds = TimelineViewportBoundsResolver.resolve(this._layoutResult, timelineRawPosition);
 
         return {
+            displayedNodes,
             displayedEdges,
             repulsedNodes,
             currentTime,
@@ -652,6 +679,20 @@ class App extends Component<{}, AppState> {
 
     private _resolveTimelineTickIndex(timelineRawPosition: number): number {
         return Math.round(timelineRawPosition);
+    }
+
+    private _resolveLatestTimelinePosition(): number {
+        const updateTimesLength: number = this._layoutResult?.updateTimes?.length ?? 0;
+        return updateTimesLength > 0 ? updateTimesLength - 1 : 0;
+    }
+
+    private _isHistoricalSliceLocked(): boolean {
+        return this._isHistoricalSliceLockedAtPosition(this.state.timelineRawPosition);
+    }
+
+    private _isHistoricalSliceLockedAtPosition(timelineRawPosition: number): boolean {
+        const latestTimelinePosition: number = this._resolveLatestTimelinePosition();
+        return timelineRawPosition < (latestTimelinePosition - this._LATEST_SLICE_THRESHOLD);
     }
 
     private _scheduleRenderRepulsion(

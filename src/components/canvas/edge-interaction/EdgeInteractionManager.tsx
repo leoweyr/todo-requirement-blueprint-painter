@@ -77,6 +77,7 @@ export class EdgeInteractionManager {
     public static renderEdges(
         prerenderEdges: PrerenderEdge[],
         reanchoringEdge: Edge | null,
+        isHistoricalSliceLocked: boolean,
         currentTime: string | undefined,
         nextTime: string | undefined,
         timelineIsTransition: boolean,
@@ -87,12 +88,20 @@ export class EdgeInteractionManager {
         onLayoutUpdate: () => void
     ): ReactNode {
         const handleCut = (edge: Edge): void => {
+            if (isHistoricalSliceLocked) {
+                return;
+            }
+
             if (menuManager) {
                 menuManager.startEdgeCut(edge);
             }
         };
 
         const handleReanchor = (edge: Edge): void => {
+            if (isHistoricalSliceLocked) {
+                return;
+            }
+
             EdgeInteractionManager.initiateReanchor(
                 edge, 
                 registry, 
@@ -136,6 +145,14 @@ export class EdgeInteractionManager {
 
                     const sourceNode: PrerenderNode | undefined = edgeSourceMap.get(prerenderEdge.edge.id);
 
+                    const onCut: (() => void) | undefined = isHistoricalSliceLocked
+                        ? undefined
+                        : (): void => handleCut(prerenderEdge.edge);
+
+                    const onReanchor: (() => void) | undefined = isHistoricalSliceLocked
+                        ? undefined
+                        : (): void => handleReanchor(prerenderEdge.edge);
+
                     // Filter the history based on the timeline.
                     // If updateTimes is missing (empty graph), show everything (default behavior).
                     if (!currentTime) {
@@ -151,8 +168,9 @@ export class EdgeInteractionManager {
                                     sourceNode={sourceNode}
                                     targetNode={targetNode}
                                     historyIndex={prerenderEdge.edge.history.length - 1}
-                                    onCut={(): void => handleCut(prerenderEdge.edge)}
-                                    onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                    isEditable={!isHistoricalSliceLocked}
+                                    onCut={onCut}
+                                    onReanchor={onReanchor}
                                 />
                             );
                          }
@@ -189,8 +207,9 @@ export class EdgeInteractionManager {
                                         targetNode={targetNode}
                                         historyIndex={nextHistoryIndex}
                                         highlightColor={reasonColor}
-                                        onCut={(): void => handleCut(prerenderEdge.edge)}
-                                        onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                        isEditable={!isHistoricalSliceLocked}
+                                        onCut={onCut}
+                                        onReanchor={onReanchor}
                                     />
                                 );
                             }
@@ -214,8 +233,9 @@ export class EdgeInteractionManager {
                                     sourceNode={sourceNode}
                                     targetNode={targetNode}
                                     historyIndex={historyIndex}  // Override to show past state.
-                                    onCut={(): void => handleCut(prerenderEdge.edge)}
-                                    onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                    isEditable={!isHistoricalSliceLocked}
+                                    onCut={onCut}
+                                    onReanchor={onReanchor}
                                 />
                             );
                         }
@@ -249,11 +269,12 @@ export class EdgeInteractionManager {
                                         sourceNode={sourceNode}
                                         targetNode={targetNode}
                                         historyIndex={currentHistoryIndex}
-                                        onCut={(): void => handleCut(prerenderEdge.edge)}
-                                        onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                        isEditable={!isHistoricalSliceLocked}
+                                        onCut={onCut}
+                                        onReanchor={onReanchor}
                                     />
                                 );
-                             }
+                              }
                              return null;
                         }
                         
@@ -279,8 +300,9 @@ export class EdgeInteractionManager {
                                     targetNode={targetNode}
                                     historyIndex={nextHistoryIndex}
                                     highlightColor={reasonColor}
-                                    onCut={(): void => handleCut(prerenderEdge.edge)}
-                                    onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                    isEditable={!isHistoricalSliceLocked}
+                                    onCut={onCut}
+                                    onReanchor={onReanchor}
                                 />
                             );
                         } else {
@@ -301,8 +323,9 @@ export class EdgeInteractionManager {
                                             targetNode={oldTargetNode}
                                             historyIndex={currentHistoryIndex}
                                             highlightColor="#FF3B30"  // Red for Old/Cut.
-                                            onCut={(): void => handleCut(prerenderEdge.edge)}
-                                            onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                            isEditable={!isHistoricalSliceLocked}
+                                            onCut={onCut}
+                                            onReanchor={onReanchor}
                                         />
                                     )}
 
@@ -315,8 +338,9 @@ export class EdgeInteractionManager {
                                             targetNode={newTargetNode}
                                             historyIndex={nextHistoryIndex}
                                             highlightColor={reasonColor}
-                                            onCut={(): void => handleCut(prerenderEdge.edge)}
-                                            onReanchor={(): void => handleReanchor(prerenderEdge.edge)}
+                                            isEditable={!isHistoricalSliceLocked}
+                                            onCut={onCut}
+                                            onReanchor={onReanchor}
                                         />
                                     )}
                                 </>

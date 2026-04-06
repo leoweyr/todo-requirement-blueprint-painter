@@ -23,6 +23,7 @@ export interface EdgeLineProps {
     historyIndex?: number;  // Optional index to force rendering a specific history version.
     overrideColor?: string;  // Optional color override (e.g., for diff view).
     highlightColor?: string;  // Optional highlight color (e.g. for transition diffs).
+    isEditable?: boolean;
     onCut?: () => void;
     onReanchor?: () => void;
 }
@@ -71,6 +72,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
             historyIndex,
             overrideColor,
             highlightColor,
+            isEditable = true,
             onCut,
             onReanchor
         } = this.props;
@@ -228,7 +230,7 @@ class EdgeLine extends Component<EdgeLineProps, EdgeLineState> {
 
                             {/* Interactive controls only show on actual Hover, not just static highlight */}
                             {/* Disable interactive controls in read-only mode. */}
-                            {isHovered && !ReadOnlyView.instance.isReadOnly() && (
+                            {isHovered && isEditable && !ReadOnlyView.instance.isReadOnly() && (
                                 <>
                                     {/* Red Minus at Start (Downstream Left). */}
                             <g 

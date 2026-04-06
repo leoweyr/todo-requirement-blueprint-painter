@@ -12,6 +12,7 @@ export interface GraphLayerRendererOptions {
     displayedEdges: PrerenderEdge[];
     repulsedNodes: PrerenderNode[];
     reanchoringEdge: Edge | null;
+    isHistoricalSliceLocked: boolean;
     currentTime: string | undefined;
     nextTime: string | undefined;
     timelineIsTransition: boolean;

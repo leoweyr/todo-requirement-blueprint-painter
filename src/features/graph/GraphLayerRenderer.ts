@@ -16,6 +16,7 @@ export class GraphLayerRenderer {
         const renderedEdges: ReactNode = EdgeInteractionManager.renderEdges(
             options.displayedEdges,
             options.reanchoringEdge,
+            options.isHistoricalSliceLocked,
             options.currentTime,
             options.nextTime,
             options.timelineIsTransition,
@@ -35,7 +36,7 @@ export class GraphLayerRenderer {
             backgroundColor: prerenderNode.backgroundColor,
             borderColor: prerenderNode.borderColor,
             versionTransition: prerenderNode.versionTransition,
-            onStartEdge: (nodeId: string): void => {
+            onStartEdge: options.isHistoricalSliceLocked ? undefined : (nodeId: string): void => {
                 if (!options.edgeDrawerRef) {
                     return;
                 }
@@ -45,7 +46,7 @@ export class GraphLayerRenderer {
                     strokeDasharray: '5,5'
                 });
             },
-            onCompleteEdge: (nodeId: string): boolean => {
+            onCompleteEdge: options.isHistoricalSliceLocked ? undefined : (nodeId: string): boolean => {
                 if (options.edgeDrawerRef) {
                     return options.edgeDrawerRef.handleCompleteEdge(nodeId);
                 }

@@ -119,6 +119,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             this._normalizeVersionTransition(versionTransition) || recentVersionTransition || undefined;
 
         const shouldShowVersionTooltip: boolean = isHovered || Boolean(activeVersionTransition);
+        const canStartEdgeEditing: boolean = !isReadOnly && this.props.onStartEdge !== undefined;
 
         const metadataEntries: [string, unknown][] = node.metadata ? Object.entries(node.metadata) : [];
         const nodeUrl: string | undefined = this._getNodeUrl();
@@ -150,7 +151,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                     <>
                         {/* Edge Creation Button (Left Center). */}
                         {/* Disable in read-only mode. */}
-                        {!isReadOnly && (
+                        {canStartEdgeEditing && (
                             <div 
                                 style={this._getEdgeButtonStyle()}
                                 onClick={this._handleStartEdgeClick}
