@@ -1,3 +1,4 @@
+import { GitHubCommitCache } from './GitHubCommitCache';
 import { type GitHubCommit } from './GitHubCommit';
 import { type GitHubFileContent } from './GitHubFileContent';
 import { type GitHubRepository } from './GitHubRepository';
@@ -228,6 +229,21 @@ export class GitHubClient {
     }
 
     public async getFileContentAtCommit(owner: string, repository: string, path: string, sha: string): Promise<string | null> {
-        return await this._fetchFileContentAtCommitUncached(owner, repository, path, sha);
+        const cache: GitHubCommitCache = GitHubCommitCache.instance;
+
+        // Check IndexedDB cache first (Git commits are immutable, so cached content is always valid).
+        const cachedContent: string | null | undefined = await cache.get(owner, repository, path, sha);
+
+        if (cachedContent !== undefined) {
+            return cachedContent;
+        }
+
+        // Cache miss - fetch from GitHub API.
+        const content: string | null = await this._fetchFileContentAtCommitUncached(owner, repository, path, sha);
+
+        // Store in cache (including null for 404 responses to avoid repeated requests).
+        await cache.set(owner, repository, path, sha, content);
+
+        return content;
     }
 }
