@@ -1,3 +1,4 @@
+import { GitHubCommitCache } from './GitHubCommitCache';
 import { type GitHubCommit } from './GitHubCommit';
 import { type GitHubFileContent } from './GitHubFileContent';
 import { type GitHubRepository } from './GitHubRepository';
@@ -23,6 +24,51 @@ export class GitHubClient {
         if (environmentToken) {
             this._token = environmentToken;
         }
+    }
+
+    private _decodeGitHubBase64Content(content: string): string {
+        try {
+            // Decode base64 content with UTF-8 support.
+            return decodeURIComponent(escape(window.atob(content.replace(/\n/g, ''))));
+        } catch {
+            // Fallback to raw atob decoding.
+            return window.atob(content.replace(/\n/g, ''));
+        }
+    }
+
+    private async _fetchFileContentAtCommitUncached(
+        owner: string,
+        repository: string,
+        path: string,
+        sha: string
+    ): Promise<string | null> {
+        const url: string = `https://api.github.com/repos/${owner}/${repository}/contents/${path}?ref=${sha}`;
+
+        const headers: Record<string, string> = {
+            'Accept': 'application/vnd.github.v3+json'
+        };
+
+        if (this._token) {
+            headers['Authorization'] = `token ${this._token}`;
+        }
+
+        const response: Response = await fetch(url, { headers });
+
+        if (response.status === 404) {
+            return null;
+        }
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch file at commit: ${response.status} ${response.statusText}`);
+        }
+
+        const data: GitHubFileContent = await response.json();
+
+        if (data.encoding === 'base64' && data.content) {
+            return this._decodeGitHubBase64Content(data.content);
+        }
+
+        throw new Error('File content not found or encoding not supported.');
     }
 
     public get token(): string {
@@ -79,13 +125,7 @@ export class GitHubClient {
         const data: GitHubFileContent = await response.json();
         
         if (data.encoding === 'base64' && data.content) {
-            try {
-                // Decode base64 content with UTF-8 support.
-                return decodeURIComponent(escape(window.atob(data.content.replace(/\n/g, ''))));
-            } catch {
-                // Fallback to raw atob decoding.
-                return window.atob(data.content.replace(/\n/g, ''));
-            }
+            return this._decodeGitHubBase64Content(data.content);
         }
 
         throw new Error('File content not found or encoding not supported.');
@@ -141,65 +181,69 @@ export class GitHubClient {
         }
     }
 
-    public async getCommits(owner: string, repository: string, path?: string, perPage: number = 100): Promise<GitHubCommit[]> {
-        let url: string = `https://api.github.com/repos/${owner}/${repository}/commits?per_page=${perPage}`;
+    public async getCommits(owner: string, repository: string, path?: string, maxCommits: number = 100): Promise<GitHubCommit[]> {
+        const normalizedMaxCommits: number = Math.max(1, maxCommits);
+        const commits: GitHubCommit[] = [];
+        let page: number = 1;
+        const maximumPageSize: number = 100;
 
-        if (path) {
-            url += `&path=${encodeURIComponent(path)}`;
+        while (commits.length < normalizedMaxCommits) {
+            const remainingCount: number = normalizedMaxCommits - commits.length;
+            const currentPageSize: number = Math.min(maximumPageSize, remainingCount);
+            let url: string = `https://api.github.com/repos/${owner}/${repository}/commits?per_page=${currentPageSize}&page=${page}`;
+
+            if (path) {
+                url += `&path=${encodeURIComponent(path)}`;
+            }
+
+            const headers: Record<string, string> = {
+                'Accept': 'application/vnd.github.v3+json'
+            };
+
+            if (this._token) {
+                headers['Authorization'] = `token ${this._token}`;
+            }
+
+            const response: Response = await fetch(url, { headers });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch commits: ${response.status} ${response.statusText}`);
+            }
+
+            const pageCommits: GitHubCommit[] = await response.json();
+
+            if (pageCommits.length === 0) {
+                break;
+            }
+
+            commits.push(...pageCommits);
+
+            if (pageCommits.length < currentPageSize) {
+                break;
+            }
+
+            page++;
         }
 
-        const headers: Record<string, string> = {
-            'Accept': 'application/vnd.github.v3+json'
-        };
-
-        if (this._token) {
-            headers['Authorization'] = `token ${this._token}`;
-        }
-
-        const response: Response = await fetch(url, { headers });
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch commits: ${response.status} ${response.statusText}`);
-        }
-
-        const commits: GitHubCommit[] = await response.json();
-
-        return commits;
+        return commits.slice(0, normalizedMaxCommits);
     }
 
     public async getFileContentAtCommit(owner: string, repository: string, path: string, sha: string): Promise<string | null> {
-        const url: string = `https://api.github.com/repos/${owner}/${repository}/contents/${path}?ref=${sha}`;
+        const cache: GitHubCommitCache = GitHubCommitCache.instance;
 
-        const headers: Record<string, string> = {
-            'Accept': 'application/vnd.github.v3+json'
-        };
+        // Check IndexedDB cache first (Git commits are immutable, so cached content is always valid).
+        const cachedContent: string | null | undefined = await cache.get(owner, repository, path, sha);
 
-        if (this._token) {
-            headers['Authorization'] = `token ${this._token}`;
+        if (cachedContent !== undefined) {
+            return cachedContent;
         }
 
-        const response: Response = await fetch(url, { headers });
+        // Cache miss - fetch from GitHub API.
+        const content: string | null = await this._fetchFileContentAtCommitUncached(owner, repository, path, sha);
 
-        if (response.status === 404) {
-            return null;
-        }
+        // Store in cache (including null for 404 responses to avoid repeated requests).
+        await cache.set(owner, repository, path, sha, content);
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch file at commit: ${response.status} ${response.statusText}`);
-        }
-
-        const data: GitHubFileContent = await response.json();
-
-        if (data.encoding === 'base64' && data.content) {
-            try {
-                // Decode base64 content with UTF-8 support.
-                return decodeURIComponent(escape(window.atob(data.content.replace(/\n/g, ''))));
-            } catch {
-                // Fallback to raw atob decoding.
-                return window.atob(data.content.replace(/\n/g, ''));
-            }
-        }
-
-        throw new Error('File content not found or encoding not supported.');
+        return content;
     }
 }
