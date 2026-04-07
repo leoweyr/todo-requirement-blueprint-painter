@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.3.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.2.0...v2.3.0) (2026-04-07)
+### Features
+
+* **serializer:** preserve source order for statuses, reasons, and nodes across round trips ([24291f5](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/24291f5a4b0153b1f8a1afc514617cb6ce503983)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Performance
+
+* **layout:** route cross-layer edges through vertical channel gaps ([c4f2c79](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/c4f2c79a1822e531422590346974097286358dc8)) [@leoweyr](https://github.com/leoweyr)
+* **github:** batch commit snapshot loading ([c0fc501](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/c0fc501836b77652b2c838c35559c33476072015)) [@leoweyr](https://github.com/leoweyr)
+* **github:** add IndexedDB persistent cache for commit file contents ([533b1d9](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/533b1d9b4fadd132972509fc221faed172e34120)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [2.2.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.1.0...v2.2.0) (2026-04-06)
 ### Bug Fixes
 
