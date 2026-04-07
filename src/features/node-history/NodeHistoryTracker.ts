@@ -13,6 +13,7 @@ import { type RawSerializedNode } from './RawSerializedNode';
 export class NodeHistoryTracker {
     private _snapshots: NodeHistorySnapshot[] = [];
     private _nodeTimelines: Map<string, NodeTimeline> = new Map<string, NodeTimeline>();
+    private readonly _MAX_CONCURRENT_COMMIT_FETCHES: number = 6;
 
     private _extractNodesFromYaml(yamlContent: string): Map<string, NodeHistoryVersion> {
         const nodeMap: Map<string, NodeHistoryVersion> = new Map<string, NodeHistoryVersion>();
@@ -204,6 +205,71 @@ export class NodeHistoryTracker {
         return await client.getFileContentAtCommit(owner, repository, blueprintPath, sha);
     }
 
+    private _deduplicateCommitsBySha(commits: GitHubCommit[]): GitHubCommit[] {
+        const uniqueCommitsBySha: Map<string, GitHubCommit> = new Map<string, GitHubCommit>();
+
+        commits.forEach((commit: GitHubCommit): void => {
+            if (!uniqueCommitsBySha.has(commit.sha)) {
+                uniqueCommitsBySha.set(commit.sha, commit);
+            }
+        });
+
+        return Array.from(uniqueCommitsBySha.values());
+    }
+
+    private async _fetchSnapshotsForCommits(
+        client: GitHubClient,
+        owner: string,
+        repository: string,
+        sortedCommits: GitHubCommit[]
+    ): Promise<NodeHistorySnapshot[]> {
+        const snapshots: NodeHistorySnapshot[] = [];
+        let nextCommitIndex: number = 0;
+        const workerCount: number = Math.min(this._MAX_CONCURRENT_COMMIT_FETCHES, sortedCommits.length);
+        const workers: Array<Promise<void>> = [];
+
+        const fetchWorker: () => Promise<void> = async (): Promise<void> => {
+            while (true) {
+                const commitIndex: number = nextCommitIndex;
+                nextCommitIndex += 1;
+
+                if (commitIndex >= sortedCommits.length) {
+                    return;
+                }
+
+                const commit: GitHubCommit = sortedCommits[commitIndex];
+
+                const content: string | null = await this._fetchBlueprintAtCommitViaManifest(
+                    client,
+                    owner,
+                    repository,
+                    commit.sha
+                );
+
+                if (content === null) {
+                    continue;
+                }
+
+                const nodes: Map<string, NodeHistoryVersion> = this._extractNodesFromYaml(content);
+
+                const snapshot: NodeHistorySnapshot = {
+                    commitSha: commit.sha,
+                    commitDate: commit.commit.committer.date,
+                    nodes
+                };
+
+                snapshots.push(snapshot);
+            }
+        };
+
+        for (let workerIndex: number = 0; workerIndex < workerCount; workerIndex++) {
+            workers.push(fetchWorker());
+        }
+
+        await Promise.all(workers);
+        return snapshots;
+    }
+
     public async loadFromGitHub(
         owner: string,
         repository: string,
@@ -215,34 +281,23 @@ export class NodeHistoryTracker {
 
         // Fetch all commits for the repository (not filtered by path).
         const commits: GitHubCommit[] = await client.getCommits(owner, repository, undefined, maxCommits);
+        const uniqueCommits: GitHubCommit[] = this._deduplicateCommitsBySha(commits);
 
         // Sort by commit date (oldest first).
-        const sortedCommits: GitHubCommit[] = [...commits].sort(
+        const sortedCommits: GitHubCommit[] = [...uniqueCommits].sort(
             (commitA: GitHubCommit, commitB: GitHubCommit): number =>
                 new Date(commitA.commit.committer.date).getTime() - new Date(commitB.commit.committer.date).getTime()
         );
 
-        // Fetch blueprint content at each commit by reading manifest first.
-        for (const commit of sortedCommits) {
-            const content: string | null = await this._fetchBlueprintAtCommitViaManifest(
-                client,
-                owner,
-                repository,
-                commit.sha
-            );
+        // Fetch blueprint snapshots with bounded concurrency.
+        const snapshots: NodeHistorySnapshot[] = await this._fetchSnapshotsForCommits(
+            client,
+            owner,
+            repository,
+            sortedCommits
+        );
 
-            if (content !== null) {
-                const nodes: Map<string, NodeHistoryVersion> = this._extractNodesFromYaml(content);
-
-                const snapshot: NodeHistorySnapshot = {
-                    commitSha: commit.sha,
-                    commitDate: commit.commit.committer.date,
-                    nodes
-                };
-
-                this._snapshots.push(snapshot);
-            }
-        }
+        this._snapshots = snapshots;
 
         // Build timelines from snapshots.
         this._buildNodeTimelines();
