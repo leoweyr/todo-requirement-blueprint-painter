@@ -1,4 +1,4 @@
-import { Component, type CSSProperties, type ReactNode, type WheelEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { Component, type CSSProperties, type ReactNode, type WheelEvent, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent } from 'react';
 
 import type { TimelineSnapToNearestTickOptions } from './TimelineSnapToNearestTickOptions';
 
@@ -65,6 +65,24 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
         });
     };
 
+    private _handleTouchStart: (event: ReactTouchEvent<HTMLDivElement>) => void = (event: ReactTouchEvent<HTMLDivElement>): void => {
+        if (event.touches.length !== 1) return;  // Only handle single touch.
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const touch: React.Touch = event.touches[0];
+        const containerLeft: number = this._resolveContainerLeft();
+        const cursorLeft: number = this._resolveCursorLeft(this.state.currentPosition, this.state.viewOffset);
+        const cursorScreenX: number = containerLeft + cursorLeft;
+        this._dragMouseToCursorOffsetPixels = touch.clientX - cursorScreenX;
+
+        this.setState({
+            isDragging: true,
+            startX: touch.clientX
+        });
+    };
+
     private _handleGlobalMouseUp: () => void = (): void => {
         if (this.state.isDragging) {
              const { currentPosition } = this.state;
@@ -74,6 +92,18 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
              this._dragMouseToCursorOffsetPixels = 0;
               
              this.setState({ isDragging: false });
+        }
+    };
+
+    private _handleGlobalTouchEnd: () => void = (): void => {
+        if (this.state.isDragging) {
+            const { currentPosition } = this.state;
+            const snapped: number = Math.round(currentPosition * 2) / 2;
+
+            this._updatePosition(snapped - currentPosition);
+            this._dragMouseToCursorOffsetPixels = 0;
+
+            this.setState({ isDragging: false });
         }
     };
 
@@ -92,6 +122,25 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
 
         const containerLeft: number = this._resolveContainerLeft();
         const desiredCursorScreenX: number = event.clientX - this._dragMouseToCursorOffsetPixels;
+        const desiredCursorLeft: number = desiredCursorScreenX - containerLeft;
+        const pxPerUnit: number = 2 * this._TICK_SPACING;
+        const tickOffset: number = this._TICK_SPACING / 2;
+        const desiredPosition: number = (desiredCursorLeft + this.state.viewOffset - tickOffset) / pxPerUnit;
+        const deltaPosition: number = desiredPosition - this.state.currentPosition;
+
+        this._updatePosition(deltaPosition, true);  // True indicates dragging.
+    };
+
+    private _handleGlobalTouchMove: (event: globalThis.TouchEvent) => void = (event: globalThis.TouchEvent): void => {
+        if (!this.state.isDragging) return;
+
+        if (event.touches.length !== 1) return;
+
+        event.preventDefault();
+
+        const touch: globalThis.Touch = event.touches[0];
+        const containerLeft: number = this._resolveContainerLeft();
+        const desiredCursorScreenX: number = touch.clientX - this._dragMouseToCursorOffsetPixels;
         const desiredCursorLeft: number = desiredCursorScreenX - containerLeft;
         const pxPerUnit: number = 2 * this._TICK_SPACING;
         const tickOffset: number = this._TICK_SPACING / 2;
@@ -144,6 +193,7 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
                 style={this._getContainerStyle()}
                 onWheel={this._handleWheel}
                 onMouseDown={this._handleMouseDown}
+                onTouchStart={this._handleTouchStart}
             >
                 <div style={this._getVisualBgStyle()} />
 
@@ -166,11 +216,17 @@ export class TimelineSlider extends Component<TimelineSliderProps, TimelineSlide
     public componentDidMount(): void {
         window.addEventListener('mousemove', this._handleGlobalMouseMove);
         window.addEventListener('mouseup', this._handleGlobalMouseUp);
+        window.addEventListener('touchmove', this._handleGlobalTouchMove, { passive: false });
+        window.addEventListener('touchend', this._handleGlobalTouchEnd);
+        window.addEventListener('touchcancel', this._handleGlobalTouchEnd);
     }
 
     public componentWillUnmount(): void {
         window.removeEventListener('mousemove', this._handleGlobalMouseMove);
         window.removeEventListener('mouseup', this._handleGlobalMouseUp);
+        window.removeEventListener('touchmove', this._handleGlobalTouchMove);
+        window.removeEventListener('touchend', this._handleGlobalTouchEnd);
+        window.removeEventListener('touchcancel', this._handleGlobalTouchEnd);
     }
 
     private _backOutEasing(t: number): number {

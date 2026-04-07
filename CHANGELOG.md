@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.3.1](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.3.0...v2.3.1) (2026-04-07)
+### Bug Fixes
+
+* **timeline:** add touch event support for mobile slider dragging ([562b776](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/562b776bb6bf0cfae2b6bcbe3e10ba08a90983cf)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [2.3.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.2.0...v2.3.0) (2026-04-07)
 ### Features
 
