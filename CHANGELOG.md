@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.3.2](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.3.1...v2.3.2) (2026-04-08)
+### Features
+
+* **index:** add specification and demo menu metadata ([df758b5](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/df758b50b942a2aca8bf0be1bb289c1a927e0998)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [2.3.1](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.3.0...v2.3.1) (2026-04-07)
 ### Bug Fixes
 
