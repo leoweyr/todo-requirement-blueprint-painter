@@ -137,9 +137,7 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
                 onClick={this._handleNodeClick}
                 onContextMenu={this._handleContextMenu}
             >
-                <span style={this._getTextStyle()}>
-                    {node.description}
-                </span>
+                {this._renderDescription(node, activeVersionTransition)}
 
                 {shouldShowVersionTooltip && (
                     <div style={this._getNodeVersionTooltipStyle()}>
@@ -255,7 +253,10 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             return undefined;
         }
 
-        if (versionTransition.startVersion === versionTransition.endVersion) {
+        const hasVersionChange: boolean = versionTransition.startVersion !== versionTransition.endVersion;
+        const hasDescriptionChange: boolean = Boolean(versionTransition.startDescription) && Boolean(versionTransition.endDescription);
+
+        if (!hasVersionChange && !hasDescriptionChange) {
             return undefined;
         }
 
@@ -385,6 +386,54 @@ class NodeRectangle extends Component<NodeRectangleProps, NodeRectangleState> {
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
             textAlign: 'center'
+        };
+    }
+
+    private _renderDescription(node: Node, versionTransition: VersionTransition | undefined): ReactNode {
+        if (versionTransition && versionTransition.startDescription && versionTransition.endDescription) {
+            const { startDescription, endDescription, progress }: VersionTransition = versionTransition;
+
+            return (
+                <div style={this._getTextContainerStyle()}>
+                    {/* Start Description (Fading Out). */}
+                    <div style={{
+                        gridArea: 'stack',
+                        opacity: 1 - progress,
+                        textAlign: 'center'
+                    }}>
+                        <span style={this._getTextStyle()}>
+                            {startDescription}
+                        </span>
+                    </div>
+
+                    {/* End Description (Fading In). */}
+                    <div style={{
+                        gridArea: 'stack',
+                        opacity: progress,
+                        textAlign: 'center'
+                    }}>
+                        <span style={this._getTextStyle()}>
+                            {endDescription}
+                        </span>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <span style={this._getTextStyle()}>
+                {node.description}
+            </span>
+        );
+    }
+
+    private _getTextContainerStyle(): CSSProperties {
+        return {
+            display: 'grid',
+            gridTemplateAreas: '"stack"',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%'
         };
     }
 
