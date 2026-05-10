@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.4.0](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.3.2...v2.4.0) (2026-05-10)
+### Features
+
+* **graph:** enhance node description transitions ([924946e](https://github.com/leoweyr/todo-requirement-blueprint-painter/commit/924946e957010d666307258bfc038c1b7129655a)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [2.3.2](https://github.com/leoweyr/todo-requirement-blueprint-painter/compare/v2.3.1...v2.3.2) (2026-04-08)
 ### Features
 
