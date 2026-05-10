@@ -50,16 +50,19 @@ export class TimelineGraphProjector {
     ): VersionTransition | undefined {
         const startVersion: string = startNode.node.version;
         const endVersion: string = endNode.node.version;
+        const startDescription: string = startNode.node.description;
+        const endDescription: string = endNode.node.description;
 
-        // Only show version transition if version actually changes.
-        if (startVersion === endVersion) {
+        if (startVersion === endVersion && startDescription === endDescription) {
             return undefined;
         }
 
         return {
             startVersion,
             endVersion,
-            progress
+            progress,
+            startDescription: startDescription !== endDescription ? startDescription : undefined,
+            endDescription: startDescription !== endDescription ? endDescription : undefined
         };
     }
 
